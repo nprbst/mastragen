@@ -99,7 +99,7 @@ describe('Sessions Routes', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: 'nonexistent',
+          projectId: 'AAAAAA', // valid hex format but doesn't exist
           artifactName: 'my-feature',
           environment: 'dev',
         }),
@@ -172,7 +172,9 @@ describe('Sessions Routes', () => {
       expect(res.status).toBe(400);
 
       const body = await res.json();
-      expect(body.error).toContain('artifactName');
+      expect(body.error).toBe('Validation failed');
+      expect(body.issues).toBeDefined();
+      expect(body.issues.length).toBeGreaterThan(0);
     });
   });
 

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
+import * as v from 'valibot';
 import type { Database, Session } from '../db/types.ts';
 import { ProjectsRepository, SessionsRepository } from '../repositories/index.ts';
 import {
@@ -11,30 +12,12 @@ import {
   SessionNotActiveError,
   SessionAlreadyActiveError,
 } from '../services/sandbox.ts';
-import type { ServiceUrls } from '../services/sandbox.ts';
-
-// Validation regex for artifact names (lowercase alphanumeric with hyphens)
-const ARTIFACT_NAME_REGEX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$/;
-
-interface CreateSessionRequest {
-  projectId: string;
-  artifactName: string;
-  environment: string;
-}
-
-interface SessionResponse {
-  id: string;
-  projectId: string;
-  artifactName: string;
-  environment: string;
-  state: 'active' | 'suspended';
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface SessionWithUrlsResponse extends SessionResponse {
-  urls: ServiceUrls;
-}
+import {
+  CreateSessionRequestSchema,
+  ListSessionsFilterSchema,
+  type SessionResponse,
+  type SessionWithUrlsResponse,
+} from '../schemas/index.ts';
 
 /**
  * Transforms a database session to API response format.
@@ -67,27 +50,22 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
 
   // POST /sessions - Create a new session
   app.post('/', async (c) => {
-    const body = await c.req.json<CreateSessionRequest>();
+    const rawBody = await c.req.json();
 
-    // Validate request body
-    if (!body.projectId || !body.artifactName || !body.environment) {
-      return c.json({ error: 'Missing required fields: projectId, artifactName, environment' }, 400);
-    }
-
-    // Validate artifact name format
-    if (!ARTIFACT_NAME_REGEX.test(body.artifactName)) {
+    // Validate request body with Valibot
+    const parseResult = v.safeParse(CreateSessionRequestSchema, rawBody);
+    if (!parseResult.success) {
+      const issues = parseResult.issues.map((i) => i.message);
       return c.json(
         {
-          error:
-            'Invalid artifactName: must be lowercase alphanumeric with hyphens, 1-50 characters',
+          error: 'Validation failed',
+          issues,
         },
         400
       );
     }
 
-    if (body.artifactName.length > 50) {
-      return c.json({ error: 'artifactName must be 50 characters or less' }, 400);
-    }
+    const body = parseResult.output;
 
     try {
       const result = await sandboxService.create({
@@ -175,12 +153,22 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
 
   // GET /sessions - List all sessions with optional filters
   app.get('/', async (c) => {
-    const state = c.req.query('state') as 'active' | 'suspended' | undefined;
-    const projectId = c.req.query('projectId');
+    const rawFilter = {
+      state: c.req.query('state'),
+      projectId: c.req.query('projectId'),
+    };
 
+    // Validate query parameters with Valibot
+    const parseResult = v.safeParse(ListSessionsFilterSchema, rawFilter);
+    if (!parseResult.success) {
+      const issues = parseResult.issues.map((i) => i.message);
+      return c.json({ error: 'Invalid query parameters', issues }, 400);
+    }
+
+    const filter = parseResult.output;
     const sessions = await sessionsRepo.findAll({
-      state: state,
-      projectId: projectId,
+      state: filter.state,
+      projectId: filter.projectId,
     });
 
     return c.json(sessions.map(toSessionResponse), 200);

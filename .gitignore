@@ -34,9 +34,9 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 
 # Database files
-data/*.db
-data/*.db-journal
-data/*.db-wal
+**/data/*.db
+**/data/*.db-journal
+**/data/*.db-wal
 
 # Docker
 .docker/
