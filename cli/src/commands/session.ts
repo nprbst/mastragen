@@ -162,13 +162,40 @@ export function sessionCommand(client: MgenClient): Command {
       }
     });
 
-  // session get <id>
+  // session get [id]
   session
-    .command('get <id>')
+    .command('get [id]')
     .description('Get session details')
     .option('--json', 'Output as JSON')
-    .action(async (id, options) => {
+    .action(async (idArg, options) => {
       try {
+        // Interactive mode if session ID is missing
+        let id = idArg as string | undefined;
+        if (!id && !options.json) {
+          const sessions = await client.listSessions({});
+
+          if (sessions.length === 0) {
+            console.error(error('No sessions found.'));
+            process.exit(1);
+          }
+
+          const selected = await select({
+            message: 'Select a session:',
+            options: sessions.map((s) => ({
+              value: s.id,
+              label: `${s.artifactName} (${s.state})`,
+              hint: s.projectId,
+            })),
+          });
+
+          id = handleCancel(selected);
+        }
+
+        if (!id) {
+          console.error(error('Session ID is required'));
+          process.exit(1);
+        }
+
         const sessionData = await client.getSession(id);
 
         if (options.json) {
@@ -179,7 +206,7 @@ export function sessionCommand(client: MgenClient): Command {
       } catch (err) {
         if (err instanceof ApiError) {
           if (err.status === 404) {
-            console.error(error(`Session not found: ${id}`));
+            console.error(error(`Session not found: ${idArg}`));
           } else {
             console.error(error(`API error: ${err.message}`));
           }
@@ -190,13 +217,40 @@ export function sessionCommand(client: MgenClient): Command {
       }
     });
 
-  // session suspend <id>
+  // session suspend [id]
   session
-    .command('suspend <id>')
+    .command('suspend [id]')
     .description('Suspend an active session')
     .option('--json', 'Output as JSON')
-    .action(async (id, options) => {
+    .action(async (idArg, options) => {
       try {
+        // Interactive mode if session ID is missing
+        let id = idArg as string | undefined;
+        if (!id && !options.json) {
+          const sessions = await client.listSessions({ state: 'active' });
+
+          if (sessions.length === 0) {
+            console.error(error('No active sessions found.'));
+            process.exit(1);
+          }
+
+          const selected = await select({
+            message: 'Select session to suspend:',
+            options: sessions.map((s) => ({
+              value: s.id,
+              label: s.artifactName,
+              hint: s.projectId,
+            })),
+          });
+
+          id = handleCancel(selected);
+        }
+
+        if (!id) {
+          console.error(error('Session ID is required'));
+          process.exit(1);
+        }
+
         const result = await client.suspendSession(id);
 
         if (options.json) {
@@ -207,7 +261,7 @@ export function sessionCommand(client: MgenClient): Command {
       } catch (err) {
         if (err instanceof ApiError) {
           if (err.status === 404) {
-            console.error(error(`Session not found: ${id}`));
+            console.error(error(`Session not found: ${idArg}`));
           } else if (err.status === 400) {
             console.error(error(`Cannot suspend: ${err.message}`));
           } else {
@@ -220,13 +274,40 @@ export function sessionCommand(client: MgenClient): Command {
       }
     });
 
-  // session resume <id>
+  // session resume [id]
   session
-    .command('resume <id>')
+    .command('resume [id]')
     .description('Resume a suspended session')
     .option('--json', 'Output as JSON')
-    .action(async (id, options) => {
+    .action(async (idArg, options) => {
       try {
+        // Interactive mode if session ID is missing
+        let id = idArg as string | undefined;
+        if (!id && !options.json) {
+          const sessions = await client.listSessions({ state: 'suspended' });
+
+          if (sessions.length === 0) {
+            console.error(error('No suspended sessions found.'));
+            process.exit(1);
+          }
+
+          const selected = await select({
+            message: 'Select session to resume:',
+            options: sessions.map((s) => ({
+              value: s.id,
+              label: s.artifactName,
+              hint: s.projectId,
+            })),
+          });
+
+          id = handleCancel(selected);
+        }
+
+        if (!id) {
+          console.error(error('Session ID is required'));
+          process.exit(1);
+        }
+
         const result = await client.resumeSession(id);
 
         if (options.json) {
@@ -237,7 +318,7 @@ export function sessionCommand(client: MgenClient): Command {
       } catch (err) {
         if (err instanceof ApiError) {
           if (err.status === 404) {
-            console.error(error(`Session not found: ${id}`));
+            console.error(error(`Session not found: ${idArg}`));
           } else if (err.status === 400) {
             console.error(error(`Cannot resume: ${err.message}`));
           } else {
