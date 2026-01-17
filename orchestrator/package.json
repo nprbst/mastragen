@@ -1,0 +1,38 @@
+{
+  "name": "mastragen-orchestrator",
+  "version": "0.1.0",
+  "module": "src/index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "test": "bun test",
+    "test:watch": "bun test --watch",
+    "test:integration": "bun test tests/integration",
+    "test:e2e": "bun test tests/e2e",
+    "lint": "biome lint src tests",
+    "lint:fix": "biome lint --write src tests",
+    "format": "biome format --write src tests",
+    "format:check": "biome format src tests",
+    "check": "biome check src tests",
+    "check:fix": "biome check --write src tests",
+    "typecheck": "tsc --noEmit",
+    "db:migrate": "bun run src/db/migrate.ts"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "kysely": "^0.27.0",
+    "kysely-bun-sqlite": "^0.4.0",
+    "dockerode": "^4.0.0",
+    "nanoid": "^5.0.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.0",
+    "@types/bun": "latest",
+    "@types/dockerode": "^3.3.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

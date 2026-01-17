@@ -1,0 +1,37 @@
+# Local development overrides
+# This file is automatically loaded by docker compose
+
+services:
+  orchestrator:
+    build:
+      context: ./orchestrator
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ./orchestrator/src:/app/src:ro
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=development
+
+  cui:
+    volumes:
+      - ./fixtures/test-project:/workspace
+    profiles:
+      - dev
+
+  mastra:
+    volumes:
+      - ./fixtures/test-project:/workspace
+    profiles:
+      - dev
+
+  astro:
+    volumes:
+      - ./fixtures/test-project:/workspace
+    profiles:
+      - dev
+
+  code-server:
+    volumes:
+      - ./fixtures/test-project:/workspace
+    profiles:
+      - dev

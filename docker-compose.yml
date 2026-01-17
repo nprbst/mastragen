@@ -1,0 +1,86 @@
+services:
+  orchestrator:
+    build:
+      context: ./orchestrator
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - DATABASE_PATH=/app/data/mastragen.db
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  cui:
+    build:
+      context: ./sandbox/cui
+    ports:
+      - "3001:3001"
+    volumes:
+      - workspace:/workspace
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+    depends_on:
+      - orchestrator
+    profiles:
+      - sandbox
+
+  mastra:
+    build:
+      context: ./sandbox/mastra
+    ports:
+      - "4111:4111"
+    volumes:
+      - workspace:/workspace
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    depends_on:
+      - orchestrator
+    profiles:
+      - sandbox
+
+  astro:
+    build:
+      context: ./sandbox/astro
+    ports:
+      - "4321:4321"
+    volumes:
+      - workspace:/workspace
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    depends_on:
+      - orchestrator
+    profiles:
+      - sandbox
+
+  code-server:
+    build:
+      context: ./sandbox/code-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - workspace:/workspace
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+    depends_on:
+      - orchestrator
+    profiles:
+      - sandbox
+
+volumes:
+  workspace:

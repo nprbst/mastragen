@@ -43,14 +43,14 @@ mastragen-001-core-platform-foundation/
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create project directory structure per plan.md layout
-- [ ] T002 Initialize Bun project with package.json in orchestrator/package.json
-- [ ] T003 [P] Configure TypeScript with strict mode in orchestrator/tsconfig.json
-- [ ] T004 [P] Install dependencies: hono, kysely, better-sqlite3, dockerode, nanoid in orchestrator/
-- [ ] T005 [P] Install dev dependencies: bun-types, @types/better-sqlite3, @types/dockerode in orchestrator/
-- [ ] T006 [P] Configure ESLint and Prettier in orchestrator/
-- [ ] T007 Create .env.example with GITHUB_TOKEN, ANTHROPIC_API_KEY, and AWS_* placeholders in project root
-- [ ] T008 Create .gitignore with node_modules, data/*.db, .env patterns
+- [x] T001 Create project directory structure per plan.md layout
+- [x] T002 Initialize Bun project with package.json in orchestrator/package.json
+- [x] T003 [P] Configure TypeScript with strict mode in orchestrator/tsconfig.json
+- [x] T004 [P] Install dependencies: hono, kysely, better-sqlite3, dockerode, nanoid in orchestrator/
+- [x] T005 [P] Install dev dependencies: bun-types, @types/better-sqlite3, @types/dockerode in orchestrator/
+- [x] T006 [P] Configure Biome (linter/formatter) in orchestrator/
+- [x] T007 Create .env.example with GITHUB_TOKEN, ANTHROPIC_API_KEY, and AWS_* placeholders in project root
+- [x] T008 Create .gitignore with node_modules, data/*.db, .env patterns
 
 ---
 
@@ -64,20 +64,20 @@ mastragen-001-core-platform-foundation/
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T009 [P] Write migration tests for initial schema in orchestrator/tests/db/migrations.test.ts
-- [ ] T010 [P] Write unit tests for projects repository in orchestrator/tests/repositories/projects.test.ts
-- [ ] T011 [P] Write unit tests for sessions repository in orchestrator/tests/repositories/sessions.test.ts
+- [x] T009 [P] Write migration tests for initial schema in orchestrator/tests/db/migrations.test.ts
+- [x] T010 [P] Write unit tests for projects repository in orchestrator/tests/repositories/projects.test.ts
+- [x] T011 [P] Write unit tests for sessions repository in orchestrator/tests/repositories/sessions.test.ts
 
 ### Implementation for Database Layer
 
-- [ ] T012 Define Database, ProjectsTable, ProjectEnvironmentsTable, SessionsTable types in orchestrator/src/db/types.ts
-- [ ] T013 [P] Create Kysely database connection factory in orchestrator/src/db/index.ts
-- [ ] T014 Create initial migration with projects, project_environments, sessions tables in orchestrator/src/db/migrations/001_initial.ts
-- [ ] T015 [P] Implement ProjectsRepository with CRUD operations in orchestrator/src/repositories/projects.ts
-- [ ] T016 [P] Implement SessionsRepository with CRUD and state transitions in orchestrator/src/repositories/sessions.ts
-- [ ] T017 Create repository barrel export in orchestrator/src/repositories/index.ts
-- [ ] T018 Create configuration module with env vars and defaults in orchestrator/src/config.ts
-- [ ] T019 Run tests to verify database layer (T009-T011 should now pass)
+- [x] T012 Define Database, ProjectsTable, ProjectEnvironmentsTable, SessionsTable types in orchestrator/src/db/types.ts
+- [x] T013 [P] Create Kysely database connection factory in orchestrator/src/db/index.ts
+- [x] T014 Create initial migration with projects, project_environments, sessions tables in orchestrator/src/db/migrations/001_initial.ts
+- [x] T015 [P] Implement ProjectsRepository with CRUD operations in orchestrator/src/repositories/projects.ts
+- [x] T016 [P] Implement SessionsRepository with CRUD and state transitions in orchestrator/src/repositories/sessions.ts
+- [x] T017 Create repository barrel export in orchestrator/src/repositories/index.ts
+- [x] T018 Create configuration module with env vars and defaults in orchestrator/src/config.ts
+- [x] T019 Run tests to verify database layer (T009-T011 should now pass)
 
 **Checkpoint**: Database layer complete - API implementation can begin
 
@@ -93,40 +93,40 @@ mastragen-001-core-platform-foundation/
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T020 [P] [US1] Write contract test for POST /sessions in orchestrator/tests/routes/sessions.test.ts
-- [ ] T021 [P] [US1] Write unit tests for SandboxService.create() in orchestrator/tests/services/sandbox.test.ts
-- [ ] T022 [P] [US1] Write health route tests in orchestrator/tests/routes/health.test.ts
+- [x] T020 [P] [US1] Write contract test for POST /sessions in orchestrator/tests/routes/sessions.test.ts
+- [x] T021 [P] [US1] Write unit tests for SandboxService.create() in orchestrator/tests/services/sandbox.test.ts
+- [x] T022 [P] [US1] Write health route tests in orchestrator/tests/routes/health.test.ts
 
 ### Implementation for User Story 1 - API Layer
 
-- [ ] T023 [US1] Create Hono app entry point in orchestrator/src/index.ts
-- [ ] T024 [P] [US1] Implement GET /health route in orchestrator/src/routes/health.ts
-- [ ] T025 [US1] Implement POST /sessions route in orchestrator/src/routes/sessions.ts
-- [ ] T026 [US1] Create routes barrel export in orchestrator/src/routes/index.ts
+- [x] T023 [US1] Create Hono app entry point in orchestrator/src/index.ts
+- [x] T024 [P] [US1] Implement GET /health route in orchestrator/src/routes/health.ts
+- [x] T025 [US1] Implement POST /sessions route in orchestrator/src/routes/sessions.ts
+- [x] T026 [US1] Create routes barrel export in orchestrator/src/routes/index.ts
 
 ### Implementation for User Story 1 - Sandbox Service
 
-- [ ] T027 [US1] Implement SandboxService with Docker container management (pass GITHUB_TOKEN to containers) in orchestrator/src/services/sandbox.ts
-- [ ] T028 [P] [US1] Implement HealthService for checking container health in orchestrator/src/services/health.ts
-- [ ] T029 [US1] Create services barrel export in orchestrator/src/services/index.ts
+- [x] T027 [US1] Implement SandboxService with Docker container management (pass GITHUB_TOKEN to containers) in orchestrator/src/services/sandbox.ts
+- [x] T028 [P] [US1] Implement HealthService for checking container health in orchestrator/src/services/health.ts
+- [x] T029 [US1] Create services barrel export in orchestrator/src/services/index.ts
 
 ### Implementation for User Story 1 - Container Images
 
-- [ ] T030 [P] [US1] Create cui Dockerfile with bun + cui-server in sandbox/cui/Dockerfile
-- [ ] T031 [P] [US1] Create cui entrypoint script (configure git credentials from GITHUB_TOKEN) in sandbox/cui/entrypoint.sh
-- [ ] T032 [P] [US1] Create mastra Dockerfile with bun in sandbox/mastra/Dockerfile
-- [ ] T033 [P] [US1] Create mastra entrypoint script in sandbox/mastra/entrypoint.sh
-- [ ] T034 [P] [US1] Create astro Dockerfile with node in sandbox/astro/Dockerfile
-- [ ] T035 [P] [US1] Create astro entrypoint script in sandbox/astro/entrypoint.sh
-- [ ] T036 [P] [US1] Create code-server Dockerfile in sandbox/code-server/Dockerfile
-- [ ] T037 [P] [US1] Create code-server lazy-start script in sandbox/code-server/lazy-start.sh
+- [x] T030 [P] [US1] Create cui Dockerfile with bun + cui-server in sandbox/cui/Dockerfile
+- [x] T031 [P] [US1] Create cui entrypoint script (configure git credentials from GITHUB_TOKEN) in sandbox/cui/entrypoint.sh
+- [x] T032 [P] [US1] Create mastra Dockerfile with bun in sandbox/mastra/Dockerfile
+- [x] T033 [P] [US1] Create mastra entrypoint script in sandbox/mastra/entrypoint.sh
+- [x] T034 [P] [US1] Create astro Dockerfile with node in sandbox/astro/Dockerfile
+- [x] T035 [P] [US1] Create astro entrypoint script in sandbox/astro/entrypoint.sh
+- [x] T036 [P] [US1] Create code-server Dockerfile in sandbox/code-server/Dockerfile
+- [x] T037 [P] [US1] Create code-server lazy-start script in sandbox/code-server/lazy-start.sh
 
 ### Implementation for User Story 1 - Docker Compose
 
-- [ ] T038 [US1] Create docker-compose.yml with orchestrator service
-- [ ] T039 [P] [US1] Create docker-compose.override.yml for local development
-- [ ] T040 [P] [US1] Create test project fixture in fixtures/test-project/
-- [ ] T041 [US1] Run tests to verify US1 (T020-T022 should now pass)
+- [x] T038 [US1] Create docker-compose.yml with orchestrator service
+- [x] T039 [P] [US1] Create docker-compose.override.yml for local development
+- [x] T040 [P] [US1] Create test project fixture in fixtures/test-project/
+- [x] T041 [US1] Run tests to verify US1 (T020-T022 should now pass)
 
 **Checkpoint**: User Story 1 complete - can create sessions and access sandbox services
 

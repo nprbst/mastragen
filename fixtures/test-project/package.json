@@ -1,0 +1,11 @@
+{
+  "name": "test-project",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'Test project dev server'",
+    "mastra": "echo 'Mastra dev server'",
+    "build": "echo 'Build complete'"
+  },
+  "dependencies": {}
+}
