@@ -1,3 +1,4 @@
+import Docker from 'dockerode';
 import type { ProjectsRepository } from '../repositories/projects.ts';
 import type { SessionsRepository } from '../repositories/sessions.ts';
 import type { Session, Project } from '../db/types.ts';
@@ -80,6 +81,7 @@ export class SandboxService {
   private projectsRepo: ProjectsRepository;
   private sessionsRepo: SessionsRepository;
   private dockerEnabled: boolean;
+  private docker: Docker;
 
   // Default ports for services
   private static readonly PORTS = {
@@ -89,6 +91,14 @@ export class SandboxService {
     vscode: 8080,
   };
 
+  // Container image names (built from sandbox/ Dockerfiles)
+  private static readonly IMAGES = {
+    cui: 'mastragen-001-core-platform-foundation-cui',
+    mastra: 'mastragen-001-core-platform-foundation-mastra',
+    astro: 'mastragen-001-core-platform-foundation-astro',
+    vscode: 'mastragen-001-core-platform-foundation-code-server',
+  };
+
   // Cache for session -> project mapping (for URL generation)
   private sessionProjectCache: Map<string, Project> = new Map();
 
@@ -96,6 +106,7 @@ export class SandboxService {
     this.projectsRepo = options.projectsRepo;
     this.sessionsRepo = options.sessionsRepo;
     this.dockerEnabled = options.dockerEnabled ?? true;
+    this.docker = new Docker();
   }
 
   /**
@@ -141,8 +152,18 @@ export class SandboxService {
     this.sessionProjectCache.set(session.id, project);
 
     // Start Docker containers if enabled
+    console.log(`[SandboxService] create() - dockerEnabled: ${this.dockerEnabled}`);
     if (this.dockerEnabled) {
-      await this.startContainers(session, project, env.env_vars);
+      console.log(`[SandboxService] create() - calling startContainers...`);
+      try {
+        await this.startContainers(session, project, env.env_vars);
+        console.log(`[SandboxService] create() - startContainers completed`);
+      } catch (err) {
+        console.error(`[SandboxService] create() - startContainers failed:`, err);
+        throw err;
+      }
+    } else {
+      console.log(`[SandboxService] create() - Docker disabled, skipping container creation`);
     }
 
     return {
@@ -246,23 +267,142 @@ export class SandboxService {
 
   /**
    * Starts Docker containers for a session.
-   * This is a placeholder - actual Docker integration will be added.
    */
   private async startContainers(
-    _session: Session,
-    _project: Project,
-    _envVars: string
+    session: Session,
+    project: Project,
+    envVars: string
   ): Promise<void> {
-    // Docker container management will be implemented here
-    // For now, this is a placeholder
+    console.log(`[SandboxService] startContainers called for session ${session.id}`);
+    console.log(`[SandboxService] dockerEnabled: ${this.dockerEnabled}`);
+
+    const volumeName = session.workspace_volume ?? this.generateWorkspaceVolumeName(session.project_id, session.artifact_name);
+    console.log(`[SandboxService] Using volume: ${volumeName}`);
+
+    // Ensure volume exists
+    try {
+      console.log(`[SandboxService] Creating volume...`);
+      await this.docker.createVolume({ Name: volumeName });
+      console.log(`[SandboxService] Volume created successfully`);
+    } catch (err: unknown) {
+      console.log(`[SandboxService] Volume creation error:`, err);
+      // Volume may already exist, which is fine
+      if (!(err instanceof Error) || !err.message.includes('already exists')) {
+        throw err;
+      }
+      console.log(`[SandboxService] Volume already exists, continuing...`);
+    }
+
+    // Parse environment variables from JSON string
+    let parsedEnvVars: Record<string, string> = {};
+    try {
+      parsedEnvVars = JSON.parse(envVars || '{}');
+    } catch {
+      // If parsing fails, use empty object
+    }
+
+    // Build environment array for containers
+    const baseEnv = [
+      `GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`,
+      `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY || ''}`,
+      ...Object.entries(parsedEnvVars).map(([k, v]) => `${k}=${v}`),
+    ];
+
+    // Container configurations
+    const containers = [
+      {
+        name: `${session.id}-cui`,
+        image: SandboxService.IMAGES.cui,
+        port: SandboxService.PORTS.cui,
+        env: baseEnv,
+      },
+      {
+        name: `${session.id}-mastra`,
+        image: SandboxService.IMAGES.mastra,
+        port: SandboxService.PORTS.mastra,
+        env: baseEnv,
+      },
+      {
+        name: `${session.id}-vscode`,
+        image: SandboxService.IMAGES.vscode,
+        port: SandboxService.PORTS.vscode,
+        env: baseEnv,
+      },
+    ];
+
+    // Add astro container if project has UI sandbox
+    if (project.ui_sandbox_path) {
+      containers.push({
+        name: `${session.id}-astro`,
+        image: SandboxService.IMAGES.astro,
+        port: SandboxService.PORTS.astro,
+        env: baseEnv,
+      });
+    }
+
+    // Start containers in parallel
+    console.log(`[SandboxService] Starting ${containers.length} containers...`);
+    const containerIds: string[] = [];
+    await Promise.all(
+      containers.map(async (config) => {
+        try {
+          console.log(`[SandboxService] Creating container: ${config.name} (image: ${config.image}, port: ${config.port})`);
+          const container = await this.docker.createContainer({
+            name: config.name,
+            Image: config.image,
+            Env: config.env,
+            HostConfig: {
+              Binds: [`${volumeName}:/workspace`],
+              PortBindings: {
+                [`${config.port}/tcp`]: [{ HostPort: String(config.port) }],
+              },
+            },
+            ExposedPorts: {
+              [`${config.port}/tcp`]: {},
+            },
+          });
+          console.log(`[SandboxService] Container created: ${container.id}, starting...`);
+          await container.start();
+          console.log(`[SandboxService] Container started: ${config.name}`);
+          containerIds.push(container.id);
+        } catch (err) {
+          console.error(`[SandboxService] Error creating/starting container ${config.name}:`, err);
+          throw err;
+        }
+      })
+    );
+
+    // Store container IDs in session (comma-separated)
+    console.log(`[SandboxService] All containers started, IDs: ${containerIds.join(', ')}`);
+    await this.sessionsRepo.update(session.id, {
+      container_id: containerIds.join(','),
+    });
+    console.log(`[SandboxService] Session updated with container IDs`);
   }
 
   /**
    * Stops Docker containers for a session.
-   * This is a placeholder - actual Docker integration will be added.
    */
-  private async stopContainers(_session: Session): Promise<void> {
-    // Docker container stop logic will be implemented here
-    // For now, this is a placeholder
+  private async stopContainers(session: Session): Promise<void> {
+    if (!session.container_id) {
+      return;
+    }
+
+    const containerIds = session.container_id.split(',');
+
+    await Promise.all(
+      containerIds.map(async (containerId) => {
+        try {
+          const container = this.docker.getContainer(containerId.trim());
+          await container.stop();
+          await container.remove();
+        } catch (err: unknown) {
+          // Container may already be stopped or removed
+          if (err instanceof Error && !err.message.includes('not running') && !err.message.includes('No such container')) {
+            throw err;
+          }
+        }
+      })
+    );
   }
 }

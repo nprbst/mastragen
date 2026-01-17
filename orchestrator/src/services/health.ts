@@ -1,3 +1,4 @@
+import Docker from 'dockerode';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.ts';
 
@@ -18,11 +19,13 @@ export class HealthService {
   private db: Kysely<Database>;
   private dockerEnabled: boolean;
   private version: string;
+  private docker: Docker;
 
   constructor(options: HealthServiceOptions) {
     this.db = options.db;
     this.dockerEnabled = options.dockerEnabled ?? true;
     this.version = process.env.npm_package_version ?? '0.1.0';
+    this.docker = new Docker();
   }
 
   /**
@@ -65,9 +68,8 @@ export class HealthService {
     }
 
     try {
-      // Docker check will be implemented when dockerode is integrated
-      // For now, return disconnected since we're not connecting yet
-      return 'disconnected';
+      await this.docker.ping();
+      return 'connected';
     } catch {
       return 'disconnected';
     }

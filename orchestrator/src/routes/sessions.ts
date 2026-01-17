@@ -45,7 +45,6 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
   const sandboxService = new SandboxService({
     projectsRepo,
     sessionsRepo,
-    dockerEnabled: false, // Disable Docker for now
   });
 
   // POST /sessions - Create a new session
