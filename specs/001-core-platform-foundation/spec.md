@@ -138,8 +138,9 @@ As a developer, I want to see a list of all my sessions so that I can manage and
 
 - **Project**: Represents a Mastra codebase configuration including repository reference, workspace structure paths (mastra path, UI sandbox path), and branch naming conventions
 - **ProjectEnvironment**: Environment-specific configuration for a project including non-secret variables and references to secrets
-- **ProjectMember**: Association between users and projects with role-based access (admin, member)
 - **Session**: Active or suspended development context tied to a project and user, tracking state, branch, and pod information. Session name must be unique per user+project (becomes the git branch name).
+
+> **Note**: ProjectMember (user-project association with roles) deferred to Phase 2 with GitHub OAuth authentication.
 
 ## Success Criteria *(mandatory)*
 

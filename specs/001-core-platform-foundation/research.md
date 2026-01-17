@@ -113,3 +113,22 @@
 - Mount Docker socket in orchestrator container
 - Create network + volume per session
 - Use container labels for session tracking
+
+### 9. GitHub Repository Access (Phase 1)
+
+**Decision**: Personal Access Token (PAT) via GITHUB_TOKEN environment variable
+
+**Rationale**:
+- Sandbox containers need to clone private repos into /workspace
+- PAT is simplest for local development
+- User provides their own token in .env
+- Avoids GitHub App complexity in Phase 1
+
+**Implementation**:
+- User sets `GITHUB_TOKEN` in `.env`
+- Orchestrator passes token to sandbox containers via environment
+- Container entrypoint configures git credentials: `git config credential.helper '!f() { echo "password=$GITHUB_TOKEN"; }; f'`
+
+**Phase 2 Migration**: Replace PAT with GitHub App installation tokens for multi-tenant production use.
+
+**Confirmation**: Nathan confirmed PAT approach for Phase 1 (2026-01-17).

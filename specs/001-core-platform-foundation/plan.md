@@ -34,6 +34,7 @@ Phase 1 establishes Mastragen's foundation: a single sandbox running locally wit
 | Auth | Skip for Phase 1 | Local dev only |
 | Local Git | Initialize in /workspace | Prepares for Phase 2 branch workflow |
 | Claude API | Support both | ANTHROPIC_API_KEY or AWS Bedrock via env vars |
+| GitHub Repo Access | Personal Access Token | GITHUB_TOKEN env var for cloning private repos |
 
 ## Implementation Order (TDD)
 

@@ -156,6 +156,9 @@ docker compose down
 Create a `.env` file for local development:
 
 ```bash
+# GitHub (required for private repos)
+GITHUB_TOKEN=ghp_...
+
 # Claude API (choose one)
 ANTHROPIC_API_KEY=sk-ant-...
 
