@@ -21,6 +21,26 @@ Phase 1 establishes the foundational infrastructure for Mastragen, enabling a si
 
 ## User Scenarios & Testing *(mandatory)*
 
+### User Story 0 - Create and Configure Project (Priority: P0)
+
+As a platform administrator, I want to register a project with its repository and workspace configuration so that developers can create sessions against it.
+
+**Why this priority**: This is the prerequisite for all other functionality. Without at least one project configured, no sessions can be created. This must work first.
+
+**Independent Test**: Can be fully tested by running `mgen project create` and verifying the project appears in `mgen project list`. Delivers value by enabling the platform to manage any Mastra codebase.
+
+**Acceptance Scenarios**:
+
+1. **Given** the orchestrator is running, **When** I create a project with a GitHub repository reference, **Then** the project is persisted and appears in the project list.
+
+2. **Given** a project exists, **When** I add an environment configuration (e.g., "dev" with specific env vars), **Then** that environment is available when creating sessions.
+
+3. **Given** a project exists, **When** I list projects, **Then** I see the project with its configuration details.
+
+4. **Given** no projects exist, **When** I try to create a session, **Then** I receive a clear error message indicating no projects are available.
+
+---
+
 ### User Story 1 - Create Development Session (Priority: P1)
 
 As a developer, I want to create a new development session so that I can start exploring AI development tasks in an isolated sandbox environment.
@@ -105,6 +125,13 @@ As a developer, I want to see a list of all my sessions so that I can manage and
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
+
+#### Project Management
+
+- **FR-000a**: System MUST allow administrators to create projects with repository reference, workspace paths, and branch naming conventions
+- **FR-000b**: System MUST allow administrators to add environment configurations to projects
+- **FR-000c**: System MUST allow users to list available projects
+- **FR-000d**: System MUST provide CLI commands for project management (`mgen project create`, `mgen project list`)
 
 #### Session Management
 

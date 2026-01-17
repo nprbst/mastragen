@@ -6,6 +6,7 @@ import { Command } from 'commander';
 import { MgenClient } from './client.ts';
 import { loadConfig } from './config.ts';
 import { healthCommand } from './commands/health.ts';
+import { projectCommand } from './commands/project.ts';
 import { sessionCommand } from './commands/session.ts';
 
 const config = loadConfig();
@@ -35,6 +36,7 @@ const defaultClient = new MgenClient(config.apiUrl);
 
 // Register commands
 program.addCommand(healthCommand(defaultClient));
+program.addCommand(projectCommand(defaultClient));
 program.addCommand(sessionCommand(defaultClient));
 
 // Parse and execute

@@ -55,7 +55,11 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
     // Validate request body with Valibot
     const parseResult = v.safeParse(CreateSessionRequestSchema, rawBody);
     if (!parseResult.success) {
-      const issues = parseResult.issues.map((i) => i.message);
+      const issues = parseResult.issues.map((i) => {
+        const path = i.path?.map((p) => p.key).join('.') || 'input';
+        return `${path}: ${i.message}`;
+      });
+      console.log('POST /sessions validation failed:', issues);
       return c.json(
         {
           error: 'Validation failed',
@@ -161,7 +165,11 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
     // Validate query parameters with Valibot
     const parseResult = v.safeParse(ListSessionsFilterSchema, rawFilter);
     if (!parseResult.success) {
-      const issues = parseResult.issues.map((i) => i.message);
+      const issues = parseResult.issues.map((i) => {
+        const path = i.path?.map((p) => p.key).join('.') || 'input';
+        return `${path}: ${i.message}`;
+      });
+      console.log('GET /sessions validation failed:', issues);
       return c.json({ error: 'Invalid query parameters', issues }, 400);
     }
 

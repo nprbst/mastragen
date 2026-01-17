@@ -10,14 +10,22 @@ import type {
   SessionWithUrlsResponse,
   CreateSessionRequest,
   ListSessionsFilter,
+  ProjectResponse,
+  ProjectWithEnvironments,
+  CreateProjectRequest,
+  AddEnvironmentRequest,
+  EnvironmentResponse,
 } from '../../orchestrator/src/schemas/index.ts';
 
 // Re-export types for CLI consumers
-export type { HealthStatus, ServiceUrls, CreateSessionRequest, ListSessionsFilter };
+export type { HealthStatus, ServiceUrls, CreateSessionRequest, ListSessionsFilter, CreateProjectRequest, AddEnvironmentRequest };
 
 // Alias for CLI usage (Session is the wire format)
 export type Session = SessionResponse;
 export type SessionWithUrls = SessionWithUrlsResponse;
+export type Environment = EnvironmentResponse;
+export type Project = ProjectResponse;
+export type ProjectDetail = ProjectWithEnvironments;
 
 /**
  * Custom error for API responses with non-2xx status codes.
@@ -140,6 +148,53 @@ export class MgenClient {
   async resumeSession(id: string): Promise<SessionWithUrls> {
     return this.request<SessionWithUrls>(`/sessions/${id}/resume`, {
       method: 'POST',
+    });
+  }
+
+  /**
+   * Lists all projects.
+   */
+  async listProjects(): Promise<Project[]> {
+    return this.request<Project[]>('/projects', {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Gets a project by ID with its environments.
+   */
+  async getProject(id: string): Promise<ProjectDetail> {
+    return this.request<ProjectDetail>(`/projects/${id}`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Creates a new project.
+   */
+  async createProject(request: CreateProjectRequest): Promise<Project> {
+    return this.request<Project>('/projects', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * Adds an environment to a project.
+   */
+  async addEnvironment(projectId: string, request: AddEnvironmentRequest): Promise<Environment> {
+    return this.request<Environment>(`/projects/${projectId}/environments`, {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * Lists environments for a project.
+   */
+  async listEnvironments(projectId: string): Promise<Environment[]> {
+    return this.request<Environment[]>(`/projects/${projectId}/environments`, {
+      method: 'GET',
     });
   }
 }

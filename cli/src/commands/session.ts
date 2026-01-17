@@ -2,6 +2,7 @@
  * Session commands - manage development sessions.
  */
 import { Command } from 'commander';
+import { select, text, intro, outro } from '@clack/prompts';
 import { MgenClient, ApiError } from '../client.ts';
 import {
   formatSessionCreated,
@@ -11,6 +12,7 @@ import {
   success,
   error,
 } from '../output.ts';
+import { handleCancel } from '../prompts.ts';
 
 export function sessionCommand(client: MgenClient): Command {
   const session = new Command('session')
@@ -21,21 +23,90 @@ export function sessionCommand(client: MgenClient): Command {
   session
     .command('create')
     .description('Create a new development session')
-    .requiredOption('-p, --project <id>', 'Project ID')
-    .requiredOption('-n, --name <name>', 'Artifact name (lowercase, hyphens allowed)')
-    .requiredOption('-e, --env <environment>', 'Environment (e.g., dev, staging)')
+    .option('-p, --project <id>', 'Project ID')
+    .option('-n, --name <name>', 'Artifact name (lowercase, hyphens allowed)')
+    .option('-e, --env <environment>', 'Environment (e.g., dev, staging)')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
+        // Interactive mode if any required options are missing
+        const needsInteractive = !options.project || !options.name || !options.env;
+        if (needsInteractive && !options.json) {
+          intro('Create a new session');
+        }
+
+        // 1. Project selection
+        let projectId = options.project as string | undefined;
+        if (!projectId) {
+          const projects = await client.listProjects();
+
+          if (projects.length === 0) {
+            console.error(error('No projects found. Create a project first.'));
+            process.exit(1);
+          }
+
+          const selected = await select({
+            message: 'Select a project:',
+            options: projects.map((p) => ({
+              value: p.id,
+              label: p.name,
+              hint: p.githubRepo,
+            })),
+          });
+
+          projectId = handleCancel(selected);
+        }
+
+        // 2. Artifact name
+        let artifactName = options.name as string | undefined;
+        if (!artifactName) {
+          const nameInput = await text({
+            message: 'Artifact name:',
+            placeholder: 'my-feature',
+            validate: (value) => {
+              if (!value) return 'Name is required';
+              if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(value)) {
+                return 'Must be lowercase alphanumeric with hyphens';
+              }
+              if (value.length > 50) return 'Must be 50 characters or less';
+            },
+          });
+
+          artifactName = handleCancel(nameInput);
+        }
+
+        // 3. Environment selection
+        let environment = options.env as string | undefined;
+        if (!environment) {
+          const projectDetail = await client.getProject(projectId);
+          const environments = projectDetail.environments;
+
+          if (environments.length === 0) {
+            console.error(error('No environments configured for this project.'));
+            process.exit(1);
+          }
+
+          const envSelected = await select({
+            message: 'Select environment:',
+            options: environments.map((e) => ({ value: e, label: e })),
+          });
+
+          environment = handleCancel(envSelected);
+        }
+
+        // Create session
         const result = await client.createSession({
-          projectId: options.project,
-          artifactName: options.name,
-          environment: options.env,
+          projectId,
+          artifactName,
+          environment,
         });
 
         if (options.json) {
           console.log(JSON.stringify(result, null, 2));
         } else {
+          if (needsInteractive) {
+            outro('Session created!');
+          }
           console.log(formatSessionCreated(result));
         }
       } catch (err) {
@@ -45,7 +116,12 @@ export function sessionCommand(client: MgenClient): Command {
           } else if (err.status === 409) {
             console.error(error(`Session already exists: ${err.message}`));
           } else if (err.status === 400) {
-            console.error(error(`Validation error: ${err.message}`));
+            const body = err.body as { issues?: string[] };
+            if (body.issues?.length) {
+              console.error(error(`Validation error:\n  - ${body.issues.join('\n  - ')}`));
+            } else {
+              console.error(error(`Validation error: ${err.message}`));
+            }
           } else {
             console.error(error(`API error: ${err.message}`));
           }

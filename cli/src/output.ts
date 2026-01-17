@@ -2,7 +2,7 @@
  * Output formatting utilities for CLI
  */
 
-import type { Session, SessionWithUrls, HealthStatus } from './client.ts';
+import type { Session, SessionWithUrls, HealthStatus, Project, ProjectDetail, Environment } from './client.ts';
 
 // ANSI color codes for terminal output
 const colors = {
@@ -167,5 +167,106 @@ export function formatResumed(session: SessionWithUrls): string {
     `  ${colors.dim}mastra:${colors.reset} ${colors.cyan}${session.urls.mastra}${colors.reset}`,
     `  ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`,
   ];
+  return lines.join('\n');
+}
+
+/**
+ * Formats project list as a table.
+ */
+export function formatProjectTable(projects: Project[]): string {
+  if (projects.length === 0) {
+    return colors.dim + 'No projects found.' + colors.reset;
+  }
+
+  // Column widths
+  const cols = {
+    id: 8,
+    name: 20,
+    repo: 30,
+    branch: 12,
+  };
+
+  // Header
+  const header = [
+    colors.bold + padRight('ID', cols.id),
+    padRight('NAME', cols.name),
+    padRight('REPO', cols.repo),
+    'BRANCH' + colors.reset,
+  ].join('  ');
+
+  // Rows
+  const rows = projects.map((p) => {
+    return [
+      padRight(p.id, cols.id),
+      padRight(p.name.slice(0, cols.name), cols.name),
+      padRight(p.githubRepo.slice(0, cols.repo), cols.repo),
+      p.defaultBranch,
+    ].join('  ');
+  });
+
+  return [header, ...rows].join('\n');
+}
+
+/**
+ * Formats a project details output.
+ */
+export function formatProject(project: ProjectDetail): string {
+  const lines = [
+    label('Project', colors.bold + project.id + colors.reset),
+    label('Name', project.name),
+    label('GitHub', project.githubRepo),
+    label('Branch', project.defaultBranch),
+    label('Prefix', project.branchPrefix),
+    label('Mastra Path', project.mastraPath),
+  ];
+
+  if (project.uiSandboxPath) {
+    lines.push(label('UI Sandbox', project.uiSandboxPath));
+  }
+
+  if (project.environments.length > 0) {
+    lines.push(label('Environments', project.environments.join(', ')));
+  } else {
+    lines.push(label('Environments', colors.dim + 'none' + colors.reset));
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Formats project creation success output.
+ */
+export function formatProjectCreated(project: Project): string {
+  const lines = [
+    success(`Project created: ${colors.bold}${project.name}${colors.reset}`),
+    label('  ID', project.id),
+    label('  GitHub', project.githubRepo),
+    label('  Branch', project.defaultBranch),
+    label('  Prefix', project.branchPrefix),
+    label('  Mastra Path', project.mastraPath),
+  ];
+
+  if (project.uiSandboxPath) {
+    lines.push(label('  UI Sandbox', project.uiSandboxPath));
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Formats environment added success output.
+ */
+export function formatEnvironmentAdded(projectName: string, env: Environment): string {
+  const lines = [
+    success(`Environment added: ${colors.bold}${env.name}${colors.reset}`),
+    label('  Project', projectName),
+    label('  ID', env.id),
+  ];
+
+  const envVarCount = Object.keys(env.envVars).length;
+  if (envVarCount > 0) {
+    lines.push(label('  Env Vars', `${envVarCount} defined`));
+  }
+
   return lines.join('\n');
 }

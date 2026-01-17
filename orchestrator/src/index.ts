@@ -3,7 +3,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { createDatabase } from './db/index.ts';
 import { runMigrations } from './db/migrations/001_initial.ts';
-import { healthRoutes, sessionsRoutes } from './routes/index.ts';
+import { healthRoutes, projectsRoutes, sessionsRoutes } from './routes/index.ts';
 import { loadConfig } from './config.ts';
 
 const config = loadConfig();
@@ -23,6 +23,7 @@ app.use('*', logger());
 
 // Routes
 app.route('/health', healthRoutes(db));
+app.route('/projects', projectsRoutes(db));
 app.route('/sessions', sessionsRoutes(db));
 
 // Root route
