@@ -142,17 +142,17 @@ mastragen-001-core-platform-foundation/
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T042 [P] [US2] Write contract test for POST /sessions/{id}/suspend in orchestrator/tests/routes/sessions.test.ts
-- [ ] T043 [P] [US2] Write contract test for POST /sessions/{id}/resume in orchestrator/tests/routes/sessions.test.ts
-- [ ] T044 [P] [US2] Write unit tests for SandboxService.suspend() (verify git commit) and SandboxService.resume() in orchestrator/tests/services/sandbox.test.ts
+- [x] T042 [P] [US2] Write contract test for POST /sessions/{id}/suspend in orchestrator/tests/routes/sessions.test.ts
+- [x] T043 [P] [US2] Write contract test for POST /sessions/{id}/resume in orchestrator/tests/routes/sessions.test.ts
+- [x] T044 [P] [US2] Write unit tests for SandboxService.suspend() (verify git commit) and SandboxService.resume() in orchestrator/tests/services/sandbox.test.ts
 
 ### Implementation for User Story 2
 
-- [ ] T045 [US2] Implement POST /sessions/{id}/suspend route in orchestrator/src/routes/sessions.ts
-- [ ] T046 [US2] Implement POST /sessions/{id}/resume route in orchestrator/src/routes/sessions.ts
-- [ ] T047 [US2] Implement SandboxService.suspend() method (local git commit before stopping containers) in orchestrator/src/services/sandbox.ts
-- [ ] T048 [US2] Implement SandboxService.resume() method in orchestrator/src/services/sandbox.ts
-- [ ] T049 [US2] Run tests to verify US2 (T042-T044 should now pass)
+- [x] T045 [US2] Implement POST /sessions/{id}/suspend route in orchestrator/src/routes/sessions.ts
+- [x] T046 [US2] Implement POST /sessions/{id}/resume route in orchestrator/src/routes/sessions.ts
+- [x] T047 [US2] Implement SandboxService.suspend() method (local git commit before stopping containers) in orchestrator/src/services/sandbox.ts
+- [x] T048 [US2] Implement SandboxService.resume() method in orchestrator/src/services/sandbox.ts
+- [x] T049 [US2] Run tests to verify US2 (T042-T044 should now pass)
 
 **Checkpoint**: User Story 2 complete - can suspend and resume sessions
 
@@ -168,15 +168,15 @@ mastragen-001-core-platform-foundation/
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T050 [P] [US3] Write contract test for GET /sessions/{id} with URLs in orchestrator/tests/routes/sessions.test.ts
-- [ ] T051 [P] [US3] Write integration tests for service URL generation in orchestrator/tests/services/sandbox.test.ts
+- [x] T050 [P] [US3] Write contract test for GET /sessions/{id} with URLs in orchestrator/tests/routes/sessions.test.ts
+- [x] T051 [P] [US3] Write integration tests for service URL generation in orchestrator/tests/services/sandbox.test.ts
 
 ### Implementation for User Story 3
 
-- [ ] T052 [US3] Implement GET /sessions/{id} route returning SessionWithUrls in orchestrator/src/routes/sessions.ts
-- [ ] T053 [US3] Add URL generation logic to SandboxService in orchestrator/src/services/sandbox.ts
-- [ ] T054 [US3] Implement per-service health check in HealthService in orchestrator/src/services/health.ts
-- [ ] T055 [US3] Run tests to verify US3 (T050-T051 should now pass)
+- [x] T052 [US3] Implement GET /sessions/{id} route returning SessionWithUrls in orchestrator/src/routes/sessions.ts
+- [x] T053 [US3] Add URL generation logic to SandboxService in orchestrator/src/services/sandbox.ts
+- [x] T054 [US3] Implement per-service health check in HealthService in orchestrator/src/services/health.ts
+- [x] T055 [US3] Run tests to verify US3 (T050-T051 should now pass)
 
 **Checkpoint**: User Story 3 complete - all four services accessible via URLs
 
@@ -192,13 +192,13 @@ mastragen-001-core-platform-foundation/
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T056 [P] [US4] Write contract tests for GET /sessions with filters in orchestrator/tests/routes/sessions.test.ts
+- [x] T056 [P] [US4] Write contract tests for GET /sessions with filters in orchestrator/tests/routes/sessions.test.ts
 
 ### Implementation for User Story 4
 
-- [ ] T057 [US4] Implement GET /sessions route with state and projectId query params in orchestrator/src/routes/sessions.ts
-- [ ] T058 [US4] Add findAll with filters to SessionsRepository in orchestrator/src/repositories/sessions.ts
-- [ ] T059 [US4] Run tests to verify US4 (T056 should now pass)
+- [x] T057 [US4] Implement GET /sessions route with state and projectId query params in orchestrator/src/routes/sessions.ts
+- [x] T058 [US4] Add findAll with filters to SessionsRepository in orchestrator/src/repositories/sessions.ts
+- [x] T059 [US4] Run tests to verify US4 (T056 should now pass)
 
 **Checkpoint**: User Story 4 complete - can list and filter sessions
 
@@ -212,13 +212,13 @@ mastragen-001-core-platform-foundation/
 
 - [ ] T060 [P] Write sandbox image build tests in orchestrator/tests/integration/sandbox-images.test.ts
 - [ ] T061 [P] Write Docker Compose integration tests in orchestrator/tests/integration/docker-compose.test.ts
-- [ ] T062 Write session lifecycle E2E test (create → suspend → resume → list) in orchestrator/tests/e2e/session-lifecycle.test.ts
+- [x] T062 Write session lifecycle E2E test (create → suspend → resume → list) in orchestrator/tests/e2e/session-lifecycle.test.ts
 
 ### Validation
 
 - [ ] T063 Run quickstart.md validation flow manually
 - [ ] T064 Verify success criteria SC-001 through SC-006 from plan.md
-- [ ] T065 Code cleanup and TypeScript strict mode compliance
+- [x] T065 Code cleanup and TypeScript strict mode compliance
 
 ---
 

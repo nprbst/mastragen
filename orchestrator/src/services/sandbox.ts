@@ -20,6 +20,11 @@ export interface CreateSandboxResult {
   urls: ServiceUrls;
 }
 
+export interface ResumeSandboxResult {
+  session: Session;
+  urls: ServiceUrls;
+}
+
 export interface SandboxServiceOptions {
   projectsRepo: ProjectsRepository;
   sessionsRepo: SessionsRepository;
@@ -47,6 +52,27 @@ export class EnvironmentNotFoundError extends Error {
   constructor(projectId: string, envName: string) {
     super(`Environment not found: ${envName} in project ${projectId}`);
     this.name = 'EnvironmentNotFoundError';
+  }
+}
+
+export class SessionNotFoundError extends Error {
+  constructor(sessionId: string) {
+    super(`Session not found: ${sessionId}`);
+    this.name = 'SessionNotFoundError';
+  }
+}
+
+export class SessionNotActiveError extends Error {
+  constructor(sessionId: string) {
+    super(`Session is not active: ${sessionId}`);
+    this.name = 'SessionNotActiveError';
+  }
+}
+
+export class SessionAlreadyActiveError extends Error {
+  constructor(sessionId: string) {
+    super(`Session is already active: ${sessionId}`);
+    this.name = 'SessionAlreadyActiveError';
   }
 }
 
@@ -147,6 +173,78 @@ export class SandboxService {
   }
 
   /**
+   * Suspends an active session.
+   */
+  async suspend(sessionId: string): Promise<Session> {
+    const session = await this.sessionsRepo.findById(sessionId);
+    if (!session) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    if (session.state !== 'active') {
+      throw new SessionNotActiveError(sessionId);
+    }
+
+    // Stop Docker containers if enabled
+    if (this.dockerEnabled) {
+      await this.stopContainers(session);
+    }
+
+    // Update session state
+    const updatedSession = await this.sessionsRepo.updateState(sessionId, 'suspended');
+    if (!updatedSession) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    return updatedSession;
+  }
+
+  /**
+   * Resumes a suspended session.
+   */
+  async resume(sessionId: string): Promise<ResumeSandboxResult> {
+    const session = await this.sessionsRepo.findById(sessionId);
+    if (!session) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    if (session.state === 'active') {
+      throw new SessionAlreadyActiveError(sessionId);
+    }
+
+    // Get project for container startup
+    const project = await this.projectsRepo.findById(session.project_id);
+    if (!project) {
+      throw new ProjectNotFoundError(session.project_id);
+    }
+
+    // Get environment for container startup
+    const env = await this.projectsRepo.findEnvironmentByName(
+      session.project_id,
+      session.environment
+    );
+
+    // Update session state
+    const updatedSession = await this.sessionsRepo.updateState(sessionId, 'active');
+    if (!updatedSession) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    // Cache project for URL generation
+    this.sessionProjectCache.set(sessionId, project);
+
+    // Start Docker containers if enabled
+    if (this.dockerEnabled && env) {
+      await this.startContainers(updatedSession, project, env.env_vars);
+    }
+
+    return {
+      session: updatedSession,
+      urls: this.getServiceUrls(sessionId, project),
+    };
+  }
+
+  /**
    * Starts Docker containers for a session.
    * This is a placeholder - actual Docker integration will be added.
    */
@@ -156,6 +254,15 @@ export class SandboxService {
     _envVars: string
   ): Promise<void> {
     // Docker container management will be implemented here
+    // For now, this is a placeholder
+  }
+
+  /**
+   * Stops Docker containers for a session.
+   * This is a placeholder - actual Docker integration will be added.
+   */
+  private async stopContainers(_session: Session): Promise<void> {
+    // Docker container stop logic will be implemented here
     // For now, this is a placeholder
   }
 }

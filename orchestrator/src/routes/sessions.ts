@@ -7,6 +7,9 @@ import {
   SessionAlreadyExistsError,
   ProjectNotFoundError,
   EnvironmentNotFoundError,
+  SessionNotFoundError,
+  SessionNotActiveError,
+  SessionAlreadyActiveError,
 } from '../services/sandbox.ts';
 import type { ServiceUrls } from '../services/sandbox.ts';
 
@@ -122,6 +125,87 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
       console.error('Error creating session:', error);
       return c.json({ error: 'Internal server error' }, 500);
     }
+  });
+
+  // POST /sessions/:id/suspend - Suspend an active session
+  app.post('/:id/suspend', async (c) => {
+    const id = c.req.param('id');
+
+    try {
+      const session = await sandboxService.suspend(id);
+      return c.json(toSessionResponse(session), 200);
+    } catch (error) {
+      if (error instanceof SessionNotFoundError) {
+        return c.json({ error: `Session not found: ${id}` }, 404);
+      }
+
+      if (error instanceof SessionNotActiveError) {
+        return c.json({ error: `Session is not active: ${id}` }, 400);
+      }
+
+      console.error('Error suspending session:', error);
+      return c.json({ error: 'Internal server error' }, 500);
+    }
+  });
+
+  // POST /sessions/:id/resume - Resume a suspended session
+  app.post('/:id/resume', async (c) => {
+    const id = c.req.param('id');
+
+    try {
+      const result = await sandboxService.resume(id);
+      const response: SessionWithUrlsResponse = {
+        ...toSessionResponse(result.session),
+        urls: result.urls,
+      };
+      return c.json(response, 200);
+    } catch (error) {
+      if (error instanceof SessionNotFoundError) {
+        return c.json({ error: `Session not found: ${id}` }, 404);
+      }
+
+      if (error instanceof SessionAlreadyActiveError) {
+        return c.json({ error: `Session is already active: ${id}` }, 400);
+      }
+
+      console.error('Error resuming session:', error);
+      return c.json({ error: 'Internal server error' }, 500);
+    }
+  });
+
+  // GET /sessions - List all sessions with optional filters
+  app.get('/', async (c) => {
+    const state = c.req.query('state') as 'active' | 'suspended' | undefined;
+    const projectId = c.req.query('projectId');
+
+    const sessions = await sessionsRepo.findAll({
+      state: state,
+      projectId: projectId,
+    });
+
+    return c.json(sessions.map(toSessionResponse), 200);
+  });
+
+  // GET /sessions/:id - Get session details
+  app.get('/:id', async (c) => {
+    const id = c.req.param('id');
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    const response = toSessionResponse(session);
+
+    // Only include URLs for active sessions
+    if (session.state === 'active') {
+      return c.json({
+        ...response,
+        urls: sandboxService.getServiceUrls(id),
+      } as SessionWithUrlsResponse, 200);
+    }
+
+    return c.json(response, 200);
   });
 
   return app;

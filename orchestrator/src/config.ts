@@ -47,7 +47,7 @@ export function loadConfig(): Config {
  * Validates that required configuration is present.
  * Returns an array of missing required fields.
  */
-export function validateConfig(config: Config): string[] {
+export function validateConfig(_config: Config): string[] {
   const missing: string[] = [];
 
   // GitHub token is required for private repos (warn but don't fail)

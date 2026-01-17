@@ -175,4 +175,374 @@ describe('Sessions Routes', () => {
       expect(body.error).toContain('artifactName');
     });
   });
+
+  describe('POST /sessions/:id/suspend', () => {
+    test('suspends an active session and returns 200', async () => {
+      // Create a session first
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'to-suspend',
+          environment: 'dev',
+        }),
+      });
+      const { id } = await createRes.json();
+
+      // Suspend the session
+      const res = await app.request(`/sessions/${id}/suspend`, {
+        method: 'POST',
+      });
+
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.id).toBe(id);
+      expect(body.state).toBe('suspended');
+      expect(body.updatedAt).toBeDefined();
+    });
+
+    test('returns 404 when session not found', async () => {
+      const res = await app.request('/sessions/nonexistent/suspend', {
+        method: 'POST',
+      });
+
+      expect(res.status).toBe(404);
+
+      const body = await res.json();
+      expect(body.error).toContain('not found');
+    });
+
+    test('returns 400 when session is already suspended', async () => {
+      // Create and suspend a session
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'already-suspended',
+          environment: 'dev',
+        }),
+      });
+      const { id } = await createRes.json();
+
+      // Suspend once
+      await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
+
+      // Try to suspend again
+      const res = await app.request(`/sessions/${id}/suspend`, {
+        method: 'POST',
+      });
+
+      expect(res.status).toBe(400);
+
+      const body = await res.json();
+      expect(body.error).toContain('not active');
+    });
+  });
+
+  describe('POST /sessions/:id/resume', () => {
+    test('resumes a suspended session and returns 200 with URLs', async () => {
+      // Create and suspend a session
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'to-resume',
+          environment: 'dev',
+        }),
+      });
+      const { id } = await createRes.json();
+
+      await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
+
+      // Resume the session
+      const res = await app.request(`/sessions/${id}/resume`, {
+        method: 'POST',
+      });
+
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.id).toBe(id);
+      expect(body.state).toBe('active');
+      expect(body.urls).toBeDefined();
+      expect(body.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+    });
+
+    test('returns 404 when session not found', async () => {
+      const res = await app.request('/sessions/nonexistent/resume', {
+        method: 'POST',
+      });
+
+      expect(res.status).toBe(404);
+
+      const body = await res.json();
+      expect(body.error).toContain('not found');
+    });
+
+    test('returns 400 when session is already active', async () => {
+      // Create a session (already active)
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'already-active',
+          environment: 'dev',
+        }),
+      });
+      const { id } = await createRes.json();
+
+      // Try to resume an active session
+      const res = await app.request(`/sessions/${id}/resume`, {
+        method: 'POST',
+      });
+
+      expect(res.status).toBe(400);
+
+      const body = await res.json();
+      expect(body.error).toContain('already active');
+    });
+  });
+
+  describe('GET /sessions/:id', () => {
+    test('returns session with URLs for active session', async () => {
+      // Create a session
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'get-test',
+          environment: 'dev',
+        }),
+      });
+      const { id } = await createRes.json();
+
+      // Get the session
+      const res = await app.request(`/sessions/${id}`, {
+        method: 'GET',
+      });
+
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.id).toBe(id);
+      expect(body.projectId).toBe(testProjectId);
+      expect(body.artifactName).toBe('get-test');
+      expect(body.state).toBe('active');
+      expect(body.urls).toBeDefined();
+      expect(body.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+      expect(body.urls.mastra).toMatch(/^http:\/\/localhost:\d+/);
+      expect(body.urls.vscode).toMatch(/^http:\/\/localhost:\d+/);
+    });
+
+    test('returns session without URLs for suspended session', async () => {
+      // Create and suspend a session
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'suspended-get',
+          environment: 'dev',
+        }),
+      });
+      const { id } = await createRes.json();
+
+      await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
+
+      // Get the session
+      const res = await app.request(`/sessions/${id}`, {
+        method: 'GET',
+      });
+
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.id).toBe(id);
+      expect(body.state).toBe('suspended');
+      expect(body.urls).toBeUndefined();
+    });
+
+    test('returns 404 when session not found', async () => {
+      const res = await app.request('/sessions/nonexistent', {
+        method: 'GET',
+      });
+
+      expect(res.status).toBe(404);
+
+      const body = await res.json();
+      expect(body.error).toContain('not found');
+    });
+  });
+
+  describe('GET /sessions', () => {
+    test('returns empty array when no sessions exist', async () => {
+      const res = await app.request('/sessions', {
+        method: 'GET',
+      });
+
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBe(0);
+    });
+
+    test('returns all sessions', async () => {
+      // Create two sessions
+      await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'session-1',
+          environment: 'dev',
+        }),
+      });
+
+      await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'session-2',
+          environment: 'dev',
+        }),
+      });
+
+      const res = await app.request('/sessions', {
+        method: 'GET',
+      });
+
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(Array.isArray(body)).toBe(true);
+      expect(body.length).toBe(2);
+    });
+
+    test('filters by state=active', async () => {
+      // Create two sessions
+      await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'active-session',
+          environment: 'dev',
+        }),
+      });
+
+      const res2 = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'suspended-session',
+          environment: 'dev',
+        }),
+      });
+      const { id: suspendedId } = await res2.json();
+
+      // Suspend one
+      await app.request(`/sessions/${suspendedId}/suspend`, { method: 'POST' });
+
+      // Filter by active
+      const res = await app.request('/sessions?state=active', {
+        method: 'GET',
+      });
+
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.length).toBe(1);
+      expect(body[0].state).toBe('active');
+    });
+
+    test('filters by state=suspended', async () => {
+      // Create and suspend a session
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'to-suspend-list',
+          environment: 'dev',
+        }),
+      });
+      const { id } = await createRes.json();
+      await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
+
+      // Create active session
+      await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'active-list',
+          environment: 'dev',
+        }),
+      });
+
+      // Filter by suspended
+      const res = await app.request('/sessions?state=suspended', {
+        method: 'GET',
+      });
+
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.length).toBe(1);
+      expect(body[0].state).toBe('suspended');
+    });
+
+    test('filters by projectId', async () => {
+      // Create another project
+      const project2 = await projectsRepo.create({
+        name: 'other-project',
+        github_repo: 'org/other',
+      });
+      await projectsRepo.addEnvironment(project2.id, {
+        name: 'dev',
+        env_vars: {},
+      });
+
+      // Create sessions in both projects
+      await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'project1-session',
+          environment: 'dev',
+        }),
+      });
+
+      await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: project2.id,
+          artifactName: 'project2-session',
+          environment: 'dev',
+        }),
+      });
+
+      // Filter by projectId
+      const res = await app.request(`/sessions?projectId=${testProjectId}`, {
+        method: 'GET',
+      });
+
+      expect(res.status).toBe(200);
+
+      const body = await res.json();
+      expect(body.length).toBe(1);
+      expect(body[0].projectId).toBe(testProjectId);
+    });
+  });
 });

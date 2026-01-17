@@ -5,7 +5,8 @@ import { sql } from 'kysely';
  * Initial migration: creates projects, project_environments, and sessions tables.
  * Schema matches specs/001-core-platform-foundation/data-model.md
  */
-export async function runMigrations(db: Kysely<unknown>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: Schema operations don't require typed database
+export async function runMigrations(db: Kysely<any>): Promise<void> {
   // Create projects table
   await db.schema
     .createTable('projects')

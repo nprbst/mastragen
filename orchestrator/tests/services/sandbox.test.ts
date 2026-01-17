@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, afterEach, mock } from 'bun:test';
+import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import { unlinkSync, existsSync } from 'node:fs';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrations/001_initial.ts';
@@ -183,6 +183,77 @@ describe('SandboxService', () => {
       const volumeName2 = sandboxService.generateWorkspaceVolumeName(testProjectId, 'feature-b');
 
       expect(volumeName1).not.toBe(volumeName2);
+    });
+  });
+
+  describe('suspend', () => {
+    test('suspends an active session', async () => {
+      const { session } = await sandboxService.create({
+        projectId: testProjectId,
+        artifactName: 'to-suspend',
+        environment: 'dev',
+      });
+
+      const result = await sandboxService.suspend(session.id);
+
+      expect(result.state).toBe('suspended');
+      expect(result.id).toBe(session.id);
+    });
+
+    test('throws when session not found', async () => {
+      await expect(sandboxService.suspend('nonexistent')).rejects.toThrow(
+        /Session not found/
+      );
+    });
+
+    test('throws when session is already suspended', async () => {
+      const { session } = await sandboxService.create({
+        projectId: testProjectId,
+        artifactName: 'already-suspended',
+        environment: 'dev',
+      });
+
+      await sandboxService.suspend(session.id);
+
+      await expect(sandboxService.suspend(session.id)).rejects.toThrow(
+        /not active/
+      );
+    });
+  });
+
+  describe('resume', () => {
+    test('resumes a suspended session', async () => {
+      const { session } = await sandboxService.create({
+        projectId: testProjectId,
+        artifactName: 'to-resume',
+        environment: 'dev',
+      });
+
+      await sandboxService.suspend(session.id);
+
+      const result = await sandboxService.resume(session.id);
+
+      expect(result.session.state).toBe('active');
+      expect(result.session.id).toBe(session.id);
+      expect(result.urls).toBeDefined();
+    });
+
+    test('throws when session not found', async () => {
+      await expect(sandboxService.resume('nonexistent')).rejects.toThrow(
+        /Session not found/
+      );
+    });
+
+    test('throws when session is already active', async () => {
+      const { session } = await sandboxService.create({
+        projectId: testProjectId,
+        artifactName: 'already-active',
+        environment: 'dev',
+      });
+
+      await expect(sandboxService.resume(session.id)).rejects.toThrow(
+        /already active/
+      );
     });
   });
 });
