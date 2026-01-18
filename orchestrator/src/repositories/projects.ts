@@ -1,10 +1,10 @@
 import type { Kysely } from 'kysely';
 import type {
   Database,
-  Project,
   NewProject,
-  ProjectUpdate,
+  Project,
   ProjectEnvironment,
+  ProjectUpdate,
 } from '../db/types.ts';
 
 export interface CreateProjectInput {
@@ -37,33 +37,21 @@ export class ProjectsRepository {
       ui_sandbox_path: input.ui_sandbox_path ?? null,
     };
 
-    return this.db
-      .insertInto('projects')
-      .values(values)
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    return this.db.insertInto('projects').values(values).returningAll().executeTakeFirstOrThrow();
   }
 
   /**
    * Finds a project by its ID.
    */
   async findById(id: string): Promise<Project | undefined> {
-    return this.db
-      .selectFrom('projects')
-      .selectAll()
-      .where('id', '=', id)
-      .executeTakeFirst();
+    return this.db.selectFrom('projects').selectAll().where('id', '=', id).executeTakeFirst();
   }
 
   /**
    * Finds a project by its name.
    */
   async findByName(name: string): Promise<Project | undefined> {
-    return this.db
-      .selectFrom('projects')
-      .selectAll()
-      .where('name', '=', name)
-      .executeTakeFirst();
+    return this.db.selectFrom('projects').selectAll().where('name', '=', name).executeTakeFirst();
   }
 
   /**
@@ -94,10 +82,7 @@ export class ProjectsRepository {
    * Deletes a project by its ID.
    */
   async delete(id: string): Promise<boolean> {
-    const result = await this.db
-      .deleteFrom('projects')
-      .where('id', '=', id)
-      .executeTakeFirst();
+    const result = await this.db.deleteFrom('projects').where('id', '=', id).executeTakeFirst();
 
     return (result.numDeletedRows ?? 0n) > 0n;
   }

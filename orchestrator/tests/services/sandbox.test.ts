@@ -1,12 +1,12 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
-import { unlinkSync, existsSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { existsSync, unlinkSync } from 'node:fs';
+import type { Kysely } from 'kysely';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrations/001_initial.ts';
-import { SandboxService } from '../../src/services/sandbox.ts';
+import type { Database } from '../../src/db/types.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import { SessionsRepository } from '../../src/repositories/sessions.ts';
-import type { Database } from '../../src/db/types.ts';
-import type { Kysely } from 'kysely';
+import { SandboxService } from '../../src/services/sandbox.ts';
 
 const TEST_DB_PATH = './data/test-sandbox-service.db';
 
@@ -201,9 +201,7 @@ describe('SandboxService', () => {
     });
 
     test('throws when session not found', async () => {
-      await expect(sandboxService.suspend('nonexistent')).rejects.toThrow(
-        /Session not found/
-      );
+      await expect(sandboxService.suspend('nonexistent')).rejects.toThrow(/Session not found/);
     });
 
     test('throws when session is already suspended', async () => {
@@ -215,9 +213,7 @@ describe('SandboxService', () => {
 
       await sandboxService.suspend(session.id);
 
-      await expect(sandboxService.suspend(session.id)).rejects.toThrow(
-        /not active/
-      );
+      await expect(sandboxService.suspend(session.id)).rejects.toThrow(/not active/);
     });
   });
 
@@ -239,9 +235,7 @@ describe('SandboxService', () => {
     });
 
     test('throws when session not found', async () => {
-      await expect(sandboxService.resume('nonexistent')).rejects.toThrow(
-        /Session not found/
-      );
+      await expect(sandboxService.resume('nonexistent')).rejects.toThrow(/Session not found/);
     });
 
     test('throws when session is already active', async () => {
@@ -251,9 +245,7 @@ describe('SandboxService', () => {
         environment: 'dev',
       });
 
-      await expect(sandboxService.resume(session.id)).rejects.toThrow(
-        /already active/
-      );
+      await expect(sandboxService.resume(session.id)).rejects.toThrow(/already active/);
     });
   });
 });

@@ -1,12 +1,12 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { existsSync, unlinkSync } from 'node:fs';
 import { Hono } from 'hono';
-import { unlinkSync, existsSync } from 'node:fs';
+import type { Kysely } from 'kysely';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrations/001_initial.ts';
-import { sessionsRoutes } from '../../src/routes/sessions.ts';
-import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import type { Database } from '../../src/db/types.ts';
-import type { Kysely } from 'kysely';
+import { ProjectsRepository } from '../../src/repositories/projects.ts';
+import { sessionsRoutes } from '../../src/routes/sessions.ts';
 
 const TEST_DB_PATH = './data/test-sessions-routes.db';
 
@@ -63,7 +63,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(201);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.id).toBeDefined();
       expect(body.projectId).toBe(testProjectId);
       expect(body.artifactName).toBe('my-feature');
@@ -86,11 +86,11 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(201);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.urls).toBeDefined();
-      expect(body.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
-      expect(body.urls.mastra).toMatch(/^http:\/\/localhost:\d+/);
-      expect(body.urls.vscode).toMatch(/^http:\/\/localhost:\d+/);
+      expect((body.urls as Record<string, unknown>).cui).toMatch(/^http:\/\/localhost:\d+/);
+      expect((body.urls as Record<string, unknown>).mastra).toMatch(/^http:\/\/localhost:\d+/);
+      expect((body.urls as Record<string, unknown>).vscode).toMatch(/^http:\/\/localhost:\d+/);
       // astro may be null if not configured
     });
 
@@ -107,7 +107,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(404);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toContain('Project');
     });
 
@@ -124,7 +124,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(404);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toContain('Environment');
     });
 
@@ -153,7 +153,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(409);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toContain('already exists');
       expect(body.existingSessionId).toBeDefined();
     });
@@ -171,10 +171,10 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(400);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toBe('Validation failed');
       expect(body.issues).toBeDefined();
-      expect(body.issues.length).toBeGreaterThan(0);
+      expect((body.issues as unknown[]).length).toBeGreaterThan(0);
     });
   });
 
@@ -190,7 +190,7 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = await createRes.json();
+      const { id } = (await createRes.json()) as Record<string, unknown>;
 
       // Suspend the session
       const res = await app.request(`/sessions/${id}/suspend`, {
@@ -199,7 +199,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.id).toBe(id);
       expect(body.state).toBe('suspended');
       expect(body.updatedAt).toBeDefined();
@@ -212,7 +212,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(404);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toContain('not found');
     });
 
@@ -227,7 +227,7 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = await createRes.json();
+      const { id } = (await createRes.json()) as Record<string, unknown>;
 
       // Suspend once
       await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
@@ -239,7 +239,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(400);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toContain('not active');
     });
   });
@@ -256,7 +256,7 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = await createRes.json();
+      const { id } = (await createRes.json()) as Record<string, unknown>;
 
       await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
 
@@ -267,11 +267,11 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.id).toBe(id);
       expect(body.state).toBe('active');
       expect(body.urls).toBeDefined();
-      expect(body.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+      expect((body.urls as Record<string, unknown>).cui).toMatch(/^http:\/\/localhost:\d+/);
     });
 
     test('returns 404 when session not found', async () => {
@@ -281,7 +281,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(404);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toContain('not found');
     });
 
@@ -296,7 +296,7 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = await createRes.json();
+      const { id } = (await createRes.json()) as Record<string, unknown>;
 
       // Try to resume an active session
       const res = await app.request(`/sessions/${id}/resume`, {
@@ -305,7 +305,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(400);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toContain('already active');
     });
   });
@@ -322,7 +322,7 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = await createRes.json();
+      const { id } = (await createRes.json()) as Record<string, unknown>;
 
       // Get the session
       const res = await app.request(`/sessions/${id}`, {
@@ -331,15 +331,15 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.id).toBe(id);
       expect(body.projectId).toBe(testProjectId);
       expect(body.artifactName).toBe('get-test');
       expect(body.state).toBe('active');
       expect(body.urls).toBeDefined();
-      expect(body.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
-      expect(body.urls.mastra).toMatch(/^http:\/\/localhost:\d+/);
-      expect(body.urls.vscode).toMatch(/^http:\/\/localhost:\d+/);
+      expect((body.urls as Record<string, unknown>).cui).toMatch(/^http:\/\/localhost:\d+/);
+      expect((body.urls as Record<string, unknown>).mastra).toMatch(/^http:\/\/localhost:\d+/);
+      expect((body.urls as Record<string, unknown>).vscode).toMatch(/^http:\/\/localhost:\d+/);
     });
 
     test('returns session without URLs for suspended session', async () => {
@@ -353,7 +353,7 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = await createRes.json();
+      const { id } = (await createRes.json()) as Record<string, unknown>;
 
       await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
 
@@ -364,7 +364,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.id).toBe(id);
       expect(body.state).toBe('suspended');
       expect(body.urls).toBeUndefined();
@@ -377,7 +377,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(404);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toContain('not found');
     });
   });
@@ -390,7 +390,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>[];
       expect(Array.isArray(body)).toBe(true);
       expect(body.length).toBe(0);
     });
@@ -423,7 +423,7 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>[];
       expect(Array.isArray(body)).toBe(true);
       expect(body.length).toBe(2);
     });
@@ -449,7 +449,7 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id: suspendedId } = await res2.json();
+      const { id: suspendedId } = (await res2.json()) as Record<string, unknown>;
 
       // Suspend one
       await app.request(`/sessions/${suspendedId}/suspend`, { method: 'POST' });
@@ -461,9 +461,9 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>[];
       expect(body.length).toBe(1);
-      expect(body[0].state).toBe('active');
+      expect(body[0]?.state).toBe('active');
     });
 
     test('filters by state=suspended', async () => {
@@ -477,7 +477,7 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = await createRes.json();
+      const { id } = (await createRes.json()) as Record<string, unknown>;
       await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
 
       // Create active session
@@ -498,9 +498,9 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>[];
       expect(body.length).toBe(1);
-      expect(body[0].state).toBe('suspended');
+      expect(body[0]?.state).toBe('suspended');
     });
 
     test('filters by projectId', async () => {
@@ -542,9 +542,9 @@ describe('Sessions Routes', () => {
 
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>[];
       expect(body.length).toBe(1);
-      expect(body[0].projectId).toBe(testProjectId);
+      expect(body[0]?.projectId).toBe(testProjectId);
     });
   });
 });

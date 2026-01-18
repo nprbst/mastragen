@@ -8,6 +8,7 @@
     "mgen": "./src/index.ts"
   },
   "scripts": {
+    "preflight": "bun run check && bun run typecheck && bun run test",
     "dev": "bun run src/index.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",

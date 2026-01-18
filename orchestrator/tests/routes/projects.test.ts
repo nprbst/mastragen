@@ -1,12 +1,12 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { existsSync, unlinkSync } from 'node:fs';
 import { Hono } from 'hono';
-import { unlinkSync, existsSync } from 'node:fs';
+import type { Kysely } from 'kysely';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrations/001_initial.ts';
-import { projectsRoutes } from '../../src/routes/projects.ts';
-import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import type { Database } from '../../src/db/types.ts';
-import type { Kysely } from 'kysely';
+import { ProjectsRepository } from '../../src/repositories/projects.ts';
+import { projectsRoutes } from '../../src/routes/projects.ts';
 
 const TEST_DB_PATH = './data/test-projects-routes.db';
 
@@ -42,7 +42,7 @@ describe('Projects Routes', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>[];
       expect(body).toEqual([]);
     });
 
@@ -61,11 +61,11 @@ describe('Projects Routes', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>[];
       expect(body).toHaveLength(2);
-      expect(body[0].name).toBe('project-one');
-      expect(body[0].githubRepo).toBe('org/repo-one');
-      expect(body[1].name).toBe('project-two');
+      expect(body[0]?.name).toBe('project-one');
+      expect(body[0]?.githubRepo).toBe('org/repo-one');
+      expect(body[1]?.name).toBe('project-two');
     });
 
     test('returns projects with camelCase field names', async () => {
@@ -81,13 +81,13 @@ describe('Projects Routes', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
-      expect(body[0].githubRepo).toBe('org/repo');
-      expect(body[0].defaultBranch).toBe('develop');
-      expect(body[0].branchPrefix).toBe('feature/');
-      expect(body[0].mastraPath).toBeDefined();
-      expect(body[0].createdAt).toBeDefined();
-      expect(body[0].updatedAt).toBeDefined();
+      const body = (await res.json()) as Record<string, unknown>[];
+      expect(body[0]?.githubRepo).toBe('org/repo');
+      expect(body[0]?.defaultBranch).toBe('develop');
+      expect(body[0]?.branchPrefix).toBe('feature/');
+      expect(body[0]?.mastraPath).toBeDefined();
+      expect(body[0]?.createdAt).toBeDefined();
+      expect(body[0]?.updatedAt).toBeDefined();
     });
   });
 
@@ -98,7 +98,7 @@ describe('Projects Routes', () => {
       });
 
       expect(res.status).toBe(404);
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.error).toBe('Project not found: AAAAAA');
     });
 
@@ -122,7 +122,7 @@ describe('Projects Routes', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.id).toBe(project.id);
       expect(body.name).toBe('test-project');
       expect(body.githubRepo).toBe('org/repo');
@@ -140,7 +140,7 @@ describe('Projects Routes', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.environments).toEqual([]);
     });
   });

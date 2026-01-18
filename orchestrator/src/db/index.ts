@@ -1,6 +1,6 @@
+import { Database as BunSQLiteDatabase } from 'bun:sqlite';
 import { Kysely } from 'kysely';
 import { BunSqliteDialect } from 'kysely-bun-sqlite';
-import { Database as BunSQLiteDatabase } from 'bun:sqlite';
 import type { Database } from './types.ts';
 
 /**
@@ -10,7 +10,7 @@ import type { Database } from './types.ts';
  * @param path - Path to the SQLite database file (default: ./data/mastragen.db)
  * @returns Kysely database instance
  */
-export function createDatabase(path: string = './data/mastragen.db'): Kysely<Database> {
+export function createDatabase(path = './data/mastragen.db'): Kysely<Database> {
   const dialect = new BunSqliteDialect({
     database: new BunSQLiteDatabase(path),
   });

@@ -32,7 +32,7 @@ export interface Config {
  */
 export function loadConfig(): Config {
   return {
-    port: parseInt(process.env.PORT ?? '3000', 10),
+    port: Number.parseInt(process.env.PORT ?? '3000', 10),
     host: process.env.HOST ?? '0.0.0.0',
     databasePath: process.env.DATABASE_PATH ?? './data/mastragen.db',
     githubToken: process.env.GITHUB_TOKEN,

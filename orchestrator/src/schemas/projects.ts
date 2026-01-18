@@ -9,10 +9,7 @@ import { IdSchema } from './common.ts';
  */
 export const CreateProjectRequestSchema = v.object({
   name: v.pipe(v.string(), v.minLength(1, 'Project name is required')),
-  githubRepo: v.pipe(
-    v.string(),
-    v.regex(/^[^/]+\/[^/]+$/, 'Must be in org/repo format')
-  ),
+  githubRepo: v.pipe(v.string(), v.regex(/^[^/]+\/[^/]+$/, 'Must be in org/repo format')),
   defaultBranch: v.optional(v.string(), 'main'),
   branchPrefix: v.optional(v.string(), 'mg/'),
   mastraPath: v.optional(v.string(), '.'),

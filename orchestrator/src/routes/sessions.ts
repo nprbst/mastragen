@@ -4,20 +4,20 @@ import * as v from 'valibot';
 import type { Database, Session } from '../db/types.ts';
 import { ProjectsRepository, SessionsRepository } from '../repositories/index.ts';
 import {
-  SandboxService,
-  SessionAlreadyExistsError,
-  ProjectNotFoundError,
-  EnvironmentNotFoundError,
-  SessionNotFoundError,
-  SessionNotActiveError,
-  SessionAlreadyActiveError,
-} from '../services/sandbox.ts';
-import {
   CreateSessionRequestSchema,
   ListSessionsFilterSchema,
   type SessionResponse,
   type SessionWithUrlsResponse,
 } from '../schemas/index.ts';
+import {
+  EnvironmentNotFoundError,
+  ProjectNotFoundError,
+  SandboxService,
+  SessionAlreadyActiveError,
+  SessionAlreadyExistsError,
+  SessionNotActiveError,
+  SessionNotFoundError,
+} from '../services/sandbox.ts';
 
 /**
  * Transforms a database session to API response format.
@@ -95,7 +95,7 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
       if (error instanceof SessionAlreadyExistsError) {
         return c.json(
           {
-            error: `Session already exists for this project and artifact name`,
+            error: 'Session already exists for this project and artifact name',
             existingSessionId: error.existingSessionId,
           },
           409
@@ -194,10 +194,13 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
 
     // Only include URLs for active sessions
     if (session.state === 'active') {
-      return c.json({
-        ...response,
-        urls: sandboxService.getServiceUrls(id),
-      } as SessionWithUrlsResponse, 200);
+      return c.json(
+        {
+          ...response,
+          urls: sandboxService.getServiceUrls(id),
+        } as SessionWithUrlsResponse,
+        200
+      );
     }
 
     return c.json(response, 200);

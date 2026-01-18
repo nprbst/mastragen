@@ -1,11 +1,11 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { existsSync, unlinkSync } from 'node:fs';
 import { Hono } from 'hono';
-import { unlinkSync, existsSync } from 'node:fs';
+import type { Kysely } from 'kysely';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrations/001_initial.ts';
-import { healthRoutes } from '../../src/routes/health.ts';
 import type { Database } from '../../src/db/types.ts';
-import type { Kysely } from 'kysely';
+import { healthRoutes } from '../../src/routes/health.ts';
 
 const TEST_DB_PATH = './data/test-health-routes.db';
 
@@ -37,14 +37,14 @@ describe('Health Routes', () => {
 
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
       expect(body.status).toBe('ok');
       expect(body.database).toBe('connected');
     });
 
     test('includes version in response', async () => {
       const res = await app.request('/health');
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
 
       expect(body.version).toBeDefined();
       expect(typeof body.version).toBe('string');
@@ -52,10 +52,10 @@ describe('Health Routes', () => {
 
     test('includes docker status in response', async () => {
       const res = await app.request('/health');
-      const body = await res.json();
+      const body = (await res.json()) as Record<string, unknown>;
 
       // Docker status should be either 'connected' or 'disconnected'
-      expect(['connected', 'disconnected']).toContain(body.docker);
+      expect(['connected', 'disconnected']).toContain(body.docker as string);
     });
   });
 });

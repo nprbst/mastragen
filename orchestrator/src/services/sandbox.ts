@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import Docker from 'dockerode';
+import type { Project, Session } from '../db/types.ts';
 import type { ProjectsRepository } from '../repositories/projects.ts';
 import type { SessionsRepository } from '../repositories/sessions.ts';
-import type { Session, Project } from '../db/types.ts';
 
 export interface ServiceUrls {
   cui: string;
@@ -164,16 +164,16 @@ export class SandboxService {
     // Start Docker containers if enabled
     console.log(`[SandboxService] create() - dockerEnabled: ${this.dockerEnabled}`);
     if (this.dockerEnabled) {
-      console.log(`[SandboxService] create() - calling startContainers...`);
+      console.log('[SandboxService] create() - calling startContainers...');
       try {
         await this.startContainers(session, project, env.env_vars);
-        console.log(`[SandboxService] create() - startContainers completed`);
+        console.log('[SandboxService] create() - startContainers completed');
       } catch (err) {
-        console.error(`[SandboxService] create() - startContainers failed:`, err);
+        console.error('[SandboxService] create() - startContainers failed:', err);
         throw err;
       }
     } else {
-      console.log(`[SandboxService] create() - Docker disabled, skipping container creation`);
+      console.log('[SandboxService] create() - Docker disabled, skipping container creation');
     }
 
     return {
@@ -195,7 +195,9 @@ export class SandboxService {
     return {
       cui: cuiUrl,
       mastra: `http://localhost:${SandboxService.PORTS.mastra}`,
-      astro: cachedProject?.ui_sandbox_path ? `http://localhost:${SandboxService.PORTS.astro}` : null,
+      astro: cachedProject?.ui_sandbox_path
+        ? `http://localhost:${SandboxService.PORTS.astro}`
+        : null,
       vscode: `http://localhost:${SandboxService.PORTS.vscode}`,
     };
   }
@@ -292,15 +294,25 @@ export class SandboxService {
     if (this.dockerEnabled) {
       await this.cleanupContainers(sessionId, session.container_id);
 
-      // Remove volume if requested
+      // Remove volume if requested (with retry logic for timing issues)
       if (options.removeVolume && session.workspace_volume) {
-        try {
-          const volume = this.docker.getVolume(session.workspace_volume);
-          await volume.remove();
-        } catch (err: unknown) {
-          // Volume may not exist or be in use
-          if (err instanceof Error && !err.message.includes('No such volume')) {
-            console.warn(`Failed to remove volume ${session.workspace_volume}:`, err);
+        const maxRetries = 3;
+        const retryDelay = 500;
+
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+          try {
+            const volume = this.docker.getVolume(session.workspace_volume);
+            await volume.remove({ force: true });
+            break;
+          } catch (err: unknown) {
+            if (err instanceof Error && err.message.includes('No such volume')) {
+              break;
+            }
+            if (attempt === maxRetries) {
+              console.warn(`Failed to remove volume ${session.workspace_volume}:`, err);
+            } else {
+              await new Promise((resolve) => setTimeout(resolve, retryDelay));
+            }
           }
         }
       }
@@ -316,7 +328,10 @@ export class SandboxService {
   /**
    * Cleans up containers by session ID, including orphaned containers.
    */
-  private async cleanupContainers(sessionId: string, containerIdsCsv: string | null): Promise<void> {
+  private async cleanupContainers(
+    sessionId: string,
+    containerIdsCsv: string | null
+  ): Promise<void> {
     // First, try to stop/remove by stored container IDs
     if (containerIdsCsv) {
       const containerIds = containerIdsCsv.split(',');
@@ -324,8 +339,7 @@ export class SandboxService {
         containerIds.map(async (containerId) => {
           try {
             const container = this.docker.getContainer(containerId.trim());
-            await container.stop();
-            await container.remove();
+            await container.remove({ force: true, v: true });
           } catch {
             // Container may already be stopped or removed
           }
@@ -345,13 +359,7 @@ export class SandboxService {
       containerNames.map(async (name) => {
         try {
           const container = this.docker.getContainer(name);
-          const info = await container.inspect();
-          if (info) {
-            if (info.State.Running) {
-              await container.stop();
-            }
-            await container.remove();
-          }
+          await container.remove({ force: true, v: true });
         } catch {
           // Container doesn't exist, which is fine
         }
@@ -363,20 +371,20 @@ export class SandboxService {
    * Cleans up any containers using the static ports (for single-session mode).
    */
   private async cleanupConflictingContainers(): Promise<void> {
-    console.log(`[SandboxService] Cleaning up any containers using static ports...`);
+    console.log('[SandboxService] Cleaning up any containers using static ports...');
 
     const containers = await this.docker.listContainers({ all: true });
     const targetPorts = Object.values(SandboxService.PORTS);
 
     for (const containerInfo of containers) {
       // Check if this container uses any of our static ports
-      const usesOurPort = containerInfo.Ports?.some(p =>
-        targetPorts.includes(p.PublicPort ?? 0)
-      );
+      const usesOurPort = containerInfo.Ports?.some((p) => targetPorts.includes(p.PublicPort ?? 0));
 
       if (usesOurPort) {
         try {
-          console.log(`[SandboxService] Removing conflicting container: ${containerInfo.Names?.[0]} (using port ${containerInfo.Ports?.map(p => p.PublicPort).join(', ')})`);
+          console.log(
+            `[SandboxService] Removing conflicting container: ${containerInfo.Names?.[0]} (using port ${containerInfo.Ports?.map((p) => p.PublicPort).join(', ')})`
+          );
           const container = this.docker.getContainer(containerInfo.Id);
           if (containerInfo.State === 'running') {
             await container.stop();
@@ -404,17 +412,14 @@ export class SandboxService {
       const container = await this.docker.createContainer({
         name: containerName,
         Image: SandboxService.IMAGES.init,
-        Env: [
-          `GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`,
-          `GITHUB_REPO=${githubRepo}`,
-        ],
+        Env: [`GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`, `GITHUB_REPO=${githubRepo}`],
         HostConfig: {
           Binds: [`${volumeName}:/workspace`],
         },
       });
 
       await container.start();
-      console.log(`[SandboxService] Init container started, waiting for completion...`);
+      console.log('[SandboxService] Init container started, waiting for completion...');
 
       // Wait for the container to finish
       const result = await container.wait();
@@ -422,11 +427,11 @@ export class SandboxService {
 
       // Get logs for debugging
       const logs = await container.logs({ stdout: true, stderr: true });
-      console.log(`[SandboxService] Init container logs:`, logs.toString());
+      console.log('[SandboxService] Init container logs:', logs.toString());
 
       // Remove the init container
       await container.remove();
-      console.log(`[SandboxService] Init container removed`);
+      console.log('[SandboxService] Init container removed');
 
       if (result.StatusCode !== 0) {
         throw new Error(`Init container failed with exit code ${result.StatusCode}`);
@@ -457,21 +462,23 @@ export class SandboxService {
     // Clean up any existing containers using our ports (single-session mode)
     await this.cleanupConflictingContainers();
 
-    const volumeName = session.workspace_volume ?? this.generateWorkspaceVolumeName(session.project_id, session.artifact_name);
+    const volumeName =
+      session.workspace_volume ??
+      this.generateWorkspaceVolumeName(session.project_id, session.artifact_name);
     console.log(`[SandboxService] Using volume: ${volumeName}`);
 
     // Ensure volume exists
     try {
-      console.log(`[SandboxService] Creating volume...`);
+      console.log('[SandboxService] Creating volume...');
       await this.docker.createVolume({ Name: volumeName });
-      console.log(`[SandboxService] Volume created successfully`);
+      console.log('[SandboxService] Volume created successfully');
     } catch (err: unknown) {
-      console.log(`[SandboxService] Volume creation error:`, err);
+      console.log('[SandboxService] Volume creation error:', err);
       // Volume may already exist, which is fine
       if (!(err instanceof Error) || !err.message.includes('already exists')) {
         throw err;
       }
-      console.log(`[SandboxService] Volume already exists, continuing...`);
+      console.log('[SandboxService] Volume already exists, continuing...');
     }
 
     // Run init container to clone the repo
@@ -530,7 +537,9 @@ export class SandboxService {
     await Promise.all(
       containers.map(async (config) => {
         try {
-          console.log(`[SandboxService] Creating container: ${config.name} (image: ${config.image}, port: ${config.port})`);
+          console.log(
+            `[SandboxService] Creating container: ${config.name} (image: ${config.image}, port: ${config.port})`
+          );
           const container = await this.docker.createContainer({
             name: config.name,
             Image: config.image,
@@ -561,7 +570,7 @@ export class SandboxService {
     await this.sessionsRepo.update(session.id, {
       container_id: containerIds.join(','),
     });
-    console.log(`[SandboxService] Session updated with container IDs`);
+    console.log('[SandboxService] Session updated with container IDs');
   }
 
   /**
@@ -582,7 +591,11 @@ export class SandboxService {
           await container.remove();
         } catch (err: unknown) {
           // Container may already be stopped or removed
-          if (err instanceof Error && !err.message.includes('not running') && !err.message.includes('No such container')) {
+          if (
+            err instanceof Error &&
+            !err.message.includes('not running') &&
+            !err.message.includes('No such container')
+          ) {
             throw err;
           }
         }

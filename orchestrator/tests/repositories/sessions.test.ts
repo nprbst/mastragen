@@ -1,11 +1,11 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
-import { unlinkSync, existsSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { existsSync, unlinkSync } from 'node:fs';
+import type { Kysely } from 'kysely';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrations/001_initial.ts';
-import { SessionsRepository } from '../../src/repositories/sessions.ts';
-import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import type { Database } from '../../src/db/types.ts';
-import type { Kysely } from 'kysely';
+import { ProjectsRepository } from '../../src/repositories/projects.ts';
+import { SessionsRepository } from '../../src/repositories/sessions.ts';
 
 const TEST_DB_PATH = './data/test-sessions-repo.db';
 
@@ -177,7 +177,7 @@ describe('SessionsRepository', () => {
     });
 
     test('filters by state', async () => {
-      const session1 = await sessionsRepo.create({
+      await sessionsRepo.create({
         project_id: testProjectId,
         artifact_name: 'active-session',
         environment: 'dev',

@@ -3,6 +3,11 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "preflight": "cd orchestrator && bun run preflight && cd ../cli && bun run preflight",
+    "preflight:orchestrator": "cd orchestrator && bun run preflight",
+    "preflight:cli": "cd cli && bun run preflight"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },

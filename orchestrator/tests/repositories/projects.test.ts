@@ -1,10 +1,10 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
-import { unlinkSync, existsSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { existsSync, unlinkSync } from 'node:fs';
+import type { Kysely } from 'kysely';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrations/001_initial.ts';
-import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import type { Database } from '../../src/db/types.ts';
-import type { Kysely } from 'kysely';
+import { ProjectsRepository } from '../../src/repositories/projects.ts';
 
 const TEST_DB_PATH = './data/test-projects-repo.db';
 
@@ -205,7 +205,9 @@ describe('ProjectsRepository', () => {
 
       await repo.addEnvironment(project.id, { name: 'dev', env_vars: {} });
 
-      await expect(repo.addEnvironment(project.id, { name: 'dev', env_vars: {} })).rejects.toThrow();
+      await expect(
+        repo.addEnvironment(project.id, { name: 'dev', env_vars: {} })
+      ).rejects.toThrow();
     });
   });
 

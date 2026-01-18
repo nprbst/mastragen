@@ -1,10 +1,10 @@
-import { describe, test, expect } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import * as v from 'valibot';
 import {
   CreateSessionRequestSchema,
+  ListSessionsFilterSchema,
   SessionResponseSchema,
   SessionWithUrlsResponseSchema,
-  ListSessionsFilterSchema,
 } from '../../src/schemas/sessions.ts';
 
 describe('CreateSessionRequestSchema', () => {
@@ -20,9 +20,7 @@ describe('CreateSessionRequestSchema', () => {
 
   test('rejects missing fields', () => {
     expect(() => v.parse(CreateSessionRequestSchema, {})).toThrow();
-    expect(() =>
-      v.parse(CreateSessionRequestSchema, { projectId: 'ABC123' })
-    ).toThrow();
+    expect(() => v.parse(CreateSessionRequestSchema, { projectId: 'ABC123' })).toThrow();
     expect(() =>
       v.parse(CreateSessionRequestSchema, {
         projectId: 'ABC123',
@@ -69,7 +67,7 @@ describe('SessionResponseSchema', () => {
       projectId: 'def456',
       artifactName: 'my-feature',
       environment: 'dev',
-      state: 'active',
+      state: 'active' as const,
       createdAt: '2024-01-17T12:00:00Z',
       updatedAt: '2024-01-17T12:00:00Z',
     };
@@ -112,12 +110,13 @@ describe('SessionWithUrlsResponseSchema', () => {
       projectId: 'def456',
       artifactName: 'my-feature',
       environment: 'dev',
-      state: 'active',
+      state: 'active' as const,
       createdAt: '2024-01-17T12:00:00Z',
       updatedAt: '2024-01-17T12:00:00Z',
       urls: {
         cui: 'http://localhost:3001',
         mastra: 'http://localhost:4111',
+        astro: null,
         vscode: 'http://localhost:8080',
       },
     };
@@ -170,8 +169,6 @@ describe('ListSessionsFilterSchema', () => {
   });
 
   test('rejects invalid state', () => {
-    expect(() =>
-      v.parse(ListSessionsFilterSchema, { state: 'invalid' })
-    ).toThrow();
+    expect(() => v.parse(ListSessionsFilterSchema, { state: 'invalid' })).toThrow();
   });
 });

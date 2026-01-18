@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import type { Database, Session, NewSession, SessionUpdate } from '../db/types.ts';
+import type { Database, NewSession, Session, SessionUpdate } from '../db/types.ts';
 
 export interface CreateSessionInput {
   project_id: string;
@@ -31,22 +31,14 @@ export class SessionsRepository {
       cui_auth_token: input.cui_auth_token ?? null,
     };
 
-    return this.db
-      .insertInto('sessions')
-      .values(values)
-      .returningAll()
-      .executeTakeFirstOrThrow();
+    return this.db.insertInto('sessions').values(values).returningAll().executeTakeFirstOrThrow();
   }
 
   /**
    * Finds a session by its ID.
    */
   async findById(id: string): Promise<Session | undefined> {
-    return this.db
-      .selectFrom('sessions')
-      .selectAll()
-      .where('id', '=', id)
-      .executeTakeFirst();
+    return this.db.selectFrom('sessions').selectAll().where('id', '=', id).executeTakeFirst();
   }
 
   /**
@@ -122,10 +114,7 @@ export class SessionsRepository {
    * Deletes a session by its ID.
    */
   async delete(id: string): Promise<boolean> {
-    const result = await this.db
-      .deleteFrom('sessions')
-      .where('id', '=', id)
-      .executeTakeFirst();
+    const result = await this.db.deleteFrom('sessions').where('id', '=', id).executeTakeFirst();
 
     return (result.numDeletedRows ?? 0n) > 0n;
   }

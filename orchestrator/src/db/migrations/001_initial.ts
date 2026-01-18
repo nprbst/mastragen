@@ -20,12 +20,8 @@ export async function runMigrations(db: Kysely<any>): Promise<void> {
     .addColumn('branch_prefix', 'text', (col) => col.notNull().defaultTo('mg/'))
     .addColumn('mastra_path', 'text', (col) => col.notNull().defaultTo('.'))
     .addColumn('ui_sandbox_path', 'text')
-    .addColumn('created_at', 'text', (col) =>
-      col.notNull().defaultTo(sql`(datetime('now'))`)
-    )
-    .addColumn('updated_at', 'text', (col) =>
-      col.notNull().defaultTo(sql`(datetime('now'))`)
-    )
+    .addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
+    .addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
     .execute();
 
   // Create project_environments table
@@ -40,9 +36,7 @@ export async function runMigrations(db: Kysely<any>): Promise<void> {
     )
     .addColumn('name', 'text', (col) => col.notNull())
     .addColumn('env_vars', 'text', (col) => col.notNull().defaultTo('{}'))
-    .addColumn('created_at', 'text', (col) =>
-      col.notNull().defaultTo(sql`(datetime('now'))`)
-    )
+    .addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
     .addUniqueConstraint('unique_project_env', ['project_id', 'name'])
     .execute();
 
@@ -64,12 +58,8 @@ export async function runMigrations(db: Kysely<any>): Promise<void> {
     .addColumn('container_id', 'text')
     .addColumn('workspace_volume', 'text')
     .addColumn('cui_auth_token', 'text')
-    .addColumn('created_at', 'text', (col) =>
-      col.notNull().defaultTo(sql`(datetime('now'))`)
-    )
-    .addColumn('updated_at', 'text', (col) =>
-      col.notNull().defaultTo(sql`(datetime('now'))`)
-    )
+    .addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
+    .addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
     .addUniqueConstraint('unique_project_artifact', ['project_id', 'artifact_name'])
     .execute();
 
