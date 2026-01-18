@@ -4,6 +4,9 @@ import type { Project, Session } from '../db/types.ts';
 import type { ProjectsRepository } from '../repositories/projects.ts';
 import type { SessionsRepository } from '../repositories/sessions.ts';
 import type { GitStatus, CommitResult } from './git.ts';
+import { InsufficientPermissionsError } from './github.ts';
+
+export { InsufficientPermissionsError };
 
 /**
  * Interface for GitService to allow mocking in tests (for suspend operations).
@@ -35,6 +38,25 @@ export interface CuiHistoryServiceInterface {
 }
 
 /**
+ * Repository permissions for a user (mirrors github.ts RepoPermissions).
+ */
+export interface RepoPermissions {
+  canRead: boolean;
+  canWrite: boolean;
+  canAdmin: boolean;
+  permission: string;
+}
+
+/**
+ * Interface for GitHubService to allow mocking in tests (for create operations).
+ */
+export interface GitHubServiceCreateInterface {
+  checkUserPermissions(owner: string, repo: string, username: string): Promise<RepoPermissions>;
+  getDefaultBranchSha(owner: string, repo: string): Promise<string>;
+  createBranch(owner: string, repo: string, branchName: string, fromSha: string): Promise<void>;
+}
+
+/**
  * Options for suspendWithGit method.
  */
 export interface SuspendWithGitOptions {
@@ -61,6 +83,10 @@ export interface CreateSandboxInput {
   projectId: string;
   artifactName: string;
   environment: string;
+}
+
+export interface CreateSandboxWithGitInput extends CreateSandboxInput {
+  userId: string;
 }
 
 export interface CreateSandboxResult {
@@ -230,6 +256,116 @@ export class SandboxService {
       }
     } else {
       console.log('[SandboxService] create() - Docker disabled, skipping container creation');
+    }
+
+    return {
+      session,
+      urls: this.getServiceUrls(session.id, project, session.cui_auth_token),
+    };
+  }
+
+  /**
+   * Generates a branch name for a git-enabled session.
+   * Format: {branchPrefix}{userId}/{artifactName}-{sessionIdPrefix}
+   */
+  private generateBranchName(
+    project: Project,
+    userId: string,
+    artifactName: string,
+    sessionId: string
+  ): string {
+    const prefix = project.branch_prefix || 'mg/';
+    const sessionIdPrefix = sessionId.slice(0, 6);
+    return `${prefix}${userId}/${artifactName}-${sessionIdPrefix}`;
+  }
+
+  /**
+   * Creates a new sandbox session with git integration.
+   * Verifies user permissions, creates a branch on GitHub, and starts containers.
+   */
+  async createWithGit(
+    input: CreateSandboxWithGitInput,
+    gitHubService: GitHubServiceCreateInterface
+  ): Promise<CreateSandboxResult> {
+    const { projectId, artifactName, environment, userId } = input;
+
+    // Validate project exists
+    const project = await this.projectsRepo.findById(projectId);
+    if (!project) {
+      throw new ProjectNotFoundError(projectId);
+    }
+
+    // Validate environment exists
+    const env = await this.projectsRepo.findEnvironmentByName(projectId, environment);
+    if (!env) {
+      throw new EnvironmentNotFoundError(projectId, environment);
+    }
+
+    // Check for existing session
+    const existingSession = await this.sessionsRepo.findByProjectAndName(projectId, artifactName);
+    if (existingSession) {
+      throw new SessionAlreadyExistsError(
+        existingSession.id,
+        `Session already exists for project ${projectId} with artifact name ${artifactName}`
+      );
+    }
+
+    // Parse repo owner and name
+    const [owner, repo] = project.github_repo.split('/');
+    if (!owner || !repo) {
+      throw new Error(`Invalid github_repo format: ${project.github_repo}`);
+    }
+
+    // Check user permissions (T043)
+    const permissions = await gitHubService.checkUserPermissions(owner, repo, userId);
+    if (!permissions.canWrite) {
+      throw new InsufficientPermissionsError(userId, project.github_repo, 'write');
+    }
+
+    // Generate session ID first so we can use it in branch name
+    const sessionId = randomUUID();
+
+    // Generate branch name (T044)
+    const branchName = this.generateBranchName(project, userId, artifactName, sessionId);
+
+    // Get default branch SHA and create branch on GitHub (T045)
+    const defaultSha = await gitHubService.getDefaultBranchSha(owner, repo);
+    await gitHubService.createBranch(owner, repo, branchName, defaultSha);
+
+    // Generate workspace volume name
+    const workspaceVolume = this.generateWorkspaceVolumeName(projectId, artifactName);
+
+    // Generate CUI auth token
+    const cuiAuthToken = randomUUID().replace(/-/g, '');
+
+    // Create session in database with user_id and branch_name
+    const session = await this.sessionsRepo.create({
+      id: sessionId,
+      project_id: projectId,
+      artifact_name: artifactName,
+      environment,
+      workspace_volume: workspaceVolume,
+      cui_auth_token: cuiAuthToken,
+      user_id: userId,
+      branch_name: branchName,
+    });
+
+    // Cache project for URL generation
+    this.sessionProjectCache.set(session.id, project);
+
+    // Start Docker containers if enabled (T046-T048)
+    console.log(`[SandboxService] createWithGit() - dockerEnabled: ${this.dockerEnabled}`);
+    if (this.dockerEnabled) {
+      console.log('[SandboxService] createWithGit() - calling startContainers...');
+      try {
+        await this.startContainers(session, project, env.env_vars);
+        console.log('[SandboxService] createWithGit() - startContainers completed');
+      } catch (err) {
+        console.error('[SandboxService] createWithGit() - startContainers failed:', err);
+        throw err;
+      }
+    } else {
+      console.log('[SandboxService] createWithGit() - Docker disabled, skipping container creation');
     }
 
     return {
@@ -730,7 +866,16 @@ export class SandboxService {
     ];
 
     // Container configurations
-    const containers = [
+    // T048: Use project.mastra_path for Mastra working directory
+    const mastraWorkDir = `/workspace${project.mastra_path && project.mastra_path !== '.' ? `/${project.mastra_path}` : ''}`;
+
+    const containers: Array<{
+      name: string;
+      image: string;
+      port: number;
+      env: string[];
+      workingDir?: string;
+    }> = [
       {
         name: `${session.id}-cui`,
         image: SandboxService.IMAGES.cui,
@@ -742,6 +887,7 @@ export class SandboxService {
         image: SandboxService.IMAGES.mastra,
         port: SandboxService.PORTS.mastra,
         env: baseEnv,
+        workingDir: mastraWorkDir,
       },
       {
         name: `${session.id}-vscode`,
@@ -751,13 +897,15 @@ export class SandboxService {
       },
     ];
 
-    // Add astro container if project has UI sandbox
+    // T047: Add astro container only if project has UI sandbox path
     if (project.ui_sandbox_path) {
+      const astroWorkDir = `/workspace/${project.ui_sandbox_path}`;
       containers.push({
         name: `${session.id}-astro`,
         image: SandboxService.IMAGES.astro,
         port: SandboxService.PORTS.astro,
         env: baseEnv,
+        workingDir: astroWorkDir,
       });
     }
 
@@ -774,6 +922,7 @@ export class SandboxService {
             name: config.name,
             Image: config.image,
             Env: config.env,
+            WorkingDir: config.workingDir,
             HostConfig: {
               Binds: [`${volumeName}:/workspace`],
               PortBindings: {

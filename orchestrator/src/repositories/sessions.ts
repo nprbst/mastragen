@@ -3,6 +3,7 @@ import type { Database, NewSession, Session, SessionUpdate } from '../db/types.t
 import type { SessionState } from '../schemas/common.ts';
 
 export interface CreateSessionInput {
+  id?: string;
   project_id: string;
   artifact_name: string;
   environment: string;
@@ -40,6 +41,11 @@ export class SessionsRepository {
       user_id: input.user_id ?? null,
       branch_name: input.branch_name ?? null,
     };
+
+    // If ID is provided, use it (needed for createWithGit to generate branch name)
+    if (input.id) {
+      (values as any).id = input.id;
+    }
 
     return this.db.insertInto('sessions').values(values).returningAll().executeTakeFirstOrThrow();
   }

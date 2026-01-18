@@ -9,6 +9,7 @@ import {
   IdSchema,
   SessionStateSchema,
   TimestampSchema,
+  UserIdSchema,
 } from './common.ts';
 
 /**
@@ -29,8 +30,20 @@ export const CreateSessionRequestSchema = v.object({
   projectId: IdSchema,
   artifactName: ArtifactNameSchema,
   environment: EnvironmentNameSchema,
+  userId: v.optional(UserIdSchema),
 });
 export type CreateSessionRequest = v.InferOutput<typeof CreateSessionRequestSchema>;
+
+/**
+ * Create session with git request body (requires userId for git-enabled sessions).
+ */
+export const CreateSessionWithGitRequestSchema = v.object({
+  projectId: IdSchema,
+  artifactName: ArtifactNameSchema,
+  environment: EnvironmentNameSchema,
+  userId: UserIdSchema,
+});
+export type CreateSessionWithGitRequest = v.InferOutput<typeof CreateSessionWithGitRequestSchema>;
 
 /**
  * Resume session request body (optional commitSha to resume from specific commit).

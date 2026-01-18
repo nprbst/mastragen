@@ -708,4 +708,226 @@ describe('Sessions Git Routes', () => {
       expect(result.state).toBe('suspended');
     });
   });
+
+  /**
+   * Phase 5: User Story 3 - Multi-Project Sessions
+   *
+   * T039: Contract test for POST /sessions with userId
+   * T040: Integration test for session creation with branch workflow
+   * T041: Test for 403 when user lacks write access
+   */
+  describe('POST /sessions with userId (Phase 5 - Multi-Project)', () => {
+    describe('T039 - Contract Test', () => {
+      test('returns 201 with branchName when userId is provided', async () => {
+        const mockGitHubService = {
+          checkUserPermissions: mock(() =>
+            Promise.resolve({
+              canRead: true,
+              canWrite: true,
+              canAdmin: false,
+              permission: 'write',
+            })
+          ),
+          getDefaultBranchSha: mock(() => Promise.resolve('a'.repeat(40))),
+          createBranch: mock(() => Promise.resolve()),
+        };
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        // Call createWithGit (new method we need to implement)
+        const result = await sandboxService.createWithGit(
+          {
+            projectId: testProjectId,
+            artifactName: 'multi-project-test',
+            environment: 'dev',
+            userId: 'testuser',
+          },
+          mockGitHubService as any
+        );
+
+        // Verify session was created with userId and branchName
+        expect(result.session.user_id).toBe('testuser');
+        expect(result.session.branch_name).toMatch(/^mg\/testuser\/multi-project-test-/);
+        expect(result.session.state).toBe('active');
+
+        // Verify URLs are returned
+        expect(result.urls).toBeDefined();
+        expect(result.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+      });
+
+      test('generates correct branch name format: {prefix}{userId}/{artifactName}-{sessionId}', async () => {
+        const mockGitHubService = {
+          checkUserPermissions: mock(() =>
+            Promise.resolve({ canRead: true, canWrite: true, canAdmin: false, permission: 'write' })
+          ),
+          getDefaultBranchSha: mock(() => Promise.resolve('b'.repeat(40))),
+          createBranch: mock(() => Promise.resolve()),
+        };
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        const result = await sandboxService.createWithGit(
+          {
+            projectId: testProjectId,
+            artifactName: 'feature-billing',
+            environment: 'dev',
+            userId: 'alice',
+          },
+          mockGitHubService as any
+        );
+
+        // Branch name should be: mg/alice/feature-billing-{first6charsOfSessionId}
+        const sessionId = result.session.id;
+        const expectedBranchName = `mg/alice/feature-billing-${sessionId.slice(0, 6)}`;
+        expect(result.session.branch_name).toBe(expectedBranchName);
+      });
+    });
+
+    describe('T040 - Integration Test', () => {
+      test('calls GitHub operations: checkPermissions → getDefaultBranchSha → createBranch', async () => {
+        const mockCalls: string[] = [];
+
+        const mockGitHubService = {
+          checkUserPermissions: mock((owner: string, repo: string, username: string) => {
+            mockCalls.push(`checkUserPermissions:${owner}/${repo}:${username}`);
+            return Promise.resolve({
+              canRead: true,
+              canWrite: true,
+              canAdmin: false,
+              permission: 'write',
+            });
+          }),
+          getDefaultBranchSha: mock((owner: string, repo: string) => {
+            mockCalls.push(`getDefaultBranchSha:${owner}/${repo}`);
+            return Promise.resolve('c'.repeat(40));
+          }),
+          createBranch: mock((owner: string, repo: string, branchName: string, sha: string) => {
+            mockCalls.push(`createBranch:${owner}/${repo}:${branchName}:${sha.slice(0, 8)}`);
+            return Promise.resolve();
+          }),
+        };
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        await sandboxService.createWithGit(
+          {
+            projectId: testProjectId,
+            artifactName: 'workflow-test',
+            environment: 'dev',
+            userId: 'bob',
+          },
+          mockGitHubService as any
+        );
+
+        // Verify operations were called in correct order
+        expect(mockCalls[0]).toMatch(/^checkUserPermissions:org\/repo:bob$/);
+        expect(mockCalls[1]).toMatch(/^getDefaultBranchSha:org\/repo$/);
+        expect(mockCalls[2]).toMatch(/^createBranch:org\/repo:mg\/bob\/workflow-test-/);
+      });
+    });
+
+    describe('T041 - Permission Denied Test', () => {
+      test('throws InsufficientPermissionsError when user lacks write access', async () => {
+        const mockGitHubService = {
+          checkUserPermissions: mock(() =>
+            Promise.resolve({
+              canRead: true,
+              canWrite: false, // User has read but not write access
+              canAdmin: false,
+              permission: 'read',
+            })
+          ),
+          getDefaultBranchSha: mock(() => Promise.resolve('d'.repeat(40))),
+          createBranch: mock(() => Promise.resolve()),
+        };
+
+        const { SandboxService, InsufficientPermissionsError } = await import(
+          '../../src/services/sandbox.ts'
+        );
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        // Should throw InsufficientPermissionsError
+        await expect(
+          sandboxService.createWithGit(
+            {
+              projectId: testProjectId,
+              artifactName: 'permission-test',
+              environment: 'dev',
+              userId: 'readonly-user',
+            },
+            mockGitHubService as any
+          )
+        ).rejects.toThrow(InsufficientPermissionsError);
+
+        // Verify permission check was called but branch creation was not
+        expect(mockGitHubService.checkUserPermissions).toHaveBeenCalled();
+        expect(mockGitHubService.createBranch).not.toHaveBeenCalled();
+      });
+
+      test('throws InsufficientPermissionsError with correct details', async () => {
+        const mockGitHubService = {
+          checkUserPermissions: mock(() =>
+            Promise.resolve({
+              canRead: true,
+              canWrite: false,
+              canAdmin: false,
+              permission: 'read',
+            })
+          ),
+        };
+
+        const { SandboxService, InsufficientPermissionsError } = await import(
+          '../../src/services/sandbox.ts'
+        );
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        try {
+          await sandboxService.createWithGit(
+            {
+              projectId: testProjectId,
+              artifactName: 'details-test',
+              environment: 'dev',
+              userId: 'no-access-user',
+            },
+            mockGitHubService as any
+          );
+          expect(true).toBe(false); // Should not reach here
+        } catch (error) {
+          expect(error).toBeInstanceOf(InsufficientPermissionsError);
+          const permError = error as InstanceType<typeof InsufficientPermissionsError>;
+          expect(permError.username).toBe('no-access-user');
+          expect(permError.repo).toBe('org/repo');
+          expect(permError.requiredPermission).toBe('write');
+        }
+      });
+    });
+  });
 });
