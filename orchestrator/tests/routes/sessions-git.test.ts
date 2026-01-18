@@ -930,4 +930,314 @@ describe('Sessions Git Routes', () => {
       });
     });
   });
+
+  /**
+   * Phase 6: PR Creation Tests (T049-T051)
+   */
+  describe('POST /sessions/:id/pull-request (Phase 6 - PR Creation)', () => {
+    describe('T049 - Contract Test', () => {
+      test('returns 201 with PR info when creating PR from suspended session', async () => {
+        const mockGitService = {
+          getStatus: mock(() => Promise.resolve({ hasChanges: false })),
+          commitAll: mock(() => Promise.resolve(null)),
+          push: mock(() => Promise.resolve()),
+          getCurrentSha: mock(() => Promise.resolve('e'.repeat(40))),
+          getCommitCount: mock(() => Promise.resolve(5)),
+        };
+
+        const mockGitHubService = {
+          createPullRequest: mock(() =>
+            Promise.resolve({
+              number: 42,
+              url: 'https://github.com/org/repo/pull/42',
+              title: 'Test PR',
+              state: 'open' as const,
+            })
+          ),
+        };
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        // Create a session first with some commits
+        const session = await sessionsRepo.create({
+          project_id: testProjectId,
+          artifact_name: 'pr-test-contract',
+          environment: 'dev',
+          user_id: 'testuser',
+          branch_name: 'mg/testuser/pr-test-contract-abc123',
+        });
+
+        // Update session to have commits
+        await sessionsRepo.updateGitState(session.id, {
+          lastCommitSha: 'e'.repeat(40),
+          commitCount: 5,
+        });
+
+        // Suspend the session
+        await sessionsRepo.updateState(session.id, 'suspended');
+
+        const result = await sandboxService.createPullRequest(
+          session.id,
+          mockGitService as any,
+          mockGitHubService as any,
+          { title: 'Test PR', description: 'Test description' }
+        );
+
+        // Verify PR was created
+        expect(result.pr.number).toBe(42);
+        expect(result.pr.url).toBe('https://github.com/org/repo/pull/42');
+        expect(result.pr.state).toBe('open');
+
+        // Verify session state is pr_open
+        expect(result.session.state).toBe('pr_open');
+        expect(result.session.pr_number).toBe(42);
+        expect(result.session.pr_url).toBe('https://github.com/org/repo/pull/42');
+      });
+
+      test('returns 409 when PR already exists for session', async () => {
+        const { SandboxService, PRAlreadyExistsError } = await import(
+          '../../src/services/sandbox.ts'
+        );
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        // Create a session with existing PR
+        const session = await sessionsRepo.create({
+          project_id: testProjectId,
+          artifact_name: 'pr-test-exists',
+          environment: 'dev',
+          user_id: 'testuser',
+          branch_name: 'mg/testuser/pr-test-exists-abc123',
+        });
+
+        // Set up session with existing PR
+        await sessionsRepo.update(session.id, {
+          pr_number: 99,
+          pr_url: 'https://github.com/org/repo/pull/99',
+          state: 'pr_open',
+        });
+
+        await expect(
+          sandboxService.createPullRequest(session.id, {} as any, {} as any)
+        ).rejects.toThrow(PRAlreadyExistsError);
+      });
+
+      test('returns 400 when session has no commits', async () => {
+        const { SandboxService, NoCommitsError } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        // Create a session with no commits
+        const session = await sessionsRepo.create({
+          project_id: testProjectId,
+          artifact_name: 'pr-test-no-commits',
+          environment: 'dev',
+          user_id: 'testuser',
+          branch_name: 'mg/testuser/pr-test-no-commits-abc123',
+        });
+
+        await expect(
+          sandboxService.createPullRequest(session.id, {} as any, {} as any)
+        ).rejects.toThrow(NoCommitsError);
+      });
+    });
+
+    describe('T050 - Integration Test', () => {
+      test('commits and pushes changes from active session before creating PR', async () => {
+        const mockCalls: string[] = [];
+
+        const mockGitService = {
+          getStatus: mock(() => {
+            mockCalls.push('getStatus');
+            return Promise.resolve({ hasChanges: true });
+          }),
+          commitAll: mock((msg: string) => {
+            mockCalls.push(`commitAll:${msg}`);
+            return Promise.resolve({ sha: 'f'.repeat(40), message: msg });
+          }),
+          push: mock((branch: string, setUpstream: boolean) => {
+            mockCalls.push(`push:${branch}:${setUpstream}`);
+            return Promise.resolve();
+          }),
+          getCurrentSha: mock(() => Promise.resolve('f'.repeat(40))),
+          getCommitCount: mock(() => Promise.resolve(6)),
+        };
+
+        const mockGitHubService = {
+          createPullRequest: mock((input: any) => {
+            mockCalls.push(`createPR:${input.head}:${input.base}`);
+            return Promise.resolve({
+              number: 100,
+              url: 'https://github.com/org/repo/pull/100',
+              title: input.title,
+              state: 'open' as const,
+            });
+          }),
+        };
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        // Create an active session with some commits
+        const session = await sessionsRepo.create({
+          project_id: testProjectId,
+          artifact_name: 'pr-test-active',
+          environment: 'dev',
+          user_id: 'testuser',
+          branch_name: 'mg/testuser/pr-test-active-abc123',
+        });
+
+        // Simulate having some commits
+        await sessionsRepo.updateGitState(session.id, {
+          lastCommitSha: 'e'.repeat(40),
+          commitCount: 5,
+        });
+
+        // Session is active by default
+
+        const result = await sandboxService.createPullRequest(
+          session.id,
+          mockGitService as any,
+          mockGitHubService as any
+        );
+
+        // Verify operations were called in correct order
+        expect(mockCalls[0]).toBe('getStatus');
+        expect(mockCalls[1]).toMatch(/^commitAll:/);
+        expect(mockCalls[2]).toMatch(/^push:mg\/testuser\/pr-test-active-abc123:/);
+        expect(mockCalls[3]).toMatch(/^createPR:/);
+
+        // Verify result
+        expect(result.pr.number).toBe(100);
+        expect(result.session.state).toBe('pr_open');
+      });
+    });
+
+    describe('T051 - Custom Title and Description Test', () => {
+      test('uses custom title and description when provided', async () => {
+        let capturedInput: any = null;
+
+        const mockGitService = {
+          getStatus: mock(() => Promise.resolve({ hasChanges: false })),
+        };
+
+        const mockGitHubService = {
+          createPullRequest: mock((input: any) => {
+            capturedInput = input;
+            return Promise.resolve({
+              number: 200,
+              url: 'https://github.com/org/repo/pull/200',
+              title: input.title,
+              state: 'open' as const,
+            });
+          }),
+        };
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        // Create a suspended session with commits
+        const session = await sessionsRepo.create({
+          project_id: testProjectId,
+          artifact_name: 'pr-test-custom',
+          environment: 'dev',
+          user_id: 'testuser',
+          branch_name: 'mg/testuser/pr-test-custom-abc123',
+        });
+
+        await sessionsRepo.updateGitState(session.id, {
+          lastCommitSha: 'g'.repeat(40),
+          commitCount: 3,
+        });
+
+        await sessionsRepo.updateState(session.id, 'suspended');
+
+        await sandboxService.createPullRequest(session.id, mockGitService as any, mockGitHubService as any, {
+          title: 'Custom PR Title',
+          description: 'This is a custom description for the PR.',
+        });
+
+        // Verify custom title and description were passed
+        expect(capturedInput.title).toBe('Custom PR Title');
+        expect(capturedInput.body).toBe('This is a custom description for the PR.');
+      });
+
+      test('generates default title when not provided', async () => {
+        let capturedInput: any = null;
+
+        const mockGitService = {
+          getStatus: mock(() => Promise.resolve({ hasChanges: false })),
+        };
+
+        const mockGitHubService = {
+          createPullRequest: mock((input: any) => {
+            capturedInput = input;
+            return Promise.resolve({
+              number: 201,
+              url: 'https://github.com/org/repo/pull/201',
+              title: input.title,
+              state: 'open' as const,
+            });
+          }),
+        };
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        // Create a suspended session with commits
+        const session = await sessionsRepo.create({
+          project_id: testProjectId,
+          artifact_name: 'feature-billing',
+          environment: 'dev',
+          user_id: 'testuser',
+          branch_name: 'mg/testuser/feature-billing-abc123',
+        });
+
+        await sessionsRepo.updateGitState(session.id, {
+          lastCommitSha: 'h'.repeat(40),
+          commitCount: 2,
+        });
+
+        await sessionsRepo.updateState(session.id, 'suspended');
+
+        await sandboxService.createPullRequest(
+          session.id,
+          mockGitService as any,
+          mockGitHubService as any
+        );
+
+        // Verify default title was generated
+        expect(capturedInput.title).toBe('[feature-billing] Session work');
+      });
+    });
+  });
 });

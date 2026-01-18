@@ -53,7 +53,7 @@ export async function runMigrations(db: Kysely<any>): Promise<void> {
     .addColumn('artifact_name', 'text', (col) => col.notNull())
     .addColumn('environment', 'text', (col) => col.notNull())
     .addColumn('state', 'text', (col) =>
-      col.notNull().defaultTo('active').check(sql`state IN ('active', 'suspended')`)
+      col.notNull().defaultTo('active').check(sql`state IN ('active', 'suspended', 'pr_open', 'closed')`)
     )
     .addColumn('container_id', 'text')
     .addColumn('workspace_volume', 'text')

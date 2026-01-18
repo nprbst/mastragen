@@ -4,7 +4,7 @@ import type { Project, Session } from '../db/types.ts';
 import type { ProjectsRepository } from '../repositories/projects.ts';
 import type { SessionsRepository } from '../repositories/sessions.ts';
 import type { GitStatus, CommitResult } from './git.ts';
-import { InsufficientPermissionsError } from './github.ts';
+import { InsufficientPermissionsError, GitHubService, type PRResult, type PRCreateInput } from './github.ts';
 
 export { InsufficientPermissionsError };
 
@@ -54,6 +54,21 @@ export interface GitHubServiceCreateInterface {
   checkUserPermissions(owner: string, repo: string, username: string): Promise<RepoPermissions>;
   getDefaultBranchSha(owner: string, repo: string): Promise<string>;
   createBranch(owner: string, repo: string, branchName: string, fromSha: string): Promise<void>;
+}
+
+/**
+ * Interface for GitHubService to allow mocking in tests (for PR operations).
+ */
+export interface GitHubServicePRInterface {
+  createPullRequest(input: PRCreateInput): Promise<PRResult>;
+}
+
+/**
+ * Input for createPullRequest method.
+ */
+export interface CreatePRInput {
+  title?: string;
+  description?: string;
 }
 
 /**
@@ -157,6 +172,29 @@ export class SessionLockError extends Error {
   constructor(sessionId: string) {
     super(`Session ${sessionId} is locked by another active pod`);
     this.name = 'SessionLockError';
+  }
+}
+
+/**
+ * Error thrown when trying to create a PR for a session that already has one.
+ */
+export class PRAlreadyExistsError extends Error {
+  constructor(
+    public sessionId: string,
+    public prNumber: number
+  ) {
+    super(`Session ${sessionId} already has PR #${prNumber}`);
+    this.name = 'PRAlreadyExistsError';
+  }
+}
+
+/**
+ * Error thrown when trying to create a PR for a session with no commits.
+ */
+export class NoCommitsError extends Error {
+  constructor(public sessionId: string) {
+    super(`Session ${sessionId} has no commits to create PR from`);
+    this.name = 'NoCommitsError';
   }
 }
 
@@ -645,6 +683,86 @@ export class SandboxService {
       session: updatedSession,
       urls: this.getServiceUrls(sessionId, project, updatedSession.cui_auth_token),
     };
+  }
+
+  /**
+   * Creates a pull request from a session (T057-T059).
+   * If session is active, commits and pushes changes, then stops containers.
+   * Creates a GitHub PR targeting the project's default branch.
+   * Session state changes directly to 'pr_open' (not through suspended).
+   *
+   * @param sessionId - The session ID to create PR from
+   * @param gitService - GitService instance for git operations
+   * @param gitHubService - GitHubService instance for PR creation
+   * @param input - Optional PR title and description
+   * @returns The updated session and PR info
+   */
+  async createPullRequest(
+    sessionId: string,
+    gitService: GitServiceInterface,
+    gitHubService: GitHubServicePRInterface,
+    input: CreatePRInput = {}
+  ): Promise<{ session: Session; pr: PRResult }> {
+    const session = await this.sessionsRepo.findById(sessionId);
+    if (!session) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    // If already has PR, return 409
+    if (session.pr_number) {
+      throw new PRAlreadyExistsError(sessionId, session.pr_number);
+    }
+
+    // If session has no commits, return 400
+    if (!session.commit_count || session.commit_count === 0) {
+      throw new NoCommitsError(sessionId);
+    }
+
+    const project = await this.projectsRepo.findById(session.project_id);
+    if (!project) {
+      throw new ProjectNotFoundError(session.project_id);
+    }
+
+    // If active, commit and push changes, stop containers (T058)
+    if (session.state === 'active') {
+      const status = await gitService.getStatus();
+      if (status.hasChanges) {
+        await gitService.commitAll('Auto-commit before PR creation');
+        await gitService.push(session.branch_name ?? 'main', true);
+      }
+
+      if (this.dockerEnabled) {
+        await this.stopContainers(session);
+      }
+    }
+
+    // Parse repo owner and name
+    const { owner, repo } = GitHubService.parseRepo(project.github_repo);
+
+    // Generate PR title if not provided
+    const title = input.title ?? `[${session.artifact_name}] Session work`;
+
+    // Create PR targeting default branch
+    const pr = await gitHubService.createPullRequest({
+      owner,
+      repo,
+      title,
+      head: session.branch_name!,
+      base: project.default_branch ?? 'main',
+      body: input.description,
+    });
+
+    // Update session state to pr_open (T059)
+    const updatedSession = await this.sessionsRepo.updatePRState(sessionId, {
+      prNumber: pr.number,
+      prUrl: pr.url,
+    });
+
+    if (!updatedSession) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    return { session: updatedSession, pr };
   }
 
   /**

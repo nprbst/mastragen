@@ -115,6 +115,35 @@ export const ListSessionsFilterSchema = v.object({
 export type ListSessionsFilter = v.InferOutput<typeof ListSessionsFilterSchema>;
 
 /**
+ * Create PR request body (T054).
+ */
+export const CreatePRRequestSchema = v.object({
+  title: v.optional(v.pipe(v.string(), v.maxLength(256))),
+  description: v.optional(v.pipe(v.string(), v.maxLength(65536))),
+});
+export type CreatePRRequest = v.InferOutput<typeof CreatePRRequestSchema>;
+
+/**
+ * PR info schema (T055).
+ */
+export const PRInfoSchema = v.object({
+  number: v.number(),
+  url: v.string(),
+  title: v.string(),
+  state: v.picklist(['open', 'closed', 'merged']),
+});
+export type PRInfo = v.InferOutput<typeof PRInfoSchema>;
+
+/**
+ * Pull request response (T055).
+ */
+export const PullRequestResponseSchema = v.object({
+  session: SessionWithGitResponseSchema,
+  pr: PRInfoSchema,
+});
+export type PullRequestResponse = v.InferOutput<typeof PullRequestResponseSchema>;
+
+/**
  * Error response.
  */
 export const ErrorResponseSchema = v.object({

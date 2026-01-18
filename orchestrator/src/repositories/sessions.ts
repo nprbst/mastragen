@@ -19,6 +19,11 @@ export interface UpdateGitStateInput {
   commitCount?: number;
 }
 
+export interface UpdatePRStateInput {
+  prNumber: number;
+  prUrl: string;
+}
+
 export interface SessionFilters {
   projectId?: string;
   state?: SessionState;
@@ -148,6 +153,27 @@ export class SessionsRepository {
     return this.db
       .updateTable('sessions')
       .set(updates)
+      .where('id', '=', id)
+      .returningAll()
+      .executeTakeFirst();
+  }
+
+  /**
+   * Updates a session's PR state (T056).
+   * Sets state to 'pr_open' and stores PR number and URL.
+   */
+  async updatePRState(
+    id: string,
+    input: UpdatePRStateInput
+  ): Promise<Session | undefined> {
+    return this.db
+      .updateTable('sessions')
+      .set({
+        state: 'pr_open',
+        pr_number: input.prNumber,
+        pr_url: input.prUrl,
+        updated_at: new Date().toISOString(),
+      })
       .where('id', '=', id)
       .returningAll()
       .executeTakeFirst();

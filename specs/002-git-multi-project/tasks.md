@@ -129,19 +129,19 @@
 
 ### Tests for User Story 3
 
-- [ ] T039 [P] [US3] Write contract test for POST /sessions with userId in orchestrator/tests/routes/sessions-git.test.ts
-- [ ] T040 [P] [US3] Write integration test for session creation with branch creation workflow
-- [ ] T041 [P] [US3] Write test for permission verification (403 when user lacks write access)
+- [x] T039 [P] [US3] Write contract test for POST /sessions with userId in orchestrator/tests/routes/sessions-git.test.ts
+- [x] T040 [P] [US3] Write integration test for session creation with branch creation workflow
+- [x] T041 [P] [US3] Write test for permission verification (403 when user lacks write access)
 
 ### Implementation for User Story 3
 
-- [ ] T042 [US3] Extend CreateSessionRequestSchema in orchestrator/src/schemas/sessions.ts to require userId field
-- [ ] T043 [US3] Add permission check to session creation using GitHubService.checkUserPermissions
-- [ ] T044 [US3] Implement branch name generation: {branchPrefix}{userId}/{artifactName}-{sessionId}
-- [ ] T045 [US3] Enhance SandboxService.create in orchestrator/src/services/sandbox.ts to create git branch via GitHubService
-- [ ] T046 [US3] Clone branch in init container during session creation
-- [ ] T047 [US3] Conditionally start Astro container only when project.uiSandboxPath is configured
-- [ ] T048 [US3] Start Mastra service from project.mastraPath directory
+- [x] T042 [US3] Extend CreateSessionRequestSchema in orchestrator/src/schemas/sessions.ts to require userId field
+- [x] T043 [US3] Add permission check to session creation using GitHubService.checkUserPermissions
+- [x] T044 [US3] Implement branch name generation: {branchPrefix}{userId}/{artifactName}-{sessionId}
+- [x] T045 [US3] Enhance SandboxService.create in orchestrator/src/services/sandbox.ts to create git branch via GitHubService
+- [x] T046 [US3] Clone branch in init container during session creation
+- [x] T047 [US3] Conditionally start Astro container only when project.uiSandboxPath is configured
+- [x] T048 [US3] Start Mastra service from project.mastraPath directory
 
 **Checkpoint**: User Story 3 functional - multi-project sessions work with correct configuration
 
@@ -155,20 +155,20 @@
 
 ### Tests for User Story 4
 
-- [ ] T049 [P] [US4] Write contract test for POST /sessions/:id/pull-request in orchestrator/tests/routes/sessions-git.test.ts
-- [ ] T050 [P] [US4] Write integration test for PR creation workflow (suspend if active → create PR → update state)
-- [ ] T051 [P] [US4] Write test for PR with custom title and description
+- [x] T049 [P] [US4] Write contract test for POST /sessions/:id/pull-request in orchestrator/tests/routes/sessions-git.test.ts
+- [x] T050 [P] [US4] Write integration test for PR creation workflow (suspend if active → create PR → update state)
+- [x] T051 [P] [US4] Write test for PR with custom title and description
 
 ### Implementation for User Story 4
 
-- [ ] T052 [US4] Implement GitHubService.createPullRequest(input) in orchestrator/src/services/github.ts
-- [ ] T053 [US4] Implement GitHubService.getPullRequest(owner, repo, prNumber) for PR status retrieval
-- [ ] T054 [US4] Add CreatePRRequestSchema to orchestrator/src/schemas/sessions.ts with optional title and description
-- [ ] T055 [US4] Add PullRequestResponseSchema to orchestrator/src/schemas/sessions.ts
-- [ ] T056 [US4] Add updatePRState method to orchestrator/src/repositories/sessions.ts for pr_number and pr_url
-- [ ] T057 [US4] Create POST /sessions/:id/pull-request handler in orchestrator/src/routes/sessions.ts
-- [ ] T058 [US4] Handle active session for PR creation: commit changes, push to remote, stop containers (transition directly to pr_open, not through suspended)
-- [ ] T059 [US4] Update session state to 'pr_open' after successful PR creation
+- [x] T052 [US4] Implement GitHubService.createPullRequest(input) in orchestrator/src/services/github.ts
+- [x] T053 [US4] Implement GitHubService.getPullRequest(owner, repo, prNumber) for PR status retrieval
+- [x] T054 [US4] Add CreatePRRequestSchema to orchestrator/src/schemas/sessions.ts with optional title and description
+- [x] T055 [US4] Add PullRequestResponseSchema to orchestrator/src/schemas/sessions.ts
+- [x] T056 [US4] Add updatePRState method to orchestrator/src/repositories/sessions.ts for pr_number and pr_url
+- [x] T057 [US4] Create POST /sessions/:id/pull-request handler in orchestrator/src/routes/sessions.ts
+- [x] T058 [US4] Handle active session for PR creation: commit changes, push to remote, stop containers (transition directly to pr_open, not through suspended)
+- [x] T059 [US4] Update session state to 'pr_open' after successful PR creation
 
 **Checkpoint**: User Story 4 functional - full workflow from session to PR complete
 
