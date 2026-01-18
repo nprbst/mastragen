@@ -6,6 +6,7 @@ import { ProjectsRepository, SessionsRepository } from '../repositories/index.ts
 import {
   CreateSessionRequestSchema,
   ListSessionsFilterSchema,
+  ResumeSessionRequestSchema,
   type SessionResponse,
   type SessionWithGitResponse,
   type SessionWithUrlsAndGitResponse,
@@ -92,6 +93,7 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
         projectId: body.projectId,
         artifactName: body.artifactName,
         environment: body.environment,
+        claudeToken: body.claudeToken,
       });
 
       const response: SessionWithUrlsResponse = {
@@ -150,8 +152,20 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
   app.post('/:id/resume', async (c) => {
     const id = c.req.param('id');
 
+    // Parse optional request body for claudeToken
+    let claudeToken: string | undefined;
     try {
-      const result = await sandboxService.resume(id);
+      const rawBody = await c.req.json();
+      const parseResult = v.safeParse(ResumeSessionRequestSchema, rawBody);
+      if (parseResult.success) {
+        claudeToken = parseResult.output.claudeToken;
+      }
+    } catch {
+      // Empty body is fine for resume
+    }
+
+    try {
+      const result = await sandboxService.resume(id, claudeToken);
       const response: SessionWithUrlsAndGitResponse = {
         ...toSessionWithGitResponse(result.session),
         urls: result.urls,

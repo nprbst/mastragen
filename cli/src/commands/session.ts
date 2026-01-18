@@ -2,7 +2,7 @@
  * Session commands - manage development sessions.
  */
 import { Command } from 'commander';
-import { select, multiselect, text, intro, outro } from '@clack/prompts';
+import { select, multiselect, text, intro, outro, confirm, password } from '@clack/prompts';
 import { MgenClient, ApiError } from '../client.ts';
 import {
   formatSessionCreated,
@@ -14,6 +14,49 @@ import {
   waitForPorts,
 } from '../output.ts';
 import { handleCancel } from '../prompts.ts';
+import { getCachedToken, saveCachedToken, truncateToken } from '../utils/claude-token.ts';
+
+/**
+ * Prompts user for Claude OAuth token with caching support.
+ * Returns the token to use, or undefined if skipped.
+ */
+async function promptForClaudeToken(): Promise<string | undefined> {
+  const cached = getCachedToken();
+
+  if (cached) {
+    const useCached = await select({
+      message: `Use cached Claude token (${truncateToken(cached)})?`,
+      options: [
+        { value: 'yes', label: 'Yes, use cached token' },
+        { value: 'new', label: 'Enter a different token' },
+        { value: 'skip', label: 'Skip (no Claude Max)' },
+      ],
+    });
+
+    const choice = handleCancel(useCached);
+    if (choice === 'yes') return cached;
+    if (choice === 'skip') return undefined;
+  }
+
+  const tokenInput = await password({
+    message: 'Enter Claude token (from `claude setup-token`), or press Enter to skip:',
+  });
+
+  const token = handleCancel(tokenInput);
+
+  if (token && !cached) {
+    const shouldSave = await confirm({
+      message: 'Save token to ~/.claude/.token for future sessions?',
+      initialValue: true,
+    });
+
+    if (handleCancel(shouldSave)) {
+      saveCachedToken(token);
+    }
+  }
+
+  return token || undefined;
+}
 
 export function sessionCommand(client: MgenClient): Command {
   const session = new Command('session')
@@ -27,6 +70,7 @@ export function sessionCommand(client: MgenClient): Command {
     .option('-p, --project <id>', 'Project ID')
     .option('-n, --name <name>', 'Artifact name (lowercase, hyphens allowed)')
     .option('-e, --env <environment>', 'Environment (e.g., dev, staging)')
+    .option('-t, --token <token>', 'Claude OAuth token (from `claude setup-token`)')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
@@ -95,11 +139,18 @@ export function sessionCommand(client: MgenClient): Command {
           environment = handleCancel(envSelected);
         }
 
+        // 4. Claude token (optional)
+        let claudeToken = options.token as string | undefined;
+        if (!claudeToken && needsInteractive) {
+          claudeToken = await promptForClaudeToken();
+        }
+
         // Create session
         const result = await client.createSession({
           projectId,
           artifactName,
           environment,
+          claudeToken,
         });
 
         // Wait for ports to be ready (skip in JSON mode)
@@ -284,6 +335,7 @@ export function sessionCommand(client: MgenClient): Command {
   session
     .command('resume [id]')
     .description('Resume a suspended session')
+    .option('-t, --token <token>', 'Claude OAuth token (from `claude setup-token`)')
     .option('--json', 'Output as JSON')
     .action(async (idArg, options) => {
       try {
@@ -314,7 +366,13 @@ export function sessionCommand(client: MgenClient): Command {
           process.exit(1);
         }
 
-        const result = await client.resumeSession(id);
+        // Prompt for Claude token (interactive mode only)
+        let claudeToken = options.token as string | undefined;
+        if (!claudeToken && !options.json) {
+          claudeToken = await promptForClaudeToken();
+        }
+
+        const result = await client.resumeSession(id, { claudeToken });
 
         // Wait for ports to be ready (skip in JSON mode)
         if (!options.json) {

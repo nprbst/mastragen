@@ -85,6 +85,7 @@ export interface ResumeWithGitOptions {
   commitSha?: string;
   checkLock?: boolean;
   cuiHistoryService?: CuiHistoryServiceInterface;
+  claudeToken?: string;
 }
 
 export interface ServiceUrls {
@@ -98,6 +99,7 @@ export interface CreateSandboxInput {
   projectId: string;
   artifactName: string;
   environment: string;
+  claudeToken?: string;
 }
 
 export interface CreateSandboxWithGitInput extends CreateSandboxInput {
@@ -239,7 +241,7 @@ export class SandboxService {
    * Creates a new sandbox session.
    */
   async create(input: CreateSandboxInput): Promise<CreateSandboxResult> {
-    const { projectId, artifactName, environment } = input;
+    const { projectId, artifactName, environment, claudeToken } = input;
 
     // Validate project exists
     const project = await this.projectsRepo.findById(projectId);
@@ -286,7 +288,7 @@ export class SandboxService {
     if (this.dockerEnabled) {
       console.log('[SandboxService] create() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars);
+        await this.startContainers(session, project, env.env_vars, claudeToken);
         console.log('[SandboxService] create() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] create() - startContainers failed:', err);
@@ -325,7 +327,7 @@ export class SandboxService {
     input: CreateSandboxWithGitInput,
     gitHubService: GitHubServiceCreateInterface
   ): Promise<CreateSandboxResult> {
-    const { projectId, artifactName, environment, userId } = input;
+    const { projectId, artifactName, environment, userId, claudeToken } = input;
 
     // Validate project exists
     const project = await this.projectsRepo.findById(projectId);
@@ -396,7 +398,7 @@ export class SandboxService {
     if (this.dockerEnabled) {
       console.log('[SandboxService] createWithGit() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars);
+        await this.startContainers(session, project, env.env_vars, claudeToken);
         console.log('[SandboxService] createWithGit() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] createWithGit() - startContainers failed:', err);
@@ -569,7 +571,7 @@ export class SandboxService {
   /**
    * Resumes a suspended session.
    */
-  async resume(sessionId: string): Promise<ResumeSandboxResult> {
+  async resume(sessionId: string, claudeToken?: string): Promise<ResumeSandboxResult> {
     const session = await this.sessionsRepo.findById(sessionId);
     if (!session) {
       throw new SessionNotFoundError(sessionId);
@@ -602,7 +604,7 @@ export class SandboxService {
 
     // Start Docker containers if enabled
     if (this.dockerEnabled && env) {
-      await this.startContainers(updatedSession, project, env.env_vars);
+      await this.startContainers(updatedSession, project, env.env_vars, claudeToken);
     }
 
     return {
@@ -671,7 +673,7 @@ export class SandboxService {
 
     // Start Docker containers if enabled
     if (this.dockerEnabled && env) {
-      await this.startContainers(updatedSession, project, env.env_vars);
+      await this.startContainers(updatedSession, project, env.env_vars, options.claudeToken);
     }
 
     // Restore CUI conversation history from workspace after containers start (T038)
@@ -938,7 +940,8 @@ export class SandboxService {
   private async startContainers(
     session: Session,
     project: Project,
-    envVars: string
+    envVars: string,
+    claudeToken?: string
   ): Promise<void> {
     console.log(`[SandboxService] startContainers called for session ${session.id}`);
     console.log(`[SandboxService] dockerEnabled: ${this.dockerEnabled}`);
@@ -998,7 +1001,11 @@ export class SandboxService {
         name: `${session.id}-cui`,
         image: SandboxService.IMAGES.cui,
         port: SandboxService.PORTS.cui,
-        env: [...baseEnv, `CUI_AUTH_TOKEN=${session.cui_auth_token || ''}`],
+        env: [
+          ...baseEnv,
+          `CUI_AUTH_TOKEN=${session.cui_auth_token || ''}`,
+          ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
+        ],
       },
       {
         name: `${session.id}-mastra`,
