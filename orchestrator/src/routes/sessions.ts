@@ -185,11 +185,16 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
     }
   });
 
-  // GET /sessions - List all sessions with optional filters
+  // GET /sessions - List all sessions with optional filters and pagination
   app.get('/', async (c) => {
     const rawFilter = {
       state: c.req.query('state'),
       projectId: c.req.query('projectId'),
+      userId: c.req.query('userId'),
+      sharedWithMe: c.req.query('sharedWithMe'),
+      includeProject: c.req.query('includeProject'),
+      limit: c.req.query('limit'),
+      offset: c.req.query('offset'),
     };
 
     // Validate query parameters with Valibot
@@ -207,6 +212,9 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
     const sessions = await sessionsRepo.findAll({
       state: filter.state,
       projectId: filter.projectId,
+      userId: filter.userId,
+      limit: filter.limit,
+      offset: filter.offset,
     });
 
     return c.json(sessions.map(toSessionResponse), 200);

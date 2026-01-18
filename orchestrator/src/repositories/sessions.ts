@@ -27,6 +27,9 @@ export interface UpdatePRStateInput {
 export interface SessionFilters {
   projectId?: string;
   state?: SessionState;
+  userId?: string;
+  limit?: number;
+  offset?: number;
 }
 
 export class SessionsRepository {
@@ -79,9 +82,13 @@ export class SessionsRepository {
 
   /**
    * Returns all sessions, optionally filtered.
+   * Supports pagination via limit and offset.
    */
   async findAll(filters?: SessionFilters): Promise<Session[]> {
-    let query = this.db.selectFrom('sessions').selectAll();
+    let query = this.db
+      .selectFrom('sessions')
+      .selectAll()
+      .orderBy('updated_at', 'desc');
 
     if (filters?.projectId) {
       query = query.where('project_id', '=', filters.projectId);
@@ -89,6 +96,18 @@ export class SessionsRepository {
 
     if (filters?.state) {
       query = query.where('state', '=', filters.state);
+    }
+
+    if (filters?.userId) {
+      query = query.where('user_id', '=', filters.userId);
+    }
+
+    if (filters?.limit !== undefined) {
+      query = query.limit(filters.limit);
+    }
+
+    if (filters?.offset !== undefined) {
+      query = query.offset(filters.offset);
     }
 
     return query.execute();

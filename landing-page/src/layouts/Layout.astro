@@ -1,0 +1,56 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'Mastragen - AI-powered development platform' } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} | Mastragen</title>
+  </head>
+  <body class="min-h-screen bg-gray-50 text-gray-900">
+    <header class="bg-white shadow-sm border-b border-gray-200">
+      <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="flex h-16 justify-between items-center">
+          <div class="flex items-center">
+            <a href="/" class="text-xl font-bold text-primary-600">
+              Mastragen
+            </a>
+          </div>
+          <div class="flex items-center gap-4">
+            <a href="/sessions/new" class="text-sm text-gray-600 hover:text-gray-900">
+              New Session
+            </a>
+            <div id="user-menu" class="relative">
+              <!-- User menu will be hydrated by React -->
+            </div>
+          </div>
+        </div>
+      </nav>
+    </header>
+    <main class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+      <slot />
+    </main>
+    <footer class="border-t border-gray-200 mt-auto">
+      <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
+        <p class="text-center text-sm text-gray-500">
+          Mastragen - AI-powered development platform
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style is:global>
+  @tailwind base;
+  @tailwind components;
+  @tailwind utilities;
+</style>

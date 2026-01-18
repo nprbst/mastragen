@@ -1,0 +1,32 @@
+---
+export interface Props {
+  sessionId: string;
+  baseHost?: string;
+  hasAstro?: boolean;
+}
+
+const { sessionId, baseHost = 'localhost', hasAstro = true } = Astro.props;
+
+const services = [
+  { name: 'cui', port: 3001, icon: '⌘', description: 'Claude UI' },
+  { name: 'Mastra', port: 4111, icon: '◉', description: 'Mastra API' },
+  ...(hasAstro ? [{ name: 'Astro', port: 4321, icon: '◎', description: 'Astro Dev Server' }] : []),
+  { name: 'VS Code', port: 8080, icon: '⟨⟩', description: 'Code Editor' },
+];
+---
+
+<div class="flex flex-wrap gap-2">
+  {services.map((service) => (
+    <a
+      href={`http://${sessionId}.${baseHost}:${service.port}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+      title={service.description}
+    >
+      <span class="text-gray-500">{service.icon}</span>
+      {service.name}
+      <span class="text-gray-400 text-xs">:{service.port}</span>
+    </a>
+  ))}
+</div>

@@ -25,14 +25,14 @@ Based on plan.md project structure:
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create landing-page/ directory with Astro 5 + React 19 project structure per plan.md
-- [ ] T002 [P] Add dependencies to landing-page/package.json (Astro, React 19, TailwindCSS, oRPC client)
-- [ ] T003 [P] Configure TailwindCSS in landing-page/tailwind.config.mjs
-- [ ] T004 [P] Create cui-commands/ directory structure
-- [ ] T005 [P] Create cui-skills/ directory structure
-- [ ] T006 Create base Layout component in landing-page/src/layouts/Layout.astro
-- [ ] T007 Configure oRPC client in landing-page/src/lib/orpc-client.ts
-- [ ] T008 [P] Setup test infrastructure in orchestrator/tests/ (helpers, fixtures, test database)
+- [X] T001 Create landing-page/ directory with Astro 5 + React 19 project structure per plan.md
+- [X] T002 [P] Add dependencies to landing-page/package.json (Astro, React 19, TailwindCSS, oRPC client)
+- [X] T003 [P] Configure TailwindCSS in landing-page/tailwind.config.mjs
+- [X] T004 [P] Create cui-commands/ directory structure
+- [X] T005 [P] Create cui-skills/ directory structure
+- [X] T006 Create base Layout component in landing-page/src/layouts/Layout.astro
+- [X] T007 Configure oRPC client in landing-page/src/lib/orpc-client.ts
+- [X] T008 [P] Setup test infrastructure in orchestrator/tests/ (helpers, fixtures, test database)
 
 ---
 
@@ -46,26 +46,26 @@ Based on plan.md project structure:
 
 > **TDD**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T009 [P] Unit test for JWT validation middleware in orchestrator/tests/unit/middleware/auth.test.ts
-- [ ] T010 [P] Unit test for audit logger service in orchestrator/tests/unit/services/audit-logger.test.ts
-- [ ] T011 [P] Integration test for auth routes (login, callback, logout, me, refresh) in orchestrator/tests/integration/auth.test.ts
+- [X] T009 [P] Unit test for JWT validation middleware in orchestrator/tests/unit/middleware/auth.test.ts
+- [X] T010 [P] Unit test for audit logger service in orchestrator/tests/unit/services/audit-logger.test.ts
+- [X] T011 [P] Integration test for auth routes (login, callback, logout, me, refresh) in orchestrator/tests/integration/auth.test.ts
 
 ### Implementation for Foundational
 
-- [ ] T012 Create database migration 003_cui_config in orchestrator/src/db/migrations/003_cui_config.ts
-- [ ] T013 Update database types in orchestrator/src/db/types.ts with new tables (users, user_project_members, project_cui_config, project_commands, project_skills, session_shares)
-- [ ] T014 [P] Create users repository in orchestrator/src/repositories/users.ts
-- [ ] T015 [P] Create user_project_members repository in orchestrator/src/repositories/user-project-members.ts
-- [ ] T016 [P] Create session_shares repository in orchestrator/src/repositories/session-shares.ts
-- [ ] T017 Configure better-auth with OIDC provider in orchestrator/src/services/auth.ts
-- [ ] T018 Create JWT validation middleware in orchestrator/src/middleware/auth.ts
-- [ ] T019 Create audit logger service in orchestrator/src/services/audit-logger.ts
-- [ ] T020 [P] Create Valibot schemas for auth in orchestrator/src/schemas/auth.ts
-- [ ] T021 [P] Create Valibot schemas for cui-config in orchestrator/src/schemas/cui-config.ts
-- [ ] T022 [P] Create Valibot schemas for commands in orchestrator/src/schemas/commands.ts
-- [ ] T023 [P] Create Valibot schemas for skills in orchestrator/src/schemas/skills.ts
+- [X] T012 Create database migration 003_cui_config in orchestrator/src/db/migrations/003_cui_config.ts
+- [X] T013 Update database types in orchestrator/src/db/types.ts with new tables (users, user_project_members, project_cui_config, project_commands, project_skills, session_shares)
+- [X] T014 [P] Create users repository in orchestrator/src/repositories/users.ts
+- [X] T015 [P] Create user_project_members repository in orchestrator/src/repositories/user-project-members.ts
+- [X] T016 [P] Create session_shares repository in orchestrator/src/repositories/session-shares.ts
+- [X] T017 Configure better-auth with OIDC provider in orchestrator/src/services/auth.ts
+- [X] T018 Create JWT validation middleware in orchestrator/src/middleware/auth.ts
+- [X] T019 Create audit logger service in orchestrator/src/services/audit-logger.ts
+- [X] T020 [P] Create Valibot schemas for auth in orchestrator/src/schemas/auth.ts
+- [X] T021 [P] Create Valibot schemas for cui-config in orchestrator/src/schemas/cui-config.ts
+- [X] T022 [P] Create Valibot schemas for commands in orchestrator/src/schemas/commands.ts
+- [X] T023 [P] Create Valibot schemas for skills in orchestrator/src/schemas/skills.ts
 - [ ] T024 Setup oRPC router base in orchestrator/src/orpc/router.ts
-- [ ] T025 Register auth routes in orchestrator (GET /auth/login, GET /auth/callback, POST /auth/logout, GET /auth/me, POST /auth/refresh)
+- [X] T025 Register auth routes in orchestrator (GET /auth/login, GET /auth/callback, POST /auth/logout, GET /auth/me, POST /auth/refresh)
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -81,21 +81,21 @@ Based on plan.md project structure:
 
 > **TDD**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T026 [P] [US1] Unit test for sessions list filtering in orchestrator/tests/unit/routes/sessions.test.ts
-- [ ] T027 [P] [US1] Integration test for GET /sessions with query params in orchestrator/tests/integration/sessions.test.ts
+- [X] T026 [P] [US1] Unit test for sessions list filtering in orchestrator/tests/unit/routes/sessions.test.ts
+- [X] T027 [P] [US1] Integration test for GET /sessions with query params in orchestrator/tests/integration/sessions.test.ts
 
 ### Implementation for User Story 1
 
-- [ ] T028 [US1] Create dashboard page in landing-page/src/pages/index.astro
-- [ ] T029 [US1] Extend GET /sessions endpoint with dashboard query params (state, projectId, sharedWithMe, pagination) in orchestrator/src/routes/sessions.ts
-- [ ] T030 [P] [US1] Create SessionCard React component in landing-page/src/components/SessionCard.tsx
-- [ ] T031 [P] [US1] Create SessionList React component (interactive island) in landing-page/src/components/SessionList.tsx
-- [ ] T032 [P] [US1] Create ServiceLinks Astro component in landing-page/src/components/ServiceLinks.astro
-- [ ] T033 [US1] Add session grouping logic by project in SessionList component
-- [ ] T034 [US1] Add status indicators (Active, Suspended, PR Open) styling in SessionCard
-- [ ] T035 [US1] Implement "Shared with me" section in dashboard showing sessions shared by other users
-- [ ] T036 [US1] Create empty state with onboarding guidance and "Create your first session" CTA when user has no sessions (supports SC-005: 95% first-time success)
-- [ ] T037 [US1] Add session URLs for cui (:3001), Mastra (:4111), Astro (:4321), VS Code (:8080) in SessionCard
+- [X] T028 [US1] Create dashboard page in landing-page/src/pages/index.astro
+- [X] T029 [US1] Extend GET /sessions endpoint with dashboard query params (state, projectId, sharedWithMe, pagination) in orchestrator/src/routes/sessions.ts
+- [X] T030 [P] [US1] Create SessionCard React component in landing-page/src/components/SessionCard.tsx
+- [X] T031 [P] [US1] Create SessionList React component (interactive island) in landing-page/src/components/SessionList.tsx
+- [X] T032 [P] [US1] Create ServiceLinks Astro component in landing-page/src/components/ServiceLinks.astro
+- [X] T033 [US1] Add session grouping logic by project in SessionList component
+- [X] T034 [US1] Add status indicators (Active, Suspended, PR Open) styling in SessionCard
+- [X] T035 [US1] Implement "Shared with me" section in dashboard showing sessions shared by other users
+- [X] T036 [US1] Create empty state with onboarding guidance and "Create your first session" CTA when user has no sessions (supports SC-005: 95% first-time success)
+- [X] T037 [US1] Add session URLs for cui (:3001), Mastra (:4111), Astro (:4321), VS Code (:8080) in SessionCard
 
 **Checkpoint**: Dashboard displays sessions grouped by project with service links - User Story 1 complete
 
