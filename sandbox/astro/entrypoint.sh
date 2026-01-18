@@ -15,7 +15,7 @@ cd "/workspace/${UI_PATH}"
 # Install dependencies if package.json exists and node_modules doesn't
 if [ -f "package.json" ] && [ ! -d "node_modules" ]; then
     echo "Installing dependencies..."
-    npm install
+    bun install
 fi
 
 # Set Mastra API URL for container networking (default to Docker service name)
