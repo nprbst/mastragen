@@ -3,7 +3,8 @@ import { existsSync, unlinkSync } from 'node:fs';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import { createDatabase } from '../../src/db/index.ts';
-import { runMigrations } from '../../src/db/migrations/001_initial.ts';
+import { runMigrations as runMigrations001 } from '../../src/db/migrations/001_initial.ts';
+import { runMigrations as runMigrations002 } from '../../src/db/migrations/002_git_fields.ts';
 import type { Database } from '../../src/db/types.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import { healthRoutes } from '../../src/routes/health.ts';
@@ -22,7 +23,8 @@ describe('Session Lifecycle E2E', () => {
       unlinkSync(TEST_DB_PATH);
     }
     db = createDatabase(TEST_DB_PATH);
-    await runMigrations(db);
+    await runMigrations001(db);
+    await runMigrations002(db);
 
     projectsRepo = new ProjectsRepository(db);
 

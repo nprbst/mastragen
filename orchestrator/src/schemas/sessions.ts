@@ -5,6 +5,7 @@ import * as v from 'valibot';
 import {
   ArtifactNameSchema,
   EnvironmentNameSchema,
+  GitShaSchema,
   IdSchema,
   SessionStateSchema,
   TimestampSchema,
@@ -32,6 +33,14 @@ export const CreateSessionRequestSchema = v.object({
 export type CreateSessionRequest = v.InferOutput<typeof CreateSessionRequestSchema>;
 
 /**
+ * Resume session request body (optional commitSha to resume from specific commit).
+ */
+export const ResumeSessionRequestSchema = v.object({
+  commitSha: v.optional(GitShaSchema),
+});
+export type ResumeSessionRequest = v.InferOutput<typeof ResumeSessionRequestSchema>;
+
+/**
  * Session response (API format with camelCase).
  */
 export const SessionResponseSchema = v.object({
@@ -46,6 +55,26 @@ export const SessionResponseSchema = v.object({
 export type SessionResponse = v.InferOutput<typeof SessionResponseSchema>;
 
 /**
+ * Session with git fields (for git-enabled sessions).
+ */
+export const SessionWithGitResponseSchema = v.object({
+  ...SessionResponseSchema.entries,
+  userId: v.nullable(v.string()),
+  branchName: v.nullable(v.string()),
+  lastCommitSha: v.nullable(v.string()),
+  commitCount: v.number(),
+  prNumber: v.nullable(v.number()),
+  prUrl: v.nullable(v.string()),
+});
+export type SessionWithGitResponse = v.InferOutput<typeof SessionWithGitResponseSchema>;
+
+/**
+ * Suspend session response (includes git fields).
+ */
+export const SuspendSessionResponseSchema = SessionWithGitResponseSchema;
+export type SuspendSessionResponse = v.InferOutput<typeof SuspendSessionResponseSchema>;
+
+/**
  * Session with URLs (for active sessions).
  */
 export const SessionWithUrlsResponseSchema = v.object({
@@ -53,6 +82,15 @@ export const SessionWithUrlsResponseSchema = v.object({
   urls: ServiceUrlsSchema,
 });
 export type SessionWithUrlsResponse = v.InferOutput<typeof SessionWithUrlsResponseSchema>;
+
+/**
+ * Session with URLs and git fields (for active git-enabled sessions).
+ */
+export const SessionWithUrlsAndGitResponseSchema = v.object({
+  ...SessionWithGitResponseSchema.entries,
+  urls: ServiceUrlsSchema,
+});
+export type SessionWithUrlsAndGitResponse = v.InferOutput<typeof SessionWithUrlsAndGitResponseSchema>;
 
 /**
  * List sessions query filter.

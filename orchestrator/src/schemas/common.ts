@@ -21,7 +21,12 @@ export type Timestamp = v.InferOutput<typeof TimestampSchema>;
 /**
  * Session state enum.
  */
-export const SessionStateSchema = v.picklist(['active', 'suspended']);
+export const SessionStateSchema = v.picklist([
+  'active',
+  'suspended',
+  'pr_open',
+  'closed',
+]);
 export type SessionState = v.InferOutput<typeof SessionStateSchema>;
 
 /**
@@ -46,3 +51,35 @@ export const EnvironmentNameSchema = v.pipe(
   v.minLength(1, 'Environment name is required')
 );
 export type EnvironmentName = v.InferOutput<typeof EnvironmentNameSchema>;
+
+/**
+ * Git commit SHA: 40-character lowercase hex string.
+ */
+export const GitShaSchema = v.pipe(
+  v.string(),
+  v.regex(/^[a-f0-9]{40}$/, 'Must be 40-character lowercase hex SHA')
+);
+export type GitSha = v.InferOutput<typeof GitShaSchema>;
+
+/**
+ * User ID: alphanumeric with underscores and hyphens, max 50 characters.
+ */
+export const UserIdSchema = v.pipe(
+  v.string(),
+  v.regex(
+    /^[a-zA-Z0-9_-]+$/,
+    'Must be alphanumeric with underscores and hyphens'
+  ),
+  v.maxLength(50, 'Must be 50 characters or less')
+);
+export type UserId = v.InferOutput<typeof UserIdSchema>;
+
+/**
+ * Git branch name: max 250 characters (Git limit).
+ */
+export const BranchNameSchema = v.pipe(
+  v.string(),
+  v.minLength(1, 'Branch name is required'),
+  v.maxLength(250, 'Must be 250 characters or less')
+);
+export type BranchName = v.InferOutput<typeof BranchNameSchema>;

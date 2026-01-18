@@ -24,9 +24,9 @@
 
 **Purpose**: Project initialization, dependencies, and configuration
 
-- [ ] T001 Install @octokit/rest and @octokit/auth-app dependencies in orchestrator/package.json
-- [ ] T002 [P] Add GitHub App configuration to orchestrator/src/config.ts (GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID)
-- [ ] T003 [P] Add GitShaSchema and UserIdSchema to orchestrator/src/schemas/common.ts
+- [x] T001 Install @octokit/rest and @octokit/auth-app dependencies in orchestrator/package.json
+- [x] T002 [P] Add GitHub App configuration to orchestrator/src/config.ts (GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID)
+- [x] T003 [P] Add GitShaSchema and UserIdSchema to orchestrator/src/schemas/common.ts
 
 ---
 
@@ -38,32 +38,32 @@
 
 ### Database Schema
 
-- [ ] T004 Create database migration orchestrator/src/db/migrations/002_git_fields.ts adding user_id, branch_name, last_commit_sha, commit_count, pr_number, pr_url columns to sessions table
-- [ ] T005 Update SessionsTable interface in orchestrator/src/db/types.ts with new git fields (user_id, branch_name, last_commit_sha, commit_count, pr_number, pr_url)
-- [ ] T006 Extend state check constraint to include 'active', 'suspended', 'pr_open', 'closed' in migration
+- [x] T004 Create database migration orchestrator/src/db/migrations/002_git_fields.ts adding user_id, branch_name, last_commit_sha, commit_count, pr_number, pr_url columns to sessions table
+- [x] T005 Update SessionsTable interface in orchestrator/src/db/types.ts with new git fields (user_id, branch_name, last_commit_sha, commit_count, pr_number, pr_url)
+- [x] T006 Extend state check constraint to include 'active', 'suspended', 'pr_open', 'closed' in migration
 
 ### GitService (Core Git Operations)
 
-- [ ] T007 Write failing unit tests for GitService in orchestrator/tests/services/git.test.ts covering getStatus, commitAll, createBranch, push, clone, checkout, ensureGitAttributes
-- [ ] T008 Create GitService class in orchestrator/src/services/git.ts with Docker exec implementation for git operations
-- [ ] T009 Implement GitService.getStatus() to check for uncommitted changes via Docker exec
-- [ ] T010 Implement GitService.commitAll(message) to stage all changes and commit
-- [ ] T011 [P] Implement GitService.createBranch(name, base) and GitService.checkout(ref)
-- [ ] T012 [P] Implement GitService.push(branch) and GitService.clone(repoUrl, branch)
-- [ ] T013 Implement GitService.ensureGitAttributes() to add .cui/ export-ignore
+- [x] T007 Write failing unit tests for GitService in orchestrator/tests/services/git.test.ts covering getStatus, commitAll, createBranch, push, clone, checkout, ensureGitAttributes
+- [x] T008 Create GitService class in orchestrator/src/services/git.ts with Docker exec implementation for git operations
+- [x] T009 Implement GitService.getStatus() to check for uncommitted changes via Docker exec
+- [x] T010 Implement GitService.commitAll(message) to stage all changes and commit
+- [x] T011 [P] Implement GitService.createBranch(name, base) and GitService.checkout(ref)
+- [x] T012 [P] Implement GitService.push(branch) and GitService.clone(repoUrl, branch)
+- [x] T013 Implement GitService.ensureGitAttributes() to add .cui/ export-ignore
 
 ### GitHubService (GitHub API)
 
-- [ ] T014 Write failing unit tests for GitHubService in orchestrator/tests/services/github.test.ts with mocked Octokit
-- [ ] T015 Create GitHubService class in orchestrator/src/services/github.ts with App authentication
-- [ ] T016 Implement GitHubService.checkUserPermissions(owner, repo, username) returning RepoPermissions
-- [ ] T017 [P] Implement GitHubService.getCloneUrl(owner, repo) with App token
-- [ ] T018 [P] Implement GitHubService.parseRepo(githubRepo) static method to extract owner/repo
-- [ ] T019 Implement rate limit handling with exponential backoff (max 3 attempts over ~30s)
+- [x] T014 Write failing unit tests for GitHubService in orchestrator/tests/services/github.test.ts with mocked Octokit
+- [x] T015 Create GitHubService class in orchestrator/src/services/github.ts with App authentication
+- [x] T016 Implement GitHubService.checkUserPermissions(owner, repo, username) returning RepoPermissions
+- [x] T017 [P] Implement GitHubService.getCloneUrl(owner, repo) with App token
+- [x] T018 [P] Implement GitHubService.parseRepo(githubRepo) static method to extract owner/repo
+- [x] T019 Implement rate limit handling with exponential backoff (max 3 attempts over ~30s)
 
 ### Error Classes
 
-- [ ] T020 [P] Create GitOperationError, GitHubAPIError, InsufficientPermissionsError, SessionLockError error classes in orchestrator/src/services/sandbox.ts
+- [x] T020 [P] Create GitOperationError, GitHubAPIError, InsufficientPermissionsError, SessionLockError error classes in orchestrator/src/services/sandbox.ts
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -79,17 +79,17 @@
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T021 [P] [US1] Write contract test for POST /sessions/:id/suspend in orchestrator/tests/routes/sessions-git.test.ts
-- [ ] T022 [P] [US1] Write integration test for suspend workflow (changes → commit → push) in orchestrator/tests/routes/sessions-git.test.ts
+- [x] T021 [P] [US1] Write contract test for POST /sessions/:id/suspend in orchestrator/tests/routes/sessions-git.test.ts
+- [x] T022 [P] [US1] Write integration test for suspend workflow (changes → commit → push) in orchestrator/tests/routes/sessions-git.test.ts
 
 ### Implementation for User Story 1
 
-- [ ] T023 [US1] Add SuspendSessionResponseSchema to orchestrator/src/schemas/sessions.ts with git fields (branchName, lastCommitSha, commitCount)
-- [ ] T024 [US1] Add updateGitState method to orchestrator/src/repositories/sessions.ts for updating last_commit_sha and commit_count
-- [ ] T025 [US1] Implement suspendWithGit method in orchestrator/src/services/sandbox.ts that calls GitService.getStatus, commitAll, push
-- [ ] T026 [US1] Enhance POST /sessions/:id/suspend handler in orchestrator/src/routes/sessions.ts to use suspendWithGit
-- [ ] T027 [US1] Handle "no changes" case - suspend gracefully without empty commit
-- [ ] T028 [US1] Add error handling for git operation failures with retry logic
+- [x] T023 [US1] Add SuspendSessionResponseSchema to orchestrator/src/schemas/sessions.ts with git fields (branchName, lastCommitSha, commitCount)
+- [x] T024 [US1] Add updateGitState method to orchestrator/src/repositories/sessions.ts for updating last_commit_sha and commit_count
+- [x] T025 [US1] Implement suspendWithGit method in orchestrator/src/services/sandbox.ts that calls GitService.getStatus, commitAll, push
+- [x] T026 [US1] Enhance POST /sessions/:id/suspend handler in orchestrator/src/routes/sessions.ts to use suspendWithGit
+- [x] T027 [US1] Handle "no changes" case - suspend gracefully without empty commit
+- [x] T028 [US1] Add error handling for git operation failures with retry logic
 
 **Checkpoint**: User Story 1 should be fully functional - users can suspend sessions with work preserved
 
@@ -103,18 +103,18 @@
 
 ### Tests for User Story 2
 
-- [ ] T029 [P] [US2] Write contract test for POST /sessions/:id/resume in orchestrator/tests/routes/sessions-git.test.ts
-- [ ] T030 [P] [US2] Write integration test for resume workflow (clone → start containers → restore .cui/) in orchestrator/tests/routes/sessions-git.test.ts
-- [ ] T031 [P] [US2] Write test for resume from specific commit SHA
+- [x] T029 [P] [US2] Write contract test for POST /sessions/:id/resume in orchestrator/tests/routes/sessions-git.test.ts
+- [x] T030 [P] [US2] Write integration test for resume workflow (clone → start containers → restore .cui/) in orchestrator/tests/routes/sessions-git.test.ts
+- [x] T031 [P] [US2] Write test for resume from specific commit SHA
 
 ### Implementation for User Story 2
 
-- [ ] T032 [US2] Add ResumeSessionRequestSchema to orchestrator/src/schemas/sessions.ts with optional commitSha field
-- [ ] T033 [US2] Add SessionWithUrlsResponseSchema to orchestrator/src/schemas/sessions.ts
-- [ ] T034 [US2] Implement resumeWithGit method in orchestrator/src/services/sandbox.ts that clones branch and starts containers
-- [ ] T035 [US2] Add single-pod lock check in resumeWithGit to prevent concurrent access (return 409 if session already active)
-- [ ] T036 [US2] Implement resume from specific commitSha when provided in request
-- [ ] T037 [US2] Enhance POST /sessions/:id/resume handler in orchestrator/src/routes/sessions.ts to use resumeWithGit
+- [x] T032 [US2] Add ResumeSessionRequestSchema to orchestrator/src/schemas/sessions.ts with optional commitSha field
+- [x] T033 [US2] Add SessionWithUrlsResponseSchema to orchestrator/src/schemas/sessions.ts
+- [x] T034 [US2] Implement resumeWithGit method in orchestrator/src/services/sandbox.ts that clones branch and starts containers
+- [x] T035 [US2] Add single-pod lock check in resumeWithGit to prevent concurrent access (return 409 if session already active)
+- [x] T036 [US2] Implement resume from specific commitSha when provided in request
+- [x] T037 [US2] Enhance POST /sessions/:id/resume handler in orchestrator/src/routes/sessions.ts to use resumeWithGit
 - [ ] T038 [US2] Implement .cui/ history restoration from mastraPath/.cui/ directory
 
 **Checkpoint**: User Stories 1 AND 2 work together - full suspend/resume cycle functional

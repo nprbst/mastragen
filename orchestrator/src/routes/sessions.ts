@@ -7,6 +7,8 @@ import {
   CreateSessionRequestSchema,
   ListSessionsFilterSchema,
   type SessionResponse,
+  type SessionWithGitResponse,
+  type SessionWithUrlsAndGitResponse,
   type SessionWithUrlsResponse,
 } from '../schemas/index.ts';
 import {
@@ -31,6 +33,21 @@ function toSessionResponse(session: Session): SessionResponse {
     state: session.state,
     createdAt: session.created_at,
     updatedAt: session.updated_at,
+  };
+}
+
+/**
+ * Transforms a database session to API response format with git fields.
+ */
+function toSessionWithGitResponse(session: Session): SessionWithGitResponse {
+  return {
+    ...toSessionResponse(session),
+    userId: session.user_id,
+    branchName: session.branch_name,
+    lastCommitSha: session.last_commit_sha,
+    commitCount: session.commit_count,
+    prNumber: session.pr_number,
+    prUrl: session.pr_url,
   };
 }
 
@@ -114,7 +131,7 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
 
     try {
       const session = await sandboxService.suspend(id);
-      return c.json(toSessionResponse(session), 200);
+      return c.json(toSessionWithGitResponse(session), 200);
     } catch (error) {
       if (error instanceof SessionNotFoundError) {
         return c.json({ error: `Session not found: ${id}` }, 404);
@@ -135,8 +152,8 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
 
     try {
       const result = await sandboxService.resume(id);
-      const response: SessionWithUrlsResponse = {
-        ...toSessionResponse(result.session),
+      const response: SessionWithUrlsAndGitResponse = {
+        ...toSessionWithGitResponse(result.session),
         urls: result.urls,
       };
       return c.json(response, 200);

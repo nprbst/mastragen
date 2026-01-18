@@ -14,6 +14,15 @@ export interface Config {
   /** GitHub personal access token for cloning private repos */
   githubToken: string | undefined;
 
+  /** GitHub App ID for authenticated API access */
+  githubAppId: string | undefined;
+
+  /** GitHub App private key (PEM format) for authenticated API access */
+  githubAppPrivateKey: string | undefined;
+
+  /** GitHub App installation ID for repository access */
+  githubAppInstallationId: string | undefined;
+
   /** Anthropic API key (direct API access) */
   anthropicApiKey: string | undefined;
 
@@ -36,6 +45,9 @@ export function loadConfig(): Config {
     host: process.env.HOST ?? '0.0.0.0',
     databasePath: process.env.DATABASE_PATH ?? './data/mastragen.db',
     githubToken: process.env.GITHUB_TOKEN,
+    githubAppId: process.env.GITHUB_APP_ID,
+    githubAppPrivateKey: process.env.GITHUB_APP_PRIVATE_KEY,
+    githubAppInstallationId: process.env.GITHUB_APP_INSTALLATION_ID,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     awsRegion: process.env.AWS_REGION,
     awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,

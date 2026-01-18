@@ -23,6 +23,8 @@
     "db:seed": "bun run scripts/seed.ts"
   },
   "dependencies": {
+    "@octokit/auth-app": "^7.1.0",
+    "@octokit/rest": "^21.0.0",
     "dockerode": "^4.0.0",
     "hono": "^4.6.0",
     "kysely": "^0.27.0",

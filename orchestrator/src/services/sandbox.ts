@@ -3,6 +3,34 @@ import Docker from 'dockerode';
 import type { Project, Session } from '../db/types.ts';
 import type { ProjectsRepository } from '../repositories/projects.ts';
 import type { SessionsRepository } from '../repositories/sessions.ts';
+import type { GitStatus, CommitResult } from './git.ts';
+
+/**
+ * Interface for GitService to allow mocking in tests (for suspend operations).
+ */
+export interface GitServiceInterface {
+  getStatus(): Promise<GitStatus>;
+  commitAll(message: string): Promise<CommitResult | null>;
+  push(branch: string, setUpstream?: boolean): Promise<void>;
+  getCurrentSha(): Promise<string>;
+  getCommitCount(): Promise<number>;
+}
+
+/**
+ * Interface for GitService to allow mocking in tests (for resume operations).
+ */
+export interface GitServiceResumeInterface {
+  clone(repoUrl: string, branch?: string): Promise<void>;
+  checkout(ref: string): Promise<void>;
+}
+
+/**
+ * Options for resumeWithGit method.
+ */
+export interface ResumeWithGitOptions {
+  commitSha?: string;
+  checkLock?: boolean;
+}
 
 export interface ServiceUrls {
   cui: string;
@@ -75,6 +103,16 @@ export class SessionAlreadyActiveError extends Error {
   constructor(sessionId: string) {
     super(`Session is already active: ${sessionId}`);
     this.name = 'SessionAlreadyActiveError';
+  }
+}
+
+/**
+ * Error thrown when a session is locked by another active pod.
+ */
+export class SessionLockError extends Error {
+  constructor(sessionId: string) {
+    super(`Session ${sessionId} is locked by another active pod`);
+    this.name = 'SessionLockError';
   }
 }
 
@@ -237,6 +275,99 @@ export class SandboxService {
   }
 
   /**
+   * Suspends an active session with git operations.
+   * Commits any changes, pushes to remote, and stops containers.
+   *
+   * @param sessionId - The session ID to suspend
+   * @param gitService - GitService instance for git operations
+   * @returns The updated session
+   */
+  async suspendWithGit(
+    sessionId: string,
+    gitService: GitServiceInterface
+  ): Promise<Session> {
+    const session = await this.sessionsRepo.findById(sessionId);
+    if (!session) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    if (session.state !== 'active') {
+      throw new SessionNotActiveError(sessionId);
+    }
+
+    // Check for changes
+    const status = await gitService.getStatus();
+
+    // If there are changes, commit and push
+    if (status.hasChanges) {
+      // Commit all changes
+      const commitResult = await gitService.commitAll('Auto-commit on suspend');
+
+      if (commitResult) {
+        // Push with retry logic (T028 requirement)
+        await this.pushWithRetry(gitService, session.branch_name ?? 'main');
+      }
+    }
+
+    // Get current git state
+    const currentSha = await gitService.getCurrentSha();
+    const commitCount = await gitService.getCommitCount();
+
+    // Stop Docker containers if enabled
+    if (this.dockerEnabled) {
+      await this.stopContainers(session);
+    }
+
+    // Update session state and git state
+    const updatedSession = await this.sessionsRepo.updateState(sessionId, 'suspended');
+    if (!updatedSession) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    // Update git state
+    await this.sessionsRepo.updateGitState(sessionId, {
+      lastCommitSha: currentSha,
+      commitCount,
+    });
+
+    // Return the updated session with git state
+    const finalSession = await this.sessionsRepo.findById(sessionId);
+    if (!finalSession) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    return finalSession;
+  }
+
+  /**
+   * Pushes to remote with retry logic (max 3 attempts).
+   */
+  private async pushWithRetry(
+    gitService: GitServiceInterface,
+    branch: string,
+    maxRetries = 3,
+    retryDelayMs = 100
+  ): Promise<void> {
+    let lastError: Error | undefined;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await gitService.push(branch, attempt === 1);
+        return;
+      } catch (err) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (attempt < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, retryDelayMs * attempt));
+        }
+      }
+    }
+
+    if (lastError) {
+      throw lastError;
+    }
+  }
+
+  /**
    * Resumes a suspended session.
    */
   async resume(sessionId: string): Promise<ResumeSandboxResult> {
@@ -253,6 +384,75 @@ export class SandboxService {
     const project = await this.projectsRepo.findById(session.project_id);
     if (!project) {
       throw new ProjectNotFoundError(session.project_id);
+    }
+
+    // Get environment for container startup
+    const env = await this.projectsRepo.findEnvironmentByName(
+      session.project_id,
+      session.environment
+    );
+
+    // Update session state
+    const updatedSession = await this.sessionsRepo.updateState(sessionId, 'active');
+    if (!updatedSession) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    // Cache project for URL generation
+    this.sessionProjectCache.set(sessionId, project);
+
+    // Start Docker containers if enabled
+    if (this.dockerEnabled && env) {
+      await this.startContainers(updatedSession, project, env.env_vars);
+    }
+
+    return {
+      session: updatedSession,
+      urls: this.getServiceUrls(sessionId, project, updatedSession.cui_auth_token),
+    };
+  }
+
+  /**
+   * Resumes a suspended session with git operations.
+   * Clones the branch, optionally checks out a specific commit, and starts containers.
+   *
+   * @param sessionId - The session ID to resume
+   * @param gitService - GitService instance for git operations
+   * @param options - Optional resume options (commitSha, checkLock)
+   * @returns The updated session with URLs
+   */
+  async resumeWithGit(
+    sessionId: string,
+    gitService: GitServiceResumeInterface,
+    options: ResumeWithGitOptions = {}
+  ): Promise<ResumeSandboxResult> {
+    const session = await this.sessionsRepo.findById(sessionId);
+    if (!session) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    if (session.state === 'active') {
+      throw new SessionAlreadyActiveError(sessionId);
+    }
+
+    // Check for lock if requested (T035 requirement)
+    if (options.checkLock && session.container_id) {
+      throw new SessionLockError(sessionId);
+    }
+
+    // Get project for repository URL and container startup
+    const project = await this.projectsRepo.findById(session.project_id);
+    if (!project) {
+      throw new ProjectNotFoundError(session.project_id);
+    }
+
+    // Clone the repository with the session branch
+    const repoUrl = `https://github.com/${project.github_repo}.git`;
+    await gitService.clone(repoUrl, session.branch_name ?? undefined);
+
+    // If specific commit SHA provided, checkout that commit (T036 requirement)
+    if (options.commitSha) {
+      await gitService.checkout(options.commitSha);
     }
 
     // Get environment for container startup
