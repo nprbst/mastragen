@@ -9,6 +9,16 @@
 
 This feature enables Mastragen to persist session work as git branches and support multiple projects with different repository configurations. When a user suspends a session, all their work (code changes and session history) is committed and pushed to a project-specific branch. Users can resume sessions from their last state, and when work is ready, create pull requests to merge changes into the main branch.
 
+## Clarifications
+
+### Session 2026-01-17
+
+- Q: What are the valid session state transitions? → A: State machine with optional paths: `active` can transition to either `suspended` (pause work) or `pr_open` (create PR); `suspended` can transition to `active` (resume) or `pr_open` (create PR); `pr_open` can transition to `active` (continue work) or `closed` (merged/archived)
+- Q: How should the system handle concurrent access to the same session? → A: Lock session to single active pod; second resume attempt blocked until first pod terminates
+- Q: How is user access to projects determined? → A: GitHub repo permissions - user can access a project if they have write access to the underlying repository
+- Q: How should the system handle GitHub API rate limits? → A: Queue operations with exponential backoff; retry automatically and surface delay to user if prolonged
+- Q: What defines "typical workload" for the 30-second suspend target? → A: ≤50 changed files, ≤5MB total diff size
+
 ## Problem Statement
 
 Currently, Mastragen sessions (from Phase 1) run in sandboxes but have no persistence mechanism. When a sandbox terminates, all work is lost. Additionally, the platform needs to support multiple projects with different GitHub repositories and workspace structures (monorepos vs. standalone projects).
@@ -84,7 +94,7 @@ As a developer with session work ready for review, I want to create a pull reque
 **Acceptance Scenarios**:
 
 1. **Given** a session with commits, **When** the user triggers PR creation, **Then** a PR is created targeting the project's default branch
-2. **Given** an active session, **When** the user creates a PR, **Then** the session is suspended first before PR creation
+2. **Given** an active session, **When** the user creates a PR, **Then** all changes are committed and pushed, the PR is created, containers are stopped, and the session transitions directly to "PR open" state
 3. **Given** a PR creation request with custom title, **When** the PR is created, **Then** the custom title is used instead of the auto-generated one
 4. **Given** a successful PR creation, **When** complete, **Then** the session state changes to "PR open" and displays the PR URL
 5. **Given** a PR for a session, **When** the PR is squash-merged, **Then** the `.cui/` directory is excluded from the merged commit
@@ -109,11 +119,11 @@ As a developer working on a project where Mastra lives in a subdirectory of a la
 
 ### Edge Cases
 
-- What happens when GitHub API is unavailable during suspend? (Retry with backoff, notify user of failure, preserve local state)
+- What happens when GitHub API is unavailable or rate-limited during suspend? → Retry with exponential backoff (max 3 attempts over ~30s), notify user of delay, preserve local state if ultimately fails
 - What happens when the branch already exists? (Append unique suffix or fail with clear message)
-- How does system handle very large commits? (Impose reasonable size limits, warn user)
+- How does system handle commits exceeding typical workload (>50 files or >5MB)? → Warn user that suspend may take longer; no hard block but log for monitoring
 - What happens if resume fails mid-way? (Clean up partial pod, allow retry, preserve branch state)
-- What if user tries to resume a session someone else is actively using? (Detect active pod, prevent duplicate resume)
+- What if user tries to resume a session that already has an active pod? → System MUST block the resume attempt and return an error indicating the session is already active (single-pod lock)
 
 ## Requirements *(mandatory)*
 
@@ -133,10 +143,12 @@ As a developer working on a project where Mastra lives in a subdirectory of a la
 - **FR-012**: System MUST configure `.gitattributes` to exclude `.cui/` from squash merges (export-ignore)
 - **FR-013**: System MUST conditionally start Astro container only when `uiSandboxPath` is configured
 - **FR-014**: System MUST initialize UI sandbox from template when `uiSandboxTemplate` is configured and directory is empty
+- **FR-015**: System MUST verify user has write access to the project's GitHub repository before allowing session creation or project listing
 
 ### Key Entities
 
 - **Session** (extended): Git-related fields including `branchName`, `lastCommitSha`, `commitCount`, `prNumber`, `prUrl`
+  - **State Machine**: `active` → (`suspended` | `pr_open`), `suspended` → (`active` | `pr_open`), `pr_open` → (`active` | `closed`). The `suspended` state is optional—users can create PRs directly from active sessions.
 - **Project**: Repository configuration including `githubRepo`, `defaultBranch`, `branchPrefix`, `mastraPath`, `uiSandboxPath`, `uiSandboxTemplate`
 
 ## Success Criteria *(mandatory)*
@@ -147,7 +159,7 @@ As a developer working on a project where Mastra lives in a subdirectory of a la
 - **SC-002**: Platform supports 5+ projects with varying repository structures (standalone, monorepo with different paths), all functioning correctly
 - **SC-003**: Users can complete the workflow from session creation to merged PR within a single platform (no external git operations required)
 - **SC-004**: 99% of session resume operations succeed on first attempt without user intervention
-- **SC-005**: Time from suspend trigger to branch push completes within 30 seconds for typical workloads
+- **SC-005**: Time from suspend trigger to branch push completes within 30 seconds for typical workloads (≤50 changed files, ≤5MB diff)
 - **SC-006**: Users have visibility into their session's git state (branch name, commit count, last commit) through API responses
 
 ## Assumptions
