@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import Docker from 'dockerode';
 import type { ProjectsRepository } from '../repositories/projects.ts';
 import type { SessionsRepository } from '../repositories/sessions.ts';
@@ -144,12 +145,16 @@ export class SandboxService {
     // Generate workspace volume name
     const workspaceVolume = this.generateWorkspaceVolumeName(projectId, artifactName);
 
+    // Generate CUI auth token
+    const cuiAuthToken = randomUUID().replace(/-/g, '');
+
     // Create session in database
     const session = await this.sessionsRepo.create({
       project_id: projectId,
       artifact_name: artifactName,
       environment,
       workspace_volume: workspaceVolume,
+      cui_auth_token: cuiAuthToken,
       // container_id will be set when Docker containers are started
     });
 
@@ -173,18 +178,22 @@ export class SandboxService {
 
     return {
       session,
-      urls: this.getServiceUrls(session.id, project),
+      urls: this.getServiceUrls(session.id, project, session.cui_auth_token),
     };
   }
 
   /**
    * Gets service URLs for a session.
    */
-  getServiceUrls(sessionId: string, project?: Project): ServiceUrls {
+  getServiceUrls(sessionId: string, project?: Project, cuiAuthToken?: string | null): ServiceUrls {
     const cachedProject = project ?? this.sessionProjectCache.get(sessionId);
 
+    // Build cui URL with auth token if available
+    const cuiBaseUrl = `http://localhost:${SandboxService.PORTS.cui}`;
+    const cuiUrl = cuiAuthToken ? `${cuiBaseUrl}#token=${cuiAuthToken}` : cuiBaseUrl;
+
     return {
-      cui: `http://localhost:${SandboxService.PORTS.cui}`,
+      cui: cuiUrl,
       mastra: `http://localhost:${SandboxService.PORTS.mastra}`,
       astro: cachedProject?.ui_sandbox_path ? `http://localhost:${SandboxService.PORTS.astro}` : null,
       vscode: `http://localhost:${SandboxService.PORTS.vscode}`,
@@ -266,7 +275,7 @@ export class SandboxService {
 
     return {
       session: updatedSession,
-      urls: this.getServiceUrls(sessionId, project),
+      urls: this.getServiceUrls(sessionId, project, updatedSession.cui_auth_token),
     };
   }
 
@@ -489,7 +498,7 @@ export class SandboxService {
         name: `${session.id}-cui`,
         image: SandboxService.IMAGES.cui,
         port: SandboxService.PORTS.cui,
-        env: baseEnv,
+        env: [...baseEnv, `CUI_AUTH_TOKEN=${session.cui_auth_token || ''}`],
       },
       {
         name: `${session.id}-mastra`,

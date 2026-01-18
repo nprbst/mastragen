@@ -63,6 +63,7 @@ export async function runMigrations(db: Kysely<any>): Promise<void> {
     )
     .addColumn('container_id', 'text')
     .addColumn('workspace_volume', 'text')
+    .addColumn('cui_auth_token', 'text')
     .addColumn('created_at', 'text', (col) =>
       col.notNull().defaultTo(sql`(datetime('now'))`)
     )

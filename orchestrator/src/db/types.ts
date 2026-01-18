@@ -47,6 +47,7 @@ export interface SessionsTable {
   state: Generated<'active' | 'suspended'>;
   container_id: string | null;
   workspace_volume: string | null;
+  cui_auth_token: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }

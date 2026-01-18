@@ -7,6 +7,7 @@ export interface CreateSessionInput {
   environment: string;
   container_id?: string | null;
   workspace_volume?: string | null;
+  cui_auth_token?: string | null;
 }
 
 export interface SessionFilters {
@@ -27,6 +28,7 @@ export class SessionsRepository {
       environment: input.environment,
       container_id: input.container_id ?? null,
       workspace_volume: input.workspace_volume ?? null,
+      cui_auth_token: input.cui_auth_token ?? null,
     };
 
     return this.db
