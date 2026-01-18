@@ -10,8 +10,8 @@ export interface Database {
   project_environments: ProjectEnvironmentsTable;
   sessions: SessionsTable;
   // Phase 3 tables
+  github_app_installations: GithubAppInstallationsTable;
   users: UsersTable;
-  user_project_members: UserProjectMembersTable;
   project_cui_config: ProjectCuiConfigTable;
   project_commands: ProjectCommandsTable;
   project_skills: ProjectSkillsTable;
@@ -29,6 +29,7 @@ export interface ProjectsTable {
   branch_prefix: Generated<string>;
   mastra_path: Generated<string>;
   ui_sandbox_path: string | null;
+  installation_id: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
@@ -94,38 +95,40 @@ export type SessionUpdate = Updateable<SessionsTable>;
 // ============================================================================
 
 /**
- * User role in a project.
+ * GitHub App installation account type.
  */
-export type ProjectRole = 'admin' | 'member';
+export type GitHubAccountType = 'User' | 'Organization';
 
 /**
- * OIDC provider type.
+ * GitHub App installations table - stores GitHub App installation records.
+ * Access control is derived from these installations - no manual membership table.
  */
-export type AuthProvider = 'google' | 'github' | 'azure' | 'custom';
+export interface GithubAppInstallationsTable {
+  id: Generated<string>;
+  installation_id: number;
+  account_type: GitHubAccountType;
+  account_login: string;
+  account_id: number;
+  permissions: Generated<string>;
+  repository_selection: string;
+  suspended_at: string | null;
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
 
 /**
- * Users table - authenticated users from OIDC provider.
+ * Users table - authenticated users from GitHub OAuth.
  */
 export interface UsersTable {
   id: Generated<string>;
   email: string;
   name: string | null;
   avatar_url: string | null;
-  provider: AuthProvider;
-  provider_id: string;
+  github_id: number;
+  github_login: string;
+  github_access_token: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
-}
-
-/**
- * User-project membership for access control.
- */
-export interface UserProjectMembersTable {
-  id: Generated<string>;
-  user_id: string;
-  project_id: string;
-  role: Generated<ProjectRole>;
-  created_at: Generated<string>;
 }
 
 /**
@@ -181,14 +184,15 @@ export interface SessionSharesTable {
   revoked_at: string | null;
 }
 
+// Convenience types for GithubAppInstallations
+export type GithubAppInstallation = Selectable<GithubAppInstallationsTable>;
+export type NewGithubAppInstallation = Insertable<GithubAppInstallationsTable>;
+export type GithubAppInstallationUpdate = Updateable<GithubAppInstallationsTable>;
+
 // Convenience types for Users
 export type User = Selectable<UsersTable>;
 export type NewUser = Insertable<UsersTable>;
 export type UserUpdate = Updateable<UsersTable>;
-
-// Convenience types for UserProjectMembers
-export type UserProjectMember = Selectable<UserProjectMembersTable>;
-export type NewUserProjectMember = Insertable<UserProjectMembersTable>;
 
 // Convenience types for ProjectCuiConfig
 export type ProjectCuiConfig = Selectable<ProjectCuiConfigTable>;

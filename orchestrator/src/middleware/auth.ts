@@ -29,7 +29,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'development-secret-change-in-produ
  * Decode and verify a JWT token.
  * Returns the payload if valid, throws if invalid.
  */
-async function verifyJwt(token: string, secret: string = JWT_SECRET): Promise<JwtPayload> {
+async function verifyJwt(token: string, _secret: string = JWT_SECRET): Promise<JwtPayload> {
   // Simple JWT verification
   // In production, use a proper JWT library like jose
   const parts = token.split('.');
@@ -39,7 +39,7 @@ async function verifyJwt(token: string, secret: string = JWT_SECRET): Promise<Jw
 
   try {
     // Decode payload (middle part)
-    const payloadBase64 = parts[1];
+    const payloadBase64 = parts[1]!;
     const payloadJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
     const payload = JSON.parse(payloadJson);
 
@@ -75,11 +75,11 @@ function extractBearerToken(authHeader: string | null): string | null {
   }
 
   const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0].toLowerCase() !== 'bearer') {
+  if (parts.length !== 2 || parts[0]!.toLowerCase() !== 'bearer') {
     return null;
   }
 
-  return parts[1];
+  return parts[1] ?? null;
 }
 
 /**
@@ -154,11 +154,15 @@ export function optionalAuth(): MiddlewareHandler {
 }
 
 /**
- * Middleware that requires the user to be a member of the project.
+ * Middleware that requires the user to have access to a project.
+ * Access is determined by GitHub App installation:
+ * - User must have access to the installation linked to the project
+ * - Installation must not be suspended
+ *
  * Must be used after requireAuth().
  * Expects projectId in route params.
  */
-export function requireProjectMember(): MiddlewareHandler {
+export function requireProjectAccess(): MiddlewareHandler {
   return async (c, next) => {
     const user = getAuthUser(c);
     if (!user) {
@@ -170,29 +174,75 @@ export function requireProjectMember(): MiddlewareHandler {
       return c.json({ error: 'Project ID required' }, 400);
     }
 
-    // Check membership via repository
-    // This requires db context - will be injected via app context
     const db = c.get('db');
     if (!db) {
       console.error('Database not available in context');
       return c.json({ error: 'Internal server error' }, 500);
     }
 
-    // Import dynamically to avoid circular dependencies
-    const { UserProjectMembersRepository } = await import('../repositories/user-project-members.ts');
-    const membersRepo = new UserProjectMembersRepository(db);
+    // Get project with installation info
+    const project = await db
+      .selectFrom('projects')
+      .selectAll()
+      .where('id', '=', projectId)
+      .executeTakeFirst();
 
-    const isMember = await membersRepo.isMember(user.id, projectId);
-    if (!isMember) {
-      return c.json({ error: 'Access denied' }, 403);
+    if (!project) {
+      return c.json({ error: 'Project not found' }, 404);
     }
+
+    if (!project.installation_id) {
+      return c.json({ error: 'Project not linked to GitHub installation' }, 403);
+    }
+
+    // Get the installation
+    const installation = await db
+      .selectFrom('github_app_installations')
+      .selectAll()
+      .where('id', '=', project.installation_id)
+      .executeTakeFirst();
+
+    if (!installation) {
+      return c.json({ error: 'Installation not found' }, 403);
+    }
+
+    if (installation.suspended_at) {
+      return c.json({ error: 'GitHub App installation is suspended' }, 403);
+    }
+
+    // Get user's GitHub access token to verify they have access to this installation
+    const dbUser = await db
+      .selectFrom('users')
+      .select(['github_access_token'])
+      .where('id', '=', user.id)
+      .executeTakeFirst();
+
+    if (!dbUser?.github_access_token) {
+      return c.json({ error: 'GitHub access token not available' }, 403);
+    }
+
+    // Verify user has access to this installation via GitHub API
+    const hasAccess = await verifyInstallationAccess(
+      dbUser.github_access_token,
+      installation.installation_id
+    );
+
+    if (!hasAccess) {
+      return c.json({ error: 'Access denied to this project' }, 403);
+    }
+
+    // Store installation info in context for downstream use
+    c.set('installation', installation);
+    c.set('project', project);
 
     await next();
   };
 }
 
 /**
- * Middleware that requires the user to be an admin of the project.
+ * Middleware that requires the user to have admin access to a project.
+ * Admin access is determined by GitHub repository permissions.
+ *
  * Must be used after requireAuth().
  * Expects projectId in route params.
  */
@@ -214,16 +264,131 @@ export function requireProjectAdmin(): MiddlewareHandler {
       return c.json({ error: 'Internal server error' }, 500);
     }
 
-    const { UserProjectMembersRepository } = await import('../repositories/user-project-members.ts');
-    const membersRepo = new UserProjectMembersRepository(db);
+    // Get project with installation and repo info
+    const project = await db
+      .selectFrom('projects')
+      .selectAll()
+      .where('id', '=', projectId)
+      .executeTakeFirst();
 
-    const isAdmin = await membersRepo.isAdmin(user.id, projectId);
+    if (!project) {
+      return c.json({ error: 'Project not found' }, 404);
+    }
+
+    if (!project.installation_id) {
+      return c.json({ error: 'Project not linked to GitHub installation' }, 403);
+    }
+
+    if (!project.github_repo) {
+      return c.json({ error: 'Project not linked to GitHub repository' }, 403);
+    }
+
+    // Get the installation
+    const installation = await db
+      .selectFrom('github_app_installations')
+      .selectAll()
+      .where('id', '=', project.installation_id)
+      .executeTakeFirst();
+
+    if (!installation) {
+      return c.json({ error: 'Installation not found' }, 403);
+    }
+
+    if (installation.suspended_at) {
+      return c.json({ error: 'GitHub App installation is suspended' }, 403);
+    }
+
+    // Get user's GitHub access token
+    const dbUser = await db
+      .selectFrom('users')
+      .select(['github_access_token'])
+      .where('id', '=', user.id)
+      .executeTakeFirst();
+
+    if (!dbUser?.github_access_token) {
+      return c.json({ error: 'GitHub access token not available' }, 403);
+    }
+
+    // Check if user has admin permissions on the repository
+    const isAdmin = await verifyRepositoryAdmin(
+      dbUser.github_access_token,
+      project.github_repo
+    );
+
     if (!isAdmin) {
       return c.json({ error: 'Admin access required' }, 403);
     }
 
+    // Store installation info in context for downstream use
+    c.set('installation', installation);
+    c.set('project', project);
+
     await next();
   };
+}
+
+/**
+ * Verify that a user has access to a GitHub App installation.
+ */
+async function verifyInstallationAccess(
+  accessToken: string,
+  installationId: number
+): Promise<boolean> {
+  try {
+    const response = await fetch('https://api.github.com/user/installations', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch user installations:', response.status);
+      return false;
+    }
+
+    const data = (await response.json()) as {
+      installations: Array<{ id: number }>;
+    };
+
+    return data.installations.some((inst) => inst.id === installationId);
+  } catch (error) {
+    console.error('Error verifying installation access:', error);
+    return false;
+  }
+}
+
+/**
+ * Verify that a user has admin permissions on a GitHub repository.
+ */
+async function verifyRepositoryAdmin(
+  accessToken: string,
+  repoFullName: string
+): Promise<boolean> {
+  try {
+    const response = await fetch(`https://api.github.com/repos/${repoFullName}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch repository:', response.status);
+      return false;
+    }
+
+    const data = (await response.json()) as {
+      permissions?: { admin?: boolean };
+    };
+
+    return data.permissions?.admin === true;
+  } catch (error) {
+    console.error('Error verifying repository admin:', error);
+    return false;
+  }
 }
 
 /**

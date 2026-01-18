@@ -25,6 +25,8 @@
   "dependencies": {
     "@octokit/auth-app": "^7.1.0",
     "@octokit/rest": "^21.0.0",
+    "@orpc/client": "^1.13.4",
+    "@orpc/server": "^1.13.4",
     "dockerode": "^4.0.0",
     "hono": "^4.6.0",
     "kysely": "^0.27.0",

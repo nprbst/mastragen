@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach, afterEach } from 'bun:test';
+import { describe, expect, test, beforeEach } from 'bun:test';
 import { Hono } from 'hono';
 
 // Test T009: Unit test for JWT validation middleware
@@ -134,11 +134,11 @@ describe('JWT validation middleware', () => {
     });
   });
 
-  describe('requireProjectMember middleware', () => {
-    test('should return 403 when user is not a member of the project', async () => {
-      const { requireAuth, requireProjectMember } = await import('../../../src/middleware/auth.ts');
+  describe('requireProjectAccess middleware', () => {
+    test('should return 403 when user does not have access to the project', async () => {
+      const { requireAuth, requireProjectAccess } = await import('../../../src/middleware/auth.ts');
 
-      app.use('/projects/:projectId/*', requireAuth(), requireProjectMember());
+      app.use('/projects/:projectId/*', requireAuth(), requireProjectAccess());
       app.get('/projects/:projectId/settings', (c) => c.json({ settings: {} }));
 
       const validToken = 'valid.jwt.token';
@@ -147,19 +147,19 @@ describe('JWT validation middleware', () => {
         headers: { Authorization: `Bearer ${validToken}` },
       });
 
-      // Should fail because user is not a member
-      expect(res.status).toBe(403);
-      const body = await res.json();
-      expect(body.error).toBe('Access denied');
+      // Should fail because project doesn't exist or user doesn't have access
+      expect(res.status).toBe(404);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toBe('Project not found');
     });
 
-    test('should allow access when user is a project member', async () => {
-      const { requireAuth, requireProjectMember } = await import('../../../src/middleware/auth.ts');
+    test('should allow access when user has GitHub installation access', async () => {
+      const { requireAuth, requireProjectAccess } = await import('../../../src/middleware/auth.ts');
 
-      app.use('/projects/:projectId/*', requireAuth(), requireProjectMember());
+      app.use('/projects/:projectId/*', requireAuth(), requireProjectAccess());
       app.get('/projects/:projectId/settings', (c) => c.json({ settings: {} }));
 
-      // This test requires setting up user-project membership
+      // This test requires setting up GitHub App installation
       // Will be verified in integration tests
       expect(true).toBe(true);
     });

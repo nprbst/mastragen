@@ -20,11 +20,14 @@ export type Timestamp = v.InferOutput<typeof TimestampSchema>;
 
 /**
  * Session state enum.
+ * Extended in Phase 3 with 'merged' and 'archived' states.
  */
 export const SessionStateSchema = v.picklist([
   'active',
   'suspended',
   'pr_open',
+  'merged',
+  'archived',
   'closed',
 ]);
 export type SessionState = v.InferOutput<typeof SessionStateSchema>;

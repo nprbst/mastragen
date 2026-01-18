@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, afterEach, beforeAll, afterAll } from 'bun:test';
+import { describe, expect, test, beforeEach, beforeAll, afterAll } from 'bun:test';
 import { existsSync, unlinkSync } from 'node:fs';
 import type { Kysely } from 'kysely';
 import { Hono } from 'hono';
@@ -12,7 +12,6 @@ import {
   SessionsRepository,
   UsersRepository,
   SessionSharesRepository,
-  UserProjectMembersRepository,
 } from '../../src/repositories/index.ts';
 import { sessionsRoutes } from '../../src/routes/sessions.ts';
 
@@ -27,7 +26,6 @@ describe('Sessions routes - Dashboard integration', () => {
   let sessionsRepo: SessionsRepository;
   let usersRepo: UsersRepository;
   let sharesRepo: SessionSharesRepository;
-  let membersRepo: UserProjectMembersRepository;
   let testProjectId: string;
   let testProject2Id: string;
   let testUserId: string;
@@ -54,7 +52,6 @@ describe('Sessions routes - Dashboard integration', () => {
     // Clean tables between tests
     await db.deleteFrom('session_shares').execute();
     await db.deleteFrom('sessions').execute();
-    await db.deleteFrom('user_project_members').execute();
     await db.deleteFrom('project_environments').execute();
     await db.deleteFrom('projects').execute();
     await db.deleteFrom('users').execute();
@@ -63,7 +60,6 @@ describe('Sessions routes - Dashboard integration', () => {
     sessionsRepo = new SessionsRepository(db);
     usersRepo = new UsersRepository(db);
     sharesRepo = new SessionSharesRepository(db);
-    membersRepo = new UserProjectMembersRepository(db);
 
     app = new Hono();
     app.route('/sessions', sessionsRoutes(db));
@@ -89,23 +85,18 @@ describe('Sessions routes - Dashboard integration', () => {
     const user = await usersRepo.create({
       email: 'alice@test.com',
       name: 'Alice',
-      provider: 'google',
-      provider_id: 'google-alice',
+      github_id: 12345,
+      github_login: 'alice-gh',
     });
     testUserId = user.id;
 
     const user2 = await usersRepo.create({
       email: 'bob@test.com',
       name: 'Bob',
-      provider: 'google',
-      provider_id: 'google-bob',
+      github_id: 67890,
+      github_login: 'bob-gh',
     });
     testUser2Id = user2.id;
-
-    // Add users to projects
-    await membersRepo.addMember({ userId: testUserId, projectId: testProjectId, role: 'admin' });
-    await membersRepo.addMember({ userId: testUserId, projectId: testProject2Id, role: 'member' });
-    await membersRepo.addMember({ userId: testUser2Id, projectId: testProjectId, role: 'member' });
   });
 
   describe('Dashboard session listing', () => {

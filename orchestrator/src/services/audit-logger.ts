@@ -52,12 +52,35 @@ export interface AccessEventData {
   reason?: string;
 }
 
+export interface WebhookEventData {
+  event: string;
+  action?: string;
+  deliveryId?: string;
+  installationId?: number;
+  accountLogin?: string;
+  repositoriesAdded?: string[];
+  repositoriesRemoved?: string[];
+  handled?: boolean;
+  error?: string;
+}
+
+export interface SecurityEventData {
+  action: string;
+  event?: string;
+  deliveryId?: string;
+  success: boolean;
+  reason?: string;
+  ip?: string;
+}
+
 type AuditEvent =
   | { type: 'AUTH'; data: AuthEventData }
   | { type: 'SESSION'; data: SessionEventData }
   | { type: 'SHARE'; data: ShareEventData }
   | { type: 'PR'; data: PREventData }
-  | { type: 'ACCESS'; data: AccessEventData };
+  | { type: 'ACCESS'; data: AccessEventData }
+  | { type: 'WEBHOOK'; data: WebhookEventData }
+  | { type: 'SECURITY'; data: SecurityEventData };
 
 /**
  * Audit logger for security-sensitive actions.
@@ -97,6 +120,22 @@ export class AuditLogger {
   logAccessEvent(data: AccessEventData): void {
     const level = data.action === 'access_denied' ? 'warn' : 'info';
     this.log('ACCESS', data, level);
+  }
+
+  /**
+   * Log a webhook event.
+   */
+  logWebhookEvent(data: WebhookEventData): void {
+    const level = data.error ? 'error' : 'info';
+    this.log('WEBHOOK', data, level);
+  }
+
+  /**
+   * Log a security event.
+   */
+  logSecurityEvent(data: SecurityEventData): void {
+    const level = data.success ? 'info' : 'warn';
+    this.log('SECURITY', data, level);
   }
 
   /**

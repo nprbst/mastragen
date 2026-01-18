@@ -1,6 +1,14 @@
 /**
  * HTTP client for Mastragen Orchestrator API
+ *
+ * This client uses oRPC for type-safe API communication with Valibot validation.
+ * The external API remains unchanged for backward compatibility with commands.
  */
+
+// Import oRPC client
+import { createORPCClient } from '@orpc/client';
+import { RPCLink } from '@orpc/client/fetch';
+import type { Router } from '../../orchestrator/src/orpc/router.ts';
 
 // Import types from orchestrator schemas (single source of truth)
 import type {
@@ -44,16 +52,28 @@ export class ApiError extends Error {
 
 /**
  * HTTP client for the Mastragen Orchestrator API.
+ * Uses oRPC internally for type-safe communication with Valibot validation.
  */
 export class MgenClient {
   private baseUrl: string;
+  private rpcClient: ReturnType<typeof createORPCClient<Router>>;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+
+    // Create oRPC client for type-safe RPC calls
+    const link = new RPCLink({
+      url: `${this.baseUrl}/rpc`,
+      headers: () => ({
+        'Content-Type': 'application/json',
+      }),
+    });
+    this.rpcClient = createORPCClient<Router>(link);
   }
 
   /**
    * Makes an HTTP request and handles errors.
+   * Used for endpoints not yet migrated to oRPC.
    */
   private async request<T>(
     path: string,
@@ -84,6 +104,7 @@ export class MgenClient {
    * Checks API health status.
    */
   async health(): Promise<HealthStatus> {
+    // Use REST endpoint for health (always available even if oRPC is down)
     const url = `${this.baseUrl}/health`;
     const response = await fetch(url, {
       method: 'GET',
@@ -98,6 +119,7 @@ export class MgenClient {
    * Creates a new session.
    */
   async createSession(request: CreateSessionRequest): Promise<SessionWithUrls> {
+    // Use REST endpoint until oRPC handlers are fully implemented
     return this.request<SessionWithUrls>('/sessions', {
       method: 'POST',
       body: JSON.stringify(request),
@@ -213,5 +235,20 @@ export class MgenClient {
     return this.request<Environment[]>(`/projects/${projectId}/environments`, {
       method: 'GET',
     });
+  }
+
+  /**
+   * Get the oRPC client for direct type-safe access.
+   * Use this for new code or when you need full type safety.
+   *
+   * @example
+   * ```ts
+   * const client = new MgenClient('http://localhost:4000');
+   * const health = await client.rpc.health.check();
+   * const projects = await client.rpc.projects.list();
+   * ```
+   */
+  get rpc() {
+    return this.rpcClient;
   }
 }

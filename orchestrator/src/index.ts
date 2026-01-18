@@ -6,7 +6,14 @@ import { createDatabase } from './db/index.ts';
 import { runMigrations as runMigrations001 } from './db/migrations/001_initial.ts';
 import { runMigrations as runMigrations002 } from './db/migrations/002_git_fields.ts';
 import { runMigrations as runMigrations003 } from './db/migrations/003_cui_config.ts';
-import { authRoutes, healthRoutes, projectsRoutes, sessionsRoutes } from './routes/index.ts';
+import {
+  createAuthRoutes,
+  healthRoutes,
+  projectsRoutes,
+  sessionsRoutes,
+  createWebhookRoutes,
+} from './routes/index.ts';
+import { handleORPCRequest } from './orpc/index.ts';
 
 const config = loadConfig();
 
@@ -25,11 +32,27 @@ const app = new Hono();
 app.use('*', cors());
 app.use('*', logger());
 
+// Inject database into context for middleware
+app.use('*', async (c, next) => {
+  // @ts-expect-error - db is added dynamically to context for middleware use
+  c.set('db', db);
+  await next();
+});
+
 // Routes
-app.route('/auth', authRoutes(db));
+app.route('/auth', createAuthRoutes(db));
 app.route('/health', healthRoutes(db));
 app.route('/projects', projectsRoutes(db));
 app.route('/sessions', sessionsRoutes(db));
+
+// GitHub webhook handler
+const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || 'development-webhook-secret';
+app.route('/webhooks', createWebhookRoutes(db, webhookSecret));
+
+// oRPC handler for type-safe API calls
+app.all('/rpc/*', async (c) => {
+  return handleORPCRequest(c, db);
+});
 
 // Root route
 app.get('/', (c) => {
@@ -37,6 +60,7 @@ app.get('/', (c) => {
     name: 'mastragen-orchestrator',
     version: process.env.npm_package_version ?? '0.1.0',
     docs: '/health',
+    rpc: '/rpc',
   });
 });
 

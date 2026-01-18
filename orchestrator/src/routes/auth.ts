@@ -143,7 +143,100 @@ export function createAuthRoutes(db: Kysely<Database>): Hono {
       id: user.id,
       email: user.email,
       name: user.name,
-      avatar_url: user.avatar_url,
+      avatarUrl: user.avatar_url,
+      githubId: user.github_id,
+      githubLogin: user.github_login,
+    });
+  });
+
+  /**
+   * GET /auth/installations
+   * Lists GitHub App installations accessible to the current user.
+   */
+  app.get('/installations', requireAuth(), async (c) => {
+    const authUser = getAuthUser(c);
+
+    if (!authUser) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const result = await authService.getUserInstallations(authUser.id);
+
+    if (result.error) {
+      return c.json(
+        {
+          installations: [],
+          error: result.error,
+        },
+        200
+      );
+    }
+
+    return c.json({
+      installations: result.installations.map((inst) => ({
+        id: inst.id,
+        installationId: inst.id,
+        accountType: inst.account.type,
+        accountLogin: inst.account.login,
+        accountId: inst.account.id,
+        repositorySelection: inst.repository_selection,
+        permissions: inst.permissions,
+      })),
+    });
+  });
+
+  /**
+   * GET /auth/installations/:installationId/repos
+   * Lists repositories for a specific GitHub App installation.
+   */
+  app.get('/installations/:installationId/repos', requireAuth(), async (c) => {
+    const authUser = getAuthUser(c);
+
+    if (!authUser) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const installationId = parseInt(c.req.param('installationId'), 10);
+    if (isNaN(installationId)) {
+      return c.json({ error: 'Invalid installation ID' }, 400);
+    }
+
+    const page = parseInt(c.req.query('page') || '1', 10);
+    const perPage = Math.min(parseInt(c.req.query('per_page') || '30', 10), 100);
+
+    const result = await authService.getInstallationRepositories(
+      authUser.id,
+      installationId,
+      page,
+      perPage
+    );
+
+    if (result.error) {
+      if (result.error === 'Access denied to installation') {
+        return c.json(
+          {
+            error: 'Forbidden',
+            code: 'AUTH_INSTALLATION_ACCESS_DENIED',
+            message: 'You do not have access to this installation',
+          },
+          403
+        );
+      }
+      return c.json({ error: result.error }, 500);
+    }
+
+    return c.json({
+      repositories: result.repositories.map((repo) => ({
+        id: repo.id,
+        name: repo.name,
+        fullName: repo.full_name,
+        private: repo.private,
+        defaultBranch: repo.default_branch,
+        permissions: repo.permissions,
+      })),
+      totalCount: result.totalCount,
+      page,
+      perPage,
     });
   });
 

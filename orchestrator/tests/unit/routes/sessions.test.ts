@@ -64,16 +64,16 @@ describe('Sessions routes - Dashboard filtering', () => {
     const user = await usersRepo.create({
       email: 'user1@test.com',
       name: 'User 1',
-      provider: 'google',
-      provider_id: 'google-user-1',
+      github_id: 11111,
+      github_login: 'user1-gh',
     });
     testUserId = user.id;
 
     const user2 = await usersRepo.create({
       email: 'user2@test.com',
       name: 'User 2',
-      provider: 'google',
-      provider_id: 'google-user-2',
+      github_id: 22222,
+      github_login: 'user2-gh',
     });
     testUser2Id = user2.id;
   });

@@ -1,15 +1,9 @@
 import type { Kysely } from 'kysely';
 import { nanoid } from 'nanoid';
-import type {
-  Database,
-  User,
-  NewUser,
-  UserUpdate,
-  AuthProvider,
-} from '../db/types.ts';
+import type { Database, User, NewUser, UserUpdate } from '../db/types.ts';
 
 /**
- * Repository for managing users.
+ * Repository for managing users authenticated via GitHub OAuth.
  */
 export class UsersRepository {
   constructor(private db: Kysely<Database>) {}
@@ -17,7 +11,7 @@ export class UsersRepository {
   /**
    * Create a new user.
    */
-  async create(data: Omit<NewUser, 'id'>): Promise<User> {
+  async create(data: Omit<NewUser, 'id' | 'created_at' | 'updated_at'>): Promise<User> {
     const id = nanoid(12);
     const now = new Date().toISOString();
 
@@ -61,46 +55,55 @@ export class UsersRepository {
   }
 
   /**
-   * Find a user by provider and provider ID.
+   * Find a user by GitHub ID.
    */
-  async findByProvider(provider: AuthProvider, providerId: string): Promise<User | undefined> {
+  async findByGithubId(githubId: number): Promise<User | undefined> {
     return this.db
       .selectFrom('users')
       .selectAll()
-      .where('provider', '=', provider)
-      .where('provider_id', '=', providerId)
+      .where('github_id', '=', githubId)
       .executeTakeFirst();
   }
 
   /**
-   * Find or create a user from OIDC profile.
+   * Find a user by GitHub login (username).
+   */
+  async findByGithubLogin(githubLogin: string): Promise<User | undefined> {
+    return this.db
+      .selectFrom('users')
+      .selectAll()
+      .where('github_login', '=', githubLogin)
+      .executeTakeFirst();
+  }
+
+  /**
+   * Find or create a user from GitHub OAuth profile.
    */
   async findOrCreate(data: {
     email: string;
     name?: string | null;
     avatar_url?: string | null;
-    provider: AuthProvider;
-    provider_id: string;
+    github_id: number;
+    github_login: string;
+    github_access_token?: string | null;
   }): Promise<User> {
-    // First try to find by provider
-    let user = await this.findByProvider(data.provider, data.provider_id);
+    // First try to find by GitHub ID
+    let user = await this.findByGithubId(data.github_id);
 
     if (user) {
       // Update user info in case it changed
-      if (data.name !== user.name || data.avatar_url !== user.avatar_url) {
-        user = await this.update(user.id, {
-          name: data.name,
-          avatar_url: data.avatar_url,
-        });
+      const updates: Partial<UserUpdate> = {};
+      if (data.name !== user.name) updates.name = data.name;
+      if (data.avatar_url !== user.avatar_url) updates.avatar_url = data.avatar_url;
+      if (data.github_login !== user.github_login) updates.github_login = data.github_login;
+      if (data.github_access_token !== undefined) {
+        updates.github_access_token = data.github_access_token;
+      }
+
+      if (Object.keys(updates).length > 0) {
+        user = await this.update(user.id, updates);
       }
       return user!;
-    }
-
-    // Check if email already exists with different provider
-    const existingByEmail = await this.findByEmail(data.email);
-    if (existingByEmail) {
-      // Link to existing user (could implement account linking here)
-      // For now, create a new user
     }
 
     // Create new user
@@ -108,9 +111,17 @@ export class UsersRepository {
       email: data.email,
       name: data.name ?? null,
       avatar_url: data.avatar_url ?? null,
-      provider: data.provider,
-      provider_id: data.provider_id,
+      github_id: data.github_id,
+      github_login: data.github_login,
+      github_access_token: data.github_access_token ?? null,
     });
+  }
+
+  /**
+   * Update a user's GitHub access token.
+   */
+  async updateAccessToken(id: string, accessToken: string | null): Promise<User | undefined> {
+    return this.update(id, { github_access_token: accessToken });
   }
 
   /**
@@ -139,22 +150,16 @@ export class UsersRepository {
    * Delete a user.
    */
   async delete(id: string): Promise<boolean> {
-    const result = await this.db
-      .deleteFrom('users')
-      .where('id', '=', id)
-      .execute();
+    const result = await this.db.deleteFrom('users').where('id', '=', id).execute();
 
-    return result[0]?.numDeletedRows > 0n;
+    return (result[0]?.numDeletedRows ?? 0n) > 0n;
   }
 
   /**
    * List all users (with pagination).
    */
   async findAll(options?: { limit?: number; offset?: number }): Promise<User[]> {
-    let query = this.db
-      .selectFrom('users')
-      .selectAll()
-      .orderBy('created_at', 'desc');
+    let query = this.db.selectFrom('users').selectAll().orderBy('created_at', 'desc');
 
     if (options?.limit) {
       query = query.limit(options.limit);

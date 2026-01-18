@@ -1,10 +1,6 @@
 import type { Kysely } from 'kysely';
 import { nanoid } from 'nanoid';
-import type {
-  Database,
-  SessionShare,
-  NewSessionShare,
-} from '../db/types.ts';
+import type { Database, SessionShare } from '../db/types.ts';
 
 /**
  * Repository for managing session shares.

@@ -6,17 +6,52 @@ import type { Database } from '../types.ts';
  * Migration 003: cui Configuration & Landing Page (Phase 3)
  *
  * Creates tables for:
- * - users (authenticated users from OIDC)
- * - user_project_members (user-project membership for access control)
+ * - github_app_installations (GitHub App installation records)
+ * - users (authenticated users from GitHub OAuth)
  * - project_cui_config (cui configuration per project)
  * - project_commands (custom slash commands per project)
  * - project_skills (custom skills per project)
  * - session_shares (session sharing records)
  *
- * Also extends the sessions table with last_activity_at column.
+ * Also extends:
+ * - projects table with installation_id FK
+ * - sessions table with last_activity_at column
+ *
+ * Access control is derived from GitHub App installations - no manual membership table.
  */
 export async function runMigrations(db: Kysely<Database>): Promise<void> {
-  // Create users table
+  // Create github_app_installations table (must be created before projects references it)
+  await db.schema
+    .createTable('github_app_installations')
+    .ifNotExists()
+    .addColumn('id', 'text', (col) => col.primaryKey())
+    .addColumn('installation_id', 'integer', (col) => col.notNull().unique())
+    .addColumn('account_type', 'text', (col) => col.notNull())
+    .addColumn('account_login', 'text', (col) => col.notNull())
+    .addColumn('account_id', 'integer', (col) => col.notNull())
+    .addColumn('permissions', 'text', (col) => col.notNull().defaultTo('{}'))
+    .addColumn('repository_selection', 'text', (col) => col.notNull())
+    .addColumn('suspended_at', 'text')
+    .addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
+    .addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
+    .execute();
+
+  // Create indexes for github_app_installations
+  await db.schema
+    .createIndex('github_app_installations_installation_id_idx')
+    .ifNotExists()
+    .on('github_app_installations')
+    .column('installation_id')
+    .execute();
+
+  await db.schema
+    .createIndex('github_app_installations_account_idx')
+    .ifNotExists()
+    .on('github_app_installations')
+    .column('account_login')
+    .execute();
+
+  // Create users table (GitHub-specific fields)
   await db.schema
     .createTable('users')
     .ifNotExists()
@@ -24,8 +59,9 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
     .addColumn('email', 'text', (col) => col.notNull().unique())
     .addColumn('name', 'text')
     .addColumn('avatar_url', 'text')
-    .addColumn('provider', 'text', (col) => col.notNull())
-    .addColumn('provider_id', 'text', (col) => col.notNull())
+    .addColumn('github_id', 'integer', (col) => col.notNull().unique())
+    .addColumn('github_login', 'text', (col) => col.notNull())
+    .addColumn('github_access_token', 'text')
     .addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
     .addColumn('updated_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
     .execute();
@@ -39,40 +75,23 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('users_provider_idx')
+    .createIndex('users_github_id_idx')
     .ifNotExists()
     .on('users')
-    .columns(['provider', 'provider_id'])
-    .execute();
-
-  // Create user_project_members table
-  await db.schema
-    .createTable('user_project_members')
-    .ifNotExists()
-    .addColumn('id', 'text', (col) => col.primaryKey())
-    .addColumn('user_id', 'text', (col) => col.notNull().references('users.id').onDelete('cascade'))
-    .addColumn('project_id', 'text', (col) =>
-      col.notNull().references('projects.id').onDelete('cascade')
-    )
-    .addColumn('role', 'text', (col) => col.notNull().defaultTo('member'))
-    .addColumn('created_at', 'text', (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
-    .addUniqueConstraint('user_project_members_unique', ['user_id', 'project_id'])
-    .execute();
-
-  // Create indexes for user_project_members
-  await db.schema
-    .createIndex('user_project_members_user_idx')
-    .ifNotExists()
-    .on('user_project_members')
-    .column('user_id')
+    .column('github_id')
     .execute();
 
   await db.schema
-    .createIndex('user_project_members_project_idx')
+    .createIndex('users_github_login_idx')
     .ifNotExists()
-    .on('user_project_members')
-    .column('project_id')
+    .on('users')
+    .column('github_login')
     .execute();
+
+  // Extend projects table with installation_id FK
+  await sql`ALTER TABLE projects ADD COLUMN installation_id TEXT REFERENCES github_app_installations(id)`.execute(
+    db
+  );
 
   // Create project_cui_config table
   await db.schema
@@ -201,19 +220,20 @@ export async function rollbackMigrations(db: Kysely<Database>): Promise<void> {
   await db.schema.dropIndex('session_shares_session_idx').ifExists().execute();
   await db.schema.dropIndex('project_skills_project_idx').ifExists().execute();
   await db.schema.dropIndex('project_commands_project_idx').ifExists().execute();
-  await db.schema.dropIndex('user_project_members_project_idx').ifExists().execute();
-  await db.schema.dropIndex('user_project_members_user_idx').ifExists().execute();
-  await db.schema.dropIndex('users_provider_idx').ifExists().execute();
+  await db.schema.dropIndex('users_github_login_idx').ifExists().execute();
+  await db.schema.dropIndex('users_github_id_idx').ifExists().execute();
   await db.schema.dropIndex('users_email_idx').ifExists().execute();
+  await db.schema.dropIndex('github_app_installations_account_idx').ifExists().execute();
+  await db.schema.dropIndex('github_app_installations_installation_id_idx').ifExists().execute();
 
   // Drop tables (in reverse dependency order)
   await db.schema.dropTable('session_shares').ifExists().execute();
   await db.schema.dropTable('project_skills').ifExists().execute();
   await db.schema.dropTable('project_commands').ifExists().execute();
   await db.schema.dropTable('project_cui_config').ifExists().execute();
-  await db.schema.dropTable('user_project_members').ifExists().execute();
   await db.schema.dropTable('users').ifExists().execute();
+  await db.schema.dropTable('github_app_installations').ifExists().execute();
 
-  // Note: Cannot easily remove column from SQLite, would need to recreate table
-  // last_activity_at column on sessions will remain
+  // Note: Cannot easily remove columns from SQLite, would need to recreate table
+  // last_activity_at column on sessions and installation_id on projects will remain
 }
