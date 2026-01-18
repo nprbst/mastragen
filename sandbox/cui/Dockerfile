@@ -13,6 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+# Create .claude directory structure for cui-server directory detection
+RUN mkdir -p /root/.claude/projects/-workspace
+
+# Copy welcome session file (to root for entrypoint to copy from, and to .claude for image default)
+COPY welcome-session.jsonl /welcome-session.jsonl
+COPY welcome-session.jsonl /root/.claude/projects/-workspace/00000000-0000-0000-0000-000000000001.jsonl
+
 EXPOSE 3001
 
 ENTRYPOINT ["/entrypoint.sh"]

@@ -29,6 +29,7 @@ services:
       - "3001:3001"
     volumes:
       - workspace:/workspace
+      - cui-claude:/root/.claude
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
@@ -97,3 +98,4 @@ services:
 
 volumes:
   workspace:
+  cui-claude:

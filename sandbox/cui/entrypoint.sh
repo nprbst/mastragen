@@ -14,5 +14,13 @@ if [ -n "$GITHUB_TOKEN" ]; then
     fi
 fi
 
+# Ensure .claude directory structure exists for cui-server directory detection
+mkdir -p /root/.claude/projects/-workspace
+
+# Copy welcome session if not already present (preserves existing sessions on restart)
+if [ ! -f /root/.claude/projects/-workspace/00000000-0000-0000-0000-000000000001.jsonl ]; then
+    cp /welcome-session.jsonl /root/.claude/projects/-workspace/00000000-0000-0000-0000-000000000001.jsonl 2>/dev/null || true
+fi
+
 # Execute the main command
 exec "$@"
