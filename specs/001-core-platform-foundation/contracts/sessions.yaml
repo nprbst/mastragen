@@ -1,0 +1,287 @@
+openapi: 3.0.3
+info:
+  title: Mastragen Orchestrator API - Phase 1
+  description: Session management for Mastragen development sandboxes
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      tags: [Health]
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+        '503':
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UnhealthyResponse'
+
+  /sessions:
+    get:
+      summary: List sessions
+      operationId: listSessions
+      tags: [Sessions]
+      parameters:
+        - name: state
+          in: query
+          schema:
+            type: string
+            enum: [active, suspended]
+        - name: projectId
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of sessions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+
+    post:
+      summary: Create a new session
+      operationId: createSession
+      tags: [Sessions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+      responses:
+        '201':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionWithUrls'
+        '404':
+          description: Project or environment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Session already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConflictError'
+
+  /sessions/{id}:
+    get:
+      summary: Get session details
+      operationId: getSession
+      tags: [Sessions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionWithUrls'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sessions/{id}/suspend:
+    post:
+      summary: Suspend an active session
+      operationId: suspendSession
+      tags: [Sessions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session suspended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session'
+        '400':
+          description: Session is not active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sessions/{id}/resume:
+    post:
+      summary: Resume a suspended session
+      operationId: resumeSession
+      tags: [Sessions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Session resumed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionWithUrls'
+        '400':
+          description: Session is already active
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Session not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, database, docker]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+        database:
+          type: string
+          enum: [connected]
+        docker:
+          type: string
+          enum: [connected]
+        version:
+          type: string
+
+    UnhealthyResponse:
+      type: object
+      required: [status, error]
+      properties:
+        status:
+          type: string
+          enum: [unhealthy]
+        database:
+          type: string
+          enum: [connected, disconnected]
+        docker:
+          type: string
+          enum: [connected, disconnected]
+        error:
+          type: string
+
+    CreateSessionRequest:
+      type: object
+      required: [projectId, artifactName, environment]
+      properties:
+        projectId:
+          type: string
+          description: ID of the project to create session for
+        artifactName:
+          type: string
+          description: User-provided session name (becomes part of branch name)
+          minLength: 1
+          maxLength: 50
+          pattern: '^[a-z0-9][a-z0-9-]*[a-z0-9]$'
+        environment:
+          type: string
+          description: Environment name (must exist in project)
+
+    Session:
+      type: object
+      required: [id, projectId, artifactName, environment, state, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        projectId:
+          type: string
+        artifactName:
+          type: string
+        environment:
+          type: string
+        state:
+          type: string
+          enum: [active, suspended]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    SessionWithUrls:
+      allOf:
+        - $ref: '#/components/schemas/Session'
+        - type: object
+          properties:
+            urls:
+              type: object
+              required: [cui, mastra, vscode]
+              properties:
+                cui:
+                  type: string
+                  format: uri
+                  description: URL to cui interface (port 3001)
+                mastra:
+                  type: string
+                  format: uri
+                  description: URL to Mastra Studio (port 4111)
+                astro:
+                  type: string
+                  format: uri
+                  nullable: true
+                  description: URL to Astro UI sandbox (port 4321, null if not configured)
+                vscode:
+                  type: string
+                  format: uri
+                  description: URL to VS Code (port 8080)
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    ConflictError:
+      type: object
+      required: [error, existingSessionId]
+      properties:
+        error:
+          type: string
+        existingSessionId:
+          type: string
