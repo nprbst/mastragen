@@ -2,15 +2,40 @@ import Docker from 'dockerode';
 
 /**
  * Error thrown when a git operation fails.
+ * Includes operation context and remediation suggestions.
  */
 export class GitOperationError extends Error {
   constructor(
     public operation: string,
     public exitCode: number | null,
-    message: string
+    message: string,
+    public context?: { branch?: string; repoUrl?: string; ref?: string }
   ) {
-    super(`Git ${operation} failed: ${message}`);
+    const contextInfo = context
+      ? ` (${Object.entries(context)
+          .filter(([_, v]) => v)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(', ')})`
+      : '';
+    super(`Git ${operation} failed${contextInfo}: ${message}`);
     this.name = 'GitOperationError';
+  }
+
+  /**
+   * Returns a user-friendly error message with remediation suggestions.
+   */
+  getUserMessage(): string {
+    const suggestions: Record<string, string> = {
+      push: 'Check that the branch exists on the remote and you have write access.',
+      clone: 'Check that the repository URL is correct and you have access.',
+      checkout: 'Check that the branch or commit exists.',
+      createBranch: 'Check that the base branch exists and the branch name is valid.',
+      commit: 'Check that there are changes to commit.',
+      status: 'Check that the workspace is a valid git repository.',
+    };
+
+    const suggestion = suggestions[this.operation] || 'Check the git operation parameters.';
+    return `${this.message}. ${suggestion}`;
   }
 }
 
@@ -121,10 +146,15 @@ export class GitService {
    * Checks the git status for uncommitted changes.
    */
   async getStatus(): Promise<GitStatus> {
+    const startTime = Date.now();
+    console.log('[GitService] getStatus - checking for uncommitted changes');
+
     try {
       const result = await this.execGit(['status', '--porcelain']);
 
       if (!result.stdout) {
+        const duration = Date.now() - startTime;
+        console.log(`[GitService] getStatus - no changes detected (${duration}ms)`);
         return {
           hasChanges: false,
           staged: [],
@@ -156,6 +186,11 @@ export class GitService {
         }
       }
 
+      const duration = Date.now() - startTime;
+      console.log(
+        `[GitService] getStatus - found ${lines.length} changes (staged: ${staged.length}, unstaged: ${unstaged.length}, untracked: ${untracked.length}) (${duration}ms)`
+      );
+
       return {
         hasChanges: lines.length > 0,
         staged,
@@ -163,6 +198,8 @@ export class GitService {
         untracked,
       };
     } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`[GitService] getStatus - failed after ${duration}ms:`, error);
       if (error instanceof GitOperationError) {
         throw error;
       }
@@ -179,6 +216,10 @@ export class GitService {
    * Returns null if there are no changes to commit.
    */
   async commitAll(message: string): Promise<CommitResult | null> {
+    const startTime = Date.now();
+    const truncatedMessage = message.length > 50 ? `${message.substring(0, 50)}...` : message;
+    console.log(`[GitService] commitAll - starting commit: "${truncatedMessage}"`);
+
     try {
       // Stage all changes
       await this.execGit(['add', '-A']);
@@ -191,24 +232,33 @@ export class GitService {
         commitResult.stdout.includes('nothing to commit') ||
         commitResult.exitCode !== 0
       ) {
+        const duration = Date.now() - startTime;
+        console.log(`[GitService] commitAll - nothing to commit (${duration}ms)`);
         return null;
       }
 
       // Get the commit SHA
       const shaResult = await this.execGit(['rev-parse', 'HEAD']);
+      const sha = shaResult.stdout.trim();
+
+      const duration = Date.now() - startTime;
+      console.log(`[GitService] commitAll - committed ${sha.substring(0, 8)} (${duration}ms)`);
 
       return {
-        sha: shaResult.stdout.trim(),
+        sha,
         message,
       };
     } catch (error) {
+      const duration = Date.now() - startTime;
       // "nothing to commit" is not an error
       if (
         error instanceof Error &&
         error.message.includes('nothing to commit')
       ) {
+        console.log(`[GitService] commitAll - nothing to commit (${duration}ms)`);
         return null;
       }
+      console.error(`[GitService] commitAll - failed after ${duration}ms:`, error);
       if (error instanceof GitOperationError) {
         throw error;
       }
@@ -246,6 +296,9 @@ export class GitService {
    * Pushes a branch to origin.
    */
   async push(branch: string, setUpstream = true): Promise<void> {
+    const startTime = Date.now();
+    console.log(`[GitService] push - pushing branch '${branch}' to origin`);
+
     try {
       const args = setUpstream
         ? ['push', '-u', 'origin', branch]
@@ -254,16 +307,22 @@ export class GitService {
       const result = await this.execGit(args);
 
       if (result.exitCode !== 0 && result.stderr?.includes('fatal:')) {
-        throw new GitOperationError('push', result.exitCode, result.stderr);
+        throw new GitOperationError('push', result.exitCode, result.stderr, { branch });
       }
+
+      const duration = Date.now() - startTime;
+      console.log(`[GitService] push - pushed '${branch}' successfully (${duration}ms)`);
     } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`[GitService] push - failed after ${duration}ms:`, error);
       if (error instanceof GitOperationError) {
         throw error;
       }
       throw new GitOperationError(
         'push',
         null,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
+        { branch }
       );
     }
   }
@@ -272,6 +331,13 @@ export class GitService {
    * Clones a repository into the workspace.
    */
   async clone(repoUrl: string, branch?: string): Promise<void> {
+    const startTime = Date.now();
+    // Sanitize URL for logging (remove tokens)
+    const sanitizedUrl = repoUrl.replace(/x-access-token:[^@]+@/, 'x-access-token:***@');
+    console.log(
+      `[GitService] clone - cloning ${sanitizedUrl}${branch ? ` (branch: ${branch})` : ''}`
+    );
+
     try {
       const args = branch
         ? ['clone', '-b', branch, repoUrl, this.workspacePath]
@@ -280,16 +346,25 @@ export class GitService {
       const result = await this.execGit(args);
 
       if (result.exitCode !== 0 && result.stderr?.includes('fatal:')) {
-        throw new GitOperationError('clone', result.exitCode, result.stderr);
+        throw new GitOperationError('clone', result.exitCode, result.stderr, {
+          repoUrl: sanitizedUrl,
+          branch,
+        });
       }
+
+      const duration = Date.now() - startTime;
+      console.log(`[GitService] clone - completed successfully (${duration}ms)`);
     } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`[GitService] clone - failed after ${duration}ms:`, error);
       if (error instanceof GitOperationError) {
         throw error;
       }
       throw new GitOperationError(
         'clone',
         null,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
+        { repoUrl: sanitizedUrl, branch }
       );
     }
   }
@@ -298,20 +373,29 @@ export class GitService {
    * Checks out a branch or commit.
    */
   async checkout(ref: string): Promise<void> {
+    const startTime = Date.now();
+    console.log(`[GitService] checkout - checking out '${ref}'`);
+
     try {
       const result = await this.execGit(['checkout', ref]);
 
       if (result.exitCode !== 0 && result.stderr?.includes('error:')) {
-        throw new GitOperationError('checkout', result.exitCode, result.stderr);
+        throw new GitOperationError('checkout', result.exitCode, result.stderr, { ref });
       }
+
+      const duration = Date.now() - startTime;
+      console.log(`[GitService] checkout - checked out '${ref}' (${duration}ms)`);
     } catch (error) {
+      const duration = Date.now() - startTime;
+      console.error(`[GitService] checkout - failed after ${duration}ms:`, error);
       if (error instanceof GitOperationError) {
         throw error;
       }
       throw new GitOperationError(
         'checkout',
         null,
-        error instanceof Error ? error.message : String(error)
+        error instanceof Error ? error.message : String(error),
+        { ref }
       );
     }
   }

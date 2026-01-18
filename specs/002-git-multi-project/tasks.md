@@ -203,16 +203,16 @@
 
 ### E2E Tests
 
-- [ ] T067 Write E2E test for full lifecycle: create → modify → suspend → resume → PR in orchestrator/tests/e2e/git-workflow.test.ts
-- [ ] T068 [P] Write E2E test for session lock conflict (409 on concurrent resume)
-- [ ] T069 [P] Write E2E test for permission denied scenario (403 on session creation)
+- [x] T067 Write E2E test for full lifecycle: create → modify → suspend → resume → PR in orchestrator/tests/e2e/git-workflow.test.ts
+- [x] T068 [P] Write E2E test for session lock conflict (409 on concurrent resume)
+- [x] T069 [P] Write E2E test for permission denied scenario (403 on session creation)
 
 ### Polish
 
-- [ ] T070 [P] Review error messages for user-friendliness across all git operations
-- [ ] T071 [P] Add logging for git operations (commit, push, clone timing)
-- [ ] T072 Run quickstart.md validation - verify all documented workflows function correctly
-- [ ] T073 Verify performance: suspend completes within 30s for typical workload (≤50 files, ≤5MB diff)
+- [x] T070 [P] Review error messages for user-friendliness across all git operations
+- [x] T071 [P] Add logging for git operations (commit, push, clone timing)
+- [x] T072 Run quickstart.md validation - verify all documented workflows function correctly
+- [x] T073 Verify performance: suspend completes within 30s for typical workload (≤50 files, ≤5MB diff)
 
 ---
 

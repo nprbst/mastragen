@@ -2,20 +2,47 @@ import { Octokit } from '@octokit/rest';
 
 /**
  * Error thrown when a GitHub API operation fails.
+ * Includes operation context and suggestions for resolution.
  */
 export class GitHubAPIError extends Error {
   constructor(
     public operation: string,
     public statusCode: number | null,
-    message: string
+    message: string,
+    public context?: { owner?: string; repo?: string; branch?: string }
   ) {
-    super(`GitHub API ${operation} failed: ${message}`);
+    const contextInfo = context
+      ? ` (${Object.entries(context)
+          .filter(([_, v]) => v)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(', ')})`
+      : '';
+    super(`GitHub API ${operation} failed${contextInfo}: ${message}`);
     this.name = 'GitHubAPIError';
+  }
+
+  /**
+   * Returns a user-friendly error message with suggestions.
+   */
+  getUserMessage(): string {
+    const suggestions: Record<number, string> = {
+      401: 'Check your GitHub authentication credentials.',
+      403: 'You may have hit the rate limit or lack access. Try again later.',
+      404: 'The repository or resource was not found. Check the repo name and your access.',
+      422: 'The request was invalid. Check the parameters.',
+    };
+
+    if (this.statusCode && suggestions[this.statusCode]) {
+      return `${this.message}. ${suggestions[this.statusCode]}`;
+    }
+
+    return this.message;
   }
 }
 
 /**
  * Error thrown when a user lacks required permissions.
+ * Provides actionable information about what permission is needed.
  */
 export class InsufficientPermissionsError extends Error {
   constructor(
@@ -24,7 +51,8 @@ export class InsufficientPermissionsError extends Error {
     public requiredPermission: string
   ) {
     super(
-      `User ${username} lacks ${requiredPermission} permission for ${repo}`
+      `User '${username}' lacks '${requiredPermission}' permission for '${repo}'. ` +
+        `Request access from the repository owner or use an account with write permissions.`
     );
     this.name = 'InsufficientPermissionsError';
   }
@@ -112,44 +140,53 @@ export class GitHubService {
 
   /**
    * Executes an operation with retry logic for rate limiting.
+   * Logs retry attempts and timing information.
    */
   private async withRetry<T>(
     operation: string,
-    fn: () => Promise<T>
+    fn: () => Promise<T>,
+    context?: { owner?: string; repo?: string; branch?: string }
   ): Promise<T> {
+    const startTime = Date.now();
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
       try {
-        return await fn();
+        const result = await fn();
+        const duration = Date.now() - startTime;
+        if (attempt > 1) {
+          console.log(
+            `[GitHubService] ${operation} - succeeded on attempt ${attempt} (${duration}ms)`
+          );
+        }
+        return result;
       } catch (error) {
         lastError = error as Error;
+        const status = (error as any).status;
 
         // Check if it's a rate limit error
         const isRateLimit =
-          (error as any).status === 403 ||
-          (error as any).status === 429 ||
-          (error as any).message?.includes('rate limit');
+          status === 403 || status === 429 || (error as any).message?.includes('rate limit');
 
         if (!isRateLimit || attempt === this.maxRetries) {
-          throw new GitHubAPIError(
-            operation,
-            (error as any).status ?? null,
-            lastError.message
+          const duration = Date.now() - startTime;
+          console.error(
+            `[GitHubService] ${operation} - failed after ${attempt} attempt(s) (${duration}ms):`,
+            { status, message: lastError.message }
           );
+          throw new GitHubAPIError(operation, status ?? null, lastError.message, context);
         }
 
         // Exponential backoff: delay * 2^(attempt-1)
         const delay = this.retryDelayMs * Math.pow(2, attempt - 1);
+        console.warn(
+          `[GitHubService] ${operation} - rate limited (status ${status}), retrying in ${delay}ms (attempt ${attempt}/${this.maxRetries})`
+        );
         await new Promise((resolve) => setTimeout(resolve, delay));
       }
     }
 
-    throw new GitHubAPIError(
-      operation,
-      null,
-      lastError?.message ?? 'Unknown error'
-    );
+    throw new GitHubAPIError(operation, null, lastError?.message ?? 'Unknown error', context);
   }
 
   /**
@@ -160,49 +197,75 @@ export class GitHubService {
     repo: string,
     username: string
   ): Promise<RepoPermissions> {
-    return this.withRetry('checkUserPermissions', async () => {
-      const response = await this.octokit.rest.repos.getCollaboratorPermissionLevel(
-        {
+    const startTime = Date.now();
+    console.log(`[GitHubService] checkUserPermissions - checking ${username} on ${owner}/${repo}`);
+
+    const result = await this.withRetry(
+      'checkUserPermissions',
+      async () => {
+        const response = await this.octokit.rest.repos.getCollaboratorPermissionLevel({
           owner,
           repo,
           username,
-        }
-      );
+        });
 
-      const permission = response.data.permission;
+        const permission = response.data.permission;
 
-      return {
-        canRead: ['read', 'triage', 'write', 'maintain', 'admin'].includes(
-          permission
-        ),
-        canWrite: ['write', 'maintain', 'admin'].includes(permission),
-        canAdmin: permission === 'admin',
-        permission,
-      };
-    });
+        return {
+          canRead: ['read', 'triage', 'write', 'maintain', 'admin'].includes(permission),
+          canWrite: ['write', 'maintain', 'admin'].includes(permission),
+          canAdmin: permission === 'admin',
+          permission,
+        };
+      },
+      { owner, repo }
+    );
+
+    const duration = Date.now() - startTime;
+    console.log(
+      `[GitHubService] checkUserPermissions - ${username} has '${result.permission}' permission (canWrite: ${result.canWrite}) (${duration}ms)`
+    );
+
+    return result;
   }
 
   /**
    * Creates a pull request.
    */
   async createPullRequest(input: PRCreateInput): Promise<PRResult> {
-    return this.withRetry('createPullRequest', async () => {
-      const response = await this.octokit.rest.pulls.create({
-        owner: input.owner,
-        repo: input.repo,
-        title: input.title,
-        head: input.head,
-        base: input.base,
-        body: input.body,
-      });
+    const startTime = Date.now();
+    console.log(
+      `[GitHubService] createPullRequest - creating PR '${input.title}' (${input.head} → ${input.base})`
+    );
 
-      return {
-        number: response.data.number,
-        url: response.data.html_url,
-        title: response.data.title,
-        state: response.data.state as 'open' | 'closed' | 'merged',
-      };
-    });
+    const result = await this.withRetry(
+      'createPullRequest',
+      async () => {
+        const response = await this.octokit.rest.pulls.create({
+          owner: input.owner,
+          repo: input.repo,
+          title: input.title,
+          head: input.head,
+          base: input.base,
+          body: input.body,
+        });
+
+        return {
+          number: response.data.number,
+          url: response.data.html_url,
+          title: response.data.title,
+          state: response.data.state as 'open' | 'closed' | 'merged',
+        };
+      },
+      { owner: input.owner, repo: input.repo, branch: input.head }
+    );
+
+    const duration = Date.now() - startTime;
+    console.log(
+      `[GitHubService] createPullRequest - created PR #${result.number} at ${result.url} (${duration}ms)`
+    );
+
+    return result;
   }
 
   /**
@@ -253,36 +316,62 @@ export class GitHubService {
     branchName: string,
     fromSha: string
   ): Promise<void> {
-    return this.withRetry('createBranch', async () => {
-      await this.octokit.rest.git.createRef({
-        owner,
-        repo,
-        ref: `refs/heads/${branchName}`,
-        sha: fromSha,
-      });
-    });
+    const startTime = Date.now();
+    console.log(
+      `[GitHubService] createBranch - creating '${branchName}' from ${fromSha.substring(0, 8)}`
+    );
+
+    await this.withRetry(
+      'createBranch',
+      async () => {
+        await this.octokit.rest.git.createRef({
+          owner,
+          repo,
+          ref: `refs/heads/${branchName}`,
+          sha: fromSha,
+        });
+      },
+      { owner, repo, branch: branchName }
+    );
+
+    const duration = Date.now() - startTime;
+    console.log(`[GitHubService] createBranch - created '${branchName}' (${duration}ms)`);
   }
 
   /**
    * Gets the default branch SHA for a repository.
    */
   async getDefaultBranchSha(owner: string, repo: string): Promise<string> {
-    return this.withRetry('getDefaultBranchSha', async () => {
-      const repoResponse = await this.octokit.rest.repos.get({
-        owner,
-        repo,
-      });
+    const startTime = Date.now();
+    console.log(`[GitHubService] getDefaultBranchSha - fetching for ${owner}/${repo}`);
 
-      const defaultBranch = repoResponse.data.default_branch;
+    const result = await this.withRetry(
+      'getDefaultBranchSha',
+      async () => {
+        const repoResponse = await this.octokit.rest.repos.get({
+          owner,
+          repo,
+        });
 
-      const branchResponse = await this.octokit.rest.repos.getBranch({
-        owner,
-        repo,
-        branch: defaultBranch,
-      });
+        const defaultBranch = repoResponse.data.default_branch;
 
-      return branchResponse.data.commit.sha;
-    });
+        const branchResponse = await this.octokit.rest.repos.getBranch({
+          owner,
+          repo,
+          branch: defaultBranch,
+        });
+
+        return branchResponse.data.commit.sha;
+      },
+      { owner, repo }
+    );
+
+    const duration = Date.now() - startTime;
+    console.log(
+      `[GitHubService] getDefaultBranchSha - SHA is ${result.substring(0, 8)} (${duration}ms)`
+    );
+
+    return result;
   }
 
   /**
