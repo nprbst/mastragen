@@ -16,6 +16,7 @@ import {
 export const ServiceUrlsSchema = v.object({
   cui: v.string(),
   mastra: v.string(),
+  astro: v.nullable(v.string()),
   vscode: v.string(),
 });
 export type ServiceUrls = v.InferOutput<typeof ServiceUrlsSchema>;

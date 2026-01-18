@@ -335,7 +335,7 @@ export function sessionCommand(client: MgenClient): Command {
   session
     .command('cleanup [ids...]')
     .description('Clean up sessions (stop containers and delete)')
-    .option('--remove-volume', 'Also remove the workspace volume')
+    .option('--keep-volume', 'Keep the workspace volume (default: remove)')
     .option('--json', 'Output as JSON')
     .action(async (idsArg: string[] | undefined, options) => {
       try {
@@ -373,7 +373,7 @@ export function sessionCommand(client: MgenClient): Command {
         for (const id of ids) {
           try {
             const result = await client.deleteSession(id, {
-              removeVolume: options.removeVolume,
+              removeVolume: !options.keepVolume,
             });
             results.push({ id, success: true, message: result.message });
           } catch (err) {

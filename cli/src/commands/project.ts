@@ -60,13 +60,26 @@ export function projectCommand(client: MgenClient): Command {
           repo = handleCancel(repoInput);
         }
 
+        // 3. UI sandbox path (optional)
+        let uiSandboxPath = options.uiSandboxPath as string | undefined;
+        if (!uiSandboxPath && needsInteractive) {
+          const uiPathInput = await text({
+            message: 'UI sandbox path (leave empty to skip):',
+            placeholder: 'packages/ui',
+          });
+          const uiPathValue = handleCancel(uiPathInput);
+          if (uiPathValue) {
+            uiSandboxPath = uiPathValue;
+          }
+        }
+
         const projectData = await client.createProject({
           name,
           githubRepo: repo,
           defaultBranch: options.branch,
           branchPrefix: options.prefix,
           mastraPath: options.mastraPath,
-          uiSandboxPath: options.uiSandboxPath,
+          uiSandboxPath,
         });
 
         if (options.json) {

@@ -80,6 +80,7 @@ describe('MgenClient', () => {
         urls: {
           cui: 'http://localhost:3001',
           mastra: 'http://localhost:4111',
+          astro: null,
           vscode: 'http://localhost:8080',
         },
       };
@@ -252,6 +253,7 @@ describe('MgenClient', () => {
         urls: {
           cui: 'http://localhost:3001',
           mastra: 'http://localhost:4111',
+          astro: null,
           vscode: 'http://localhost:8080',
         },
       };
@@ -339,6 +341,7 @@ describe('MgenClient', () => {
         urls: {
           cui: 'http://localhost:3001',
           mastra: 'http://localhost:4111',
+          astro: null,
           vscode: 'http://localhost:8080',
         },
       };

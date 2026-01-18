@@ -74,8 +74,11 @@ export function formatSessionCreated(session: SessionWithUrls): string {
     `  ${colors.dim}URLs:${colors.reset}`,
     `    ${colors.dim}cui:${colors.reset}    ${colors.cyan}${session.urls.cui}${colors.reset}`,
     `    ${colors.dim}mastra:${colors.reset} ${colors.cyan}${session.urls.mastra}${colors.reset}`,
-    `    ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`,
   ];
+  if (session.urls.astro) {
+    lines.push(`    ${colors.dim}astro:${colors.reset}  ${colors.cyan}${session.urls.astro}${colors.reset}`);
+  }
+  lines.push(`    ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`);
   return lines.join('\n');
 }
 
@@ -96,6 +99,9 @@ export function formatSession(session: Session | SessionWithUrls): string {
     lines.push(`${colors.dim}URLs:${colors.reset}`);
     lines.push(`  ${colors.dim}cui:${colors.reset}    ${colors.cyan}${session.urls.cui}${colors.reset}`);
     lines.push(`  ${colors.dim}mastra:${colors.reset} ${colors.cyan}${session.urls.mastra}${colors.reset}`);
+    if (session.urls.astro) {
+      lines.push(`  ${colors.dim}astro:${colors.reset}  ${colors.cyan}${session.urls.astro}${colors.reset}`);
+    }
     lines.push(`  ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`);
   }
 
@@ -165,8 +171,11 @@ export function formatResumed(session: SessionWithUrls): string {
     `${colors.dim}URLs:${colors.reset}`,
     `  ${colors.dim}cui:${colors.reset}    ${colors.cyan}${session.urls.cui}${colors.reset}`,
     `  ${colors.dim}mastra:${colors.reset} ${colors.cyan}${session.urls.mastra}${colors.reset}`,
-    `  ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`,
   ];
+  if (session.urls.astro) {
+    lines.push(`  ${colors.dim}astro:${colors.reset}  ${colors.cyan}${session.urls.astro}${colors.reset}`);
+  }
+  lines.push(`  ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`);
   return lines.join('\n');
 }
 

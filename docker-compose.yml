@@ -66,8 +66,11 @@ services:
       - workspace:/workspace
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - UI_SANDBOX_PATH=${UI_SANDBOX_PATH:-packages/ui}
+      - MASTRA_API_URL=http://mastra:4111
     depends_on:
       - orchestrator
+      - mastra
     profiles:
       - sandbox
 
