@@ -37,17 +37,29 @@ export interface ProjectEnvironmentsTable {
 }
 
 /**
+ * Session state type for lifecycle management.
+ */
+export type SessionStateType = 'active' | 'suspended' | 'pr_open' | 'closed';
+
+/**
  * Sessions table - active or suspended development session.
+ * Extended with git-related fields per specs/002-git-multi-project/data-model.md
  */
 export interface SessionsTable {
   id: Generated<string>;
   project_id: string;
   artifact_name: string;
   environment: string;
-  state: Generated<'active' | 'suspended'>;
+  state: Generated<SessionStateType>;
   container_id: string | null;
   workspace_volume: string | null;
   cui_auth_token: string | null;
+  user_id: string | null;
+  branch_name: string | null;
+  last_commit_sha: string | null;
+  commit_count: Generated<number>;
+  pr_number: number | null;
+  pr_url: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }

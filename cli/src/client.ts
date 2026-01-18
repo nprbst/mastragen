@@ -145,9 +145,10 @@ export class MgenClient {
   /**
    * Resumes a suspended session.
    */
-  async resumeSession(id: string): Promise<SessionWithUrls> {
+  async resumeSession(id: string, options?: { claudeToken?: string }): Promise<SessionWithUrls> {
     return this.request<SessionWithUrls>(`/sessions/${id}/resume`, {
       method: 'POST',
+      body: options?.claudeToken ? JSON.stringify({ claudeToken: options.claudeToken }) : undefined,
     });
   }
 
