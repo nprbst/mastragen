@@ -11,6 +11,7 @@ import {
   formatResumed,
   success,
   error,
+  waitForPorts,
 } from '../output.ts';
 import { handleCancel } from '../prompts.ts';
 
@@ -100,6 +101,11 @@ export function sessionCommand(client: MgenClient): Command {
           artifactName,
           environment,
         });
+
+        // Wait for ports to be ready (skip in JSON mode)
+        if (!options.json) {
+          await waitForPorts(result);
+        }
 
         if (options.json) {
           console.log(JSON.stringify(result, null, 2));
@@ -309,6 +315,11 @@ export function sessionCommand(client: MgenClient): Command {
         }
 
         const result = await client.resumeSession(id);
+
+        // Wait for ports to be ready (skip in JSON mode)
+        if (!options.json) {
+          await waitForPorts(result);
+        }
 
         if (options.json) {
           console.log(JSON.stringify(result, null, 2));

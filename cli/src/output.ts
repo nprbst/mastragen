@@ -13,6 +13,7 @@ const colors = {
   red: '\x1b[31m',
   yellow: '\x1b[33m',
   cyan: '\x1b[36m',
+  gray: '\x1b[90m',
 } as const;
 
 /**
@@ -278,4 +279,113 @@ export function formatEnvironmentAdded(projectName: string, env: Environment): s
   }
 
   return lines.join('\n');
+}
+
+/**
+ * Formats a port status indicator with circle symbol.
+ */
+export function formatPortStatus(name: string, ready: boolean): string {
+  const circle = ready
+    ? `${colors.green}●${colors.reset}`
+    : `${colors.gray}◯${colors.reset}`;
+  return `${circle} ${colors.dim}${name}${colors.reset}`;
+}
+
+/**
+ * Extracts base URL from a full URL (removes hash/query params).
+ */
+function extractBaseUrl(url: string): string {
+  const hashIndex = url.indexOf('#');
+  const queryIndex = url.indexOf('?');
+  let endIndex = url.length;
+  if (hashIndex !== -1) endIndex = Math.min(endIndex, hashIndex);
+  if (queryIndex !== -1) endIndex = Math.min(endIndex, queryIndex);
+  return url.slice(0, endIndex);
+}
+
+/**
+ * Checks if a URL is responding to HTTP requests.
+ */
+async function checkPort(url: string, timeout: number): Promise<boolean> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    return response.ok || response.status < 500;
+  } catch {
+    clearTimeout(timeoutId);
+    return false;
+  }
+}
+
+interface ServiceStatus {
+  name: string;
+  url: string;
+  ready: boolean;
+}
+
+/**
+ * Waits for all session ports to be ready, displaying live status.
+ */
+export async function waitForPorts(
+  session: SessionWithUrls,
+  options?: { timeout?: number; interval?: number; requestTimeout?: number }
+): Promise<void> {
+  const timeout = options?.timeout ?? 60000;
+  const interval = options?.interval ?? 500;
+  const requestTimeout = options?.requestTimeout ?? 2000;
+
+  const services: ServiceStatus[] = [
+    { name: 'cui', url: extractBaseUrl(session.urls.cui), ready: false },
+    { name: 'mastra', url: extractBaseUrl(session.urls.mastra), ready: false },
+  ];
+
+  if (session.urls.astro) {
+    services.push({ name: 'astro', url: extractBaseUrl(session.urls.astro), ready: false });
+  }
+
+  services.push({ name: 'vscode', url: extractBaseUrl(session.urls.vscode), ready: false });
+
+  const startTime = Date.now();
+
+  const renderStatus = () => {
+    const statusLine = services.map((s) => formatPortStatus(s.name, s.ready)).join('  ');
+    process.stdout.write(`\r\x1b[K${statusLine}`);
+  };
+
+  renderStatus();
+
+  while (Date.now() - startTime < timeout) {
+    const pendingServices = services.filter((s) => !s.ready);
+    if (pendingServices.length === 0) break;
+
+    const checks = await Promise.all(
+      pendingServices.map(async (service) => {
+        const ready = await checkPort(service.url, requestTimeout);
+        return { service, ready };
+      })
+    );
+
+    for (const { service, ready } of checks) {
+      if (ready) service.ready = true;
+    }
+
+    renderStatus();
+
+    if (services.every((s) => s.ready)) break;
+
+    await new Promise((resolve) => setTimeout(resolve, interval));
+  }
+
+  process.stdout.write('\n');
+
+  const notReady = services.filter((s) => !s.ready);
+  if (notReady.length > 0) {
+    console.log(warn(`Some services did not respond: ${notReady.map((s) => s.name).join(', ')}`));
+  }
 }
