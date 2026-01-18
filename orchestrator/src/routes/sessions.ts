@@ -203,5 +203,23 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
     return c.json(response, 200);
   });
 
+  // DELETE /sessions/:id - Clean up and delete a session
+  app.delete('/:id', async (c) => {
+    const id = c.req.param('id');
+    const removeVolume = c.req.query('removeVolume') === 'true';
+
+    try {
+      await sandboxService.cleanup(id, { removeVolume });
+      return c.json({ message: `Session ${id} cleaned up successfully` }, 200);
+    } catch (error) {
+      if (error instanceof SessionNotFoundError) {
+        return c.json({ error: `Session not found: ${id}` }, 404);
+      }
+
+      console.error('Error cleaning up session:', error);
+      return c.json({ error: 'Internal server error' }, 500);
+    }
+  });
+
   return app;
 }

@@ -83,5 +83,16 @@ services:
     profiles:
       - sandbox
 
+  init:
+    build:
+      context: ./sandbox/init
+    volumes:
+      - workspace:/workspace
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO}
+    profiles:
+      - sandbox
+
 volumes:
   workspace:

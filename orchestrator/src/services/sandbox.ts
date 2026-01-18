@@ -77,6 +77,10 @@ export class SessionAlreadyActiveError extends Error {
   }
 }
 
+export interface CleanupOptions {
+  removeVolume?: boolean;
+}
+
 export class SandboxService {
   private projectsRepo: ProjectsRepository;
   private sessionsRepo: SessionsRepository;
@@ -93,6 +97,7 @@ export class SandboxService {
 
   // Container image names (built from sandbox/ Dockerfiles)
   private static readonly IMAGES = {
+    init: 'mastragen-001-core-platform-foundation-init',
     cui: 'mastragen-001-core-platform-foundation-cui',
     mastra: 'mastragen-001-core-platform-foundation-mastra',
     astro: 'mastragen-001-core-platform-foundation-astro',
@@ -266,6 +271,170 @@ export class SandboxService {
   }
 
   /**
+   * Cleans up a session: stops containers, optionally removes volume, and deletes from database.
+   */
+  async cleanup(sessionId: string, options: CleanupOptions = {}): Promise<void> {
+    const session = await this.sessionsRepo.findById(sessionId);
+    if (!session) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    // Stop and remove containers
+    if (this.dockerEnabled) {
+      await this.cleanupContainers(sessionId, session.container_id);
+
+      // Remove volume if requested
+      if (options.removeVolume && session.workspace_volume) {
+        try {
+          const volume = this.docker.getVolume(session.workspace_volume);
+          await volume.remove();
+        } catch (err: unknown) {
+          // Volume may not exist or be in use
+          if (err instanceof Error && !err.message.includes('No such volume')) {
+            console.warn(`Failed to remove volume ${session.workspace_volume}:`, err);
+          }
+        }
+      }
+    }
+
+    // Remove from cache
+    this.sessionProjectCache.delete(sessionId);
+
+    // Delete session from database
+    await this.sessionsRepo.delete(sessionId);
+  }
+
+  /**
+   * Cleans up containers by session ID, including orphaned containers.
+   */
+  private async cleanupContainers(sessionId: string, containerIdsCsv: string | null): Promise<void> {
+    // First, try to stop/remove by stored container IDs
+    if (containerIdsCsv) {
+      const containerIds = containerIdsCsv.split(',');
+      await Promise.all(
+        containerIds.map(async (containerId) => {
+          try {
+            const container = this.docker.getContainer(containerId.trim());
+            await container.stop();
+            await container.remove();
+          } catch {
+            // Container may already be stopped or removed
+          }
+        })
+      );
+    }
+
+    // Also clean up by name pattern (catches orphaned containers)
+    const containerNames = [
+      `${sessionId}-cui`,
+      `${sessionId}-mastra`,
+      `${sessionId}-vscode`,
+      `${sessionId}-astro`,
+    ];
+
+    await Promise.all(
+      containerNames.map(async (name) => {
+        try {
+          const container = this.docker.getContainer(name);
+          const info = await container.inspect();
+          if (info) {
+            if (info.State.Running) {
+              await container.stop();
+            }
+            await container.remove();
+          }
+        } catch {
+          // Container doesn't exist, which is fine
+        }
+      })
+    );
+  }
+
+  /**
+   * Cleans up any containers using the static ports (for single-session mode).
+   */
+  private async cleanupConflictingContainers(): Promise<void> {
+    console.log(`[SandboxService] Cleaning up any containers using static ports...`);
+
+    const containers = await this.docker.listContainers({ all: true });
+    const targetPorts = Object.values(SandboxService.PORTS);
+
+    for (const containerInfo of containers) {
+      // Check if this container uses any of our static ports
+      const usesOurPort = containerInfo.Ports?.some(p =>
+        targetPorts.includes(p.PublicPort ?? 0)
+      );
+
+      if (usesOurPort) {
+        try {
+          console.log(`[SandboxService] Removing conflicting container: ${containerInfo.Names?.[0]} (using port ${containerInfo.Ports?.map(p => p.PublicPort).join(', ')})`);
+          const container = this.docker.getContainer(containerInfo.Id);
+          if (containerInfo.State === 'running') {
+            await container.stop();
+          }
+          await container.remove();
+        } catch (err) {
+          console.warn(`[SandboxService] Failed to remove container ${containerInfo.Id}:`, err);
+        }
+      }
+    }
+  }
+
+  /**
+   * Runs the init container to clone the repository into the workspace volume.
+   */
+  private async runInitContainer(
+    sessionId: string,
+    volumeName: string,
+    githubRepo: string
+  ): Promise<void> {
+    const containerName = `${sessionId}-init`;
+    console.log(`[SandboxService] Running init container to clone ${githubRepo}...`);
+
+    try {
+      const container = await this.docker.createContainer({
+        name: containerName,
+        Image: SandboxService.IMAGES.init,
+        Env: [
+          `GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`,
+          `GITHUB_REPO=${githubRepo}`,
+        ],
+        HostConfig: {
+          Binds: [`${volumeName}:/workspace`],
+        },
+      });
+
+      await container.start();
+      console.log(`[SandboxService] Init container started, waiting for completion...`);
+
+      // Wait for the container to finish
+      const result = await container.wait();
+      console.log(`[SandboxService] Init container exited with code ${result.StatusCode}`);
+
+      // Get logs for debugging
+      const logs = await container.logs({ stdout: true, stderr: true });
+      console.log(`[SandboxService] Init container logs:`, logs.toString());
+
+      // Remove the init container
+      await container.remove();
+      console.log(`[SandboxService] Init container removed`);
+
+      if (result.StatusCode !== 0) {
+        throw new Error(`Init container failed with exit code ${result.StatusCode}`);
+      }
+    } catch (err) {
+      // Try to clean up the container if it exists
+      try {
+        const container = this.docker.getContainer(containerName);
+        await container.remove({ force: true });
+      } catch {
+        // Container may not exist
+      }
+      throw err;
+    }
+  }
+
+  /**
    * Starts Docker containers for a session.
    */
   private async startContainers(
@@ -275,6 +444,9 @@ export class SandboxService {
   ): Promise<void> {
     console.log(`[SandboxService] startContainers called for session ${session.id}`);
     console.log(`[SandboxService] dockerEnabled: ${this.dockerEnabled}`);
+
+    // Clean up any existing containers using our ports (single-session mode)
+    await this.cleanupConflictingContainers();
 
     const volumeName = session.workspace_volume ?? this.generateWorkspaceVolumeName(session.project_id, session.artifact_name);
     console.log(`[SandboxService] Using volume: ${volumeName}`);
@@ -292,6 +464,9 @@ export class SandboxService {
       }
       console.log(`[SandboxService] Volume already exists, continuing...`);
     }
+
+    // Run init container to clone the repo
+    await this.runInitContainer(session.id, volumeName, project.github_repo);
 
     // Parse environment variables from JSON string
     let parsedEnvVars: Record<string, string> = {};

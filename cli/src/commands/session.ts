@@ -2,7 +2,7 @@
  * Session commands - manage development sessions.
  */
 import { Command } from 'commander';
-import { select, text, intro, outro } from '@clack/prompts';
+import { select, multiselect, text, intro, outro } from '@clack/prompts';
 import { MgenClient, ApiError } from '../client.ts';
 import {
   formatSessionCreated,
@@ -325,6 +325,79 @@ export function sessionCommand(client: MgenClient): Command {
             console.error(error(`API error: ${err.message}`));
           }
         } else if (err instanceof Error) {
+          console.error(error(`Failed: ${err.message}`));
+        }
+        process.exit(1);
+      }
+    });
+
+  // session cleanup [id...]
+  session
+    .command('cleanup [ids...]')
+    .description('Clean up sessions (stop containers and delete)')
+    .option('--remove-volume', 'Also remove the workspace volume')
+    .option('--json', 'Output as JSON')
+    .action(async (idsArg: string[] | undefined, options) => {
+      try {
+        let ids = idsArg ?? [];
+
+        // Interactive mode if no session IDs provided
+        if (ids.length === 0 && !options.json) {
+          const sessions = await client.listSessions({});
+
+          if (sessions.length === 0) {
+            console.error(error('No sessions found.'));
+            process.exit(1);
+          }
+
+          const selected = await multiselect({
+            message: 'Select sessions to clean up:',
+            options: sessions.map((s) => ({
+              value: s.id,
+              label: `${s.artifactName} (${s.state})`,
+              hint: s.projectId,
+            })),
+            required: true,
+          });
+
+          ids = handleCancel(selected) as string[];
+        }
+
+        if (ids.length === 0) {
+          console.error(error('At least one session ID is required'));
+          process.exit(1);
+        }
+
+        const results: { id: string; success: boolean; message: string }[] = [];
+
+        for (const id of ids) {
+          try {
+            const result = await client.deleteSession(id, {
+              removeVolume: options.removeVolume,
+            });
+            results.push({ id, success: true, message: result.message });
+          } catch (err) {
+            if (err instanceof ApiError) {
+              results.push({ id, success: false, message: err.message });
+            } else if (err instanceof Error) {
+              results.push({ id, success: false, message: err.message });
+            }
+          }
+        }
+
+        if (options.json) {
+          console.log(JSON.stringify(results, null, 2));
+        } else {
+          for (const r of results) {
+            if (r.success) {
+              console.log(success(r.message));
+            } else {
+              console.error(error(`Failed to clean up ${r.id}: ${r.message}`));
+            }
+          }
+        }
+      } catch (err) {
+        if (err instanceof Error) {
           console.error(error(`Failed: ${err.message}`));
         }
         process.exit(1);

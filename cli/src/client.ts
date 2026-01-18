@@ -152,6 +152,22 @@ export class MgenClient {
   }
 
   /**
+   * Cleans up and deletes a session.
+   */
+  async deleteSession(id: string, options?: { removeVolume?: boolean }): Promise<{ message: string }> {
+    const params = new URLSearchParams();
+    if (options?.removeVolume) {
+      params.set('removeVolume', 'true');
+    }
+    const queryString = params.toString();
+    const path = queryString ? `/sessions/${id}?${queryString}` : `/sessions/${id}`;
+
+    return this.request<{ message: string }>(path, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
    * Lists all projects.
    */
   async listProjects(): Promise<Project[]> {
