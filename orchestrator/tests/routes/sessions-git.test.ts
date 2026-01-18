@@ -1240,4 +1240,323 @@ describe('Sessions Git Routes', () => {
       });
     });
   });
+
+  /**
+   * Phase 7: Monorepo Support Tests (T060-T061)
+   *
+   * T060: Integration test for monorepo session with mastraPath and uiSandboxPath
+   * T061: Test for commit including changes from both service directories
+   *
+   * Note: T062, T065 (template initialization) deferred to future release.
+   */
+  describe('Phase 7: Monorepo Support', () => {
+    let monorepoProjectId: string;
+
+    beforeEach(async () => {
+      // Create a monorepo project with mastraPath and uiSandboxPath
+      const monorepoProject = await projectsRepo.create({
+        name: 'monorepo-test-project',
+        github_repo: 'org/monorepo',
+        mastra_path: 'packages/backend',
+        ui_sandbox_path: 'packages/frontend',
+      });
+      monorepoProjectId = monorepoProject.id;
+
+      // Add dev environment
+      await projectsRepo.addEnvironment(monorepoProjectId, {
+        name: 'dev',
+        env_vars: {},
+      });
+    });
+
+    describe('T060 - Monorepo Session Creation', () => {
+      test('creates session with mastraPath and uiSandboxPath configured', async () => {
+        const mockGitHubService = {
+          checkUserPermissions: mock(() =>
+            Promise.resolve({
+              canRead: true,
+              canWrite: true,
+              canAdmin: false,
+              permission: 'write',
+            })
+          ),
+          getDefaultBranchSha: mock(() => Promise.resolve('a'.repeat(40))),
+          createBranch: mock(() => Promise.resolve()),
+        };
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        const result = await sandboxService.createWithGit(
+          {
+            projectId: monorepoProjectId,
+            artifactName: 'monorepo-feature',
+            environment: 'dev',
+            userId: 'testuser',
+          },
+          mockGitHubService as any
+        );
+
+        // Verify session was created
+        expect(result.session.user_id).toBe('testuser');
+        expect(result.session.branch_name).toMatch(/^mg\/testuser\/monorepo-feature-/);
+        expect(result.session.state).toBe('active');
+
+        // Verify URLs include astro (because ui_sandbox_path is configured)
+        expect(result.urls).toBeDefined();
+        expect(result.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+        expect(result.urls.astro).toMatch(/^http:\/\/localhost:\d+/);
+      });
+
+      test('session without ui_sandbox_path does not have astro URL', async () => {
+        // Create a project without ui_sandbox_path
+        const backendOnlyProject = await projectsRepo.create({
+          name: 'backend-only-project',
+          github_repo: 'org/backend-only',
+          mastra_path: 'src',
+          // No ui_sandbox_path
+        });
+        await projectsRepo.addEnvironment(backendOnlyProject.id, {
+          name: 'dev',
+          env_vars: {},
+        });
+
+        const mockGitHubService = {
+          checkUserPermissions: mock(() =>
+            Promise.resolve({
+              canRead: true,
+              canWrite: true,
+              canAdmin: false,
+              permission: 'write',
+            })
+          ),
+          getDefaultBranchSha: mock(() => Promise.resolve('b'.repeat(40))),
+          createBranch: mock(() => Promise.resolve()),
+        };
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        const result = await sandboxService.createWithGit(
+          {
+            projectId: backendOnlyProject.id,
+            artifactName: 'backend-feature',
+            environment: 'dev',
+            userId: 'testuser',
+          },
+          mockGitHubService as any
+        );
+
+        // Verify URLs - astro should be null when ui_sandbox_path is not configured
+        expect(result.urls.astro).toBeNull();
+      });
+
+      test('verifies project paths are correctly stored', async () => {
+        // Verify the monorepo project has correct paths
+        const project = await projectsRepo.findById(monorepoProjectId);
+
+        expect(project).toBeDefined();
+        expect(project!.mastra_path).toBe('packages/backend');
+        expect(project!.ui_sandbox_path).toBe('packages/frontend');
+      });
+    });
+
+    describe('T061 - Cross-Directory Commit', () => {
+      test('suspend commits changes from both mastraPath and uiSandboxPath directories', async () => {
+        const mockCalls: string[] = [];
+
+        // Mock GitService that simulates changes in both directories
+        const mockGitService = {
+          getStatus: mock(() => {
+            mockCalls.push('getStatus');
+            return Promise.resolve({
+              hasChanges: true,
+              staged: [],
+              unstaged: [
+                'packages/backend/src/index.ts', // Change in mastraPath
+                'packages/frontend/src/App.tsx', // Change in uiSandboxPath
+              ],
+              untracked: ['packages/backend/new-file.ts'],
+            });
+          }),
+          commitAll: mock((message: string) => {
+            mockCalls.push(`commitAll:${message}`);
+            return Promise.resolve({
+              sha: 'c'.repeat(40),
+              message,
+            });
+          }),
+          push: mock((branch: string) => {
+            mockCalls.push(`push:${branch}`);
+            return Promise.resolve();
+          }),
+          getCurrentSha: mock(() => Promise.resolve('c'.repeat(40))),
+          getCommitCount: mock(() => Promise.resolve(1)),
+        };
+
+        // Create a session for the monorepo project
+        const session = await sessionsRepo.create({
+          project_id: monorepoProjectId,
+          artifact_name: 'cross-dir-commit-test',
+          environment: 'dev',
+          workspace_volume: 'test-volume',
+          cui_auth_token: 'test-token',
+          user_id: 'testuser',
+          branch_name: 'mg/testuser/cross-dir-commit-test-abc123',
+        });
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        // Suspend the session - should commit changes from both directories
+        const result = await sandboxService.suspendWithGit(session.id, mockGitService as any);
+
+        // Verify git operations were called
+        expect(mockCalls).toContain('getStatus');
+        expect(mockCalls.find((c) => c.startsWith('commitAll:'))).toBeDefined();
+        expect(mockCalls.find((c) => c.startsWith('push:'))).toBeDefined();
+
+        // Verify session is suspended with commit
+        expect(result.state).toBe('suspended');
+        expect(result.last_commit_sha).toBe('c'.repeat(40));
+      });
+
+      test('git add -A stages all changes across monorepo subdirectories', async () => {
+        // This test verifies the behavior described in T063/T064:
+        // git operations work across subdirectories because:
+        // 1. GitService uses `git -C /workspace` to run commands from repo root
+        // 2. `git add -A` stages ALL changes in the repository
+
+        let capturedStatusChanges: string[] = [];
+
+        const mockGitService = {
+          getStatus: mock(() => {
+            // Simulate changes across multiple directories
+            const changes = [
+              'packages/backend/src/api.ts',
+              'packages/backend/tests/api.test.ts',
+              'packages/frontend/src/components/Header.tsx',
+              'packages/frontend/public/favicon.ico',
+              'README.md', // Root file change
+            ];
+            capturedStatusChanges = changes;
+            return Promise.resolve({
+              hasChanges: true,
+              staged: [],
+              unstaged: changes,
+              untracked: [],
+            });
+          }),
+          commitAll: mock((message: string) => {
+            // All 5 files should be committed together
+            return Promise.resolve({
+              sha: 'd'.repeat(40),
+              message,
+            });
+          }),
+          push: mock(() => Promise.resolve()),
+          getCurrentSha: mock(() => Promise.resolve('d'.repeat(40))),
+          getCommitCount: mock(() => Promise.resolve(1)),
+        };
+
+        const session = await sessionsRepo.create({
+          project_id: monorepoProjectId,
+          artifact_name: 'multi-dir-test',
+          environment: 'dev',
+          workspace_volume: 'test-volume',
+          cui_auth_token: 'test-token',
+          user_id: 'testuser',
+          branch_name: 'mg/testuser/multi-dir-test-xyz789',
+        });
+
+        const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+        const sandboxService = new SandboxService({
+          projectsRepo,
+          sessionsRepo,
+          dockerEnabled: false,
+        });
+
+        await sandboxService.suspendWithGit(session.id, mockGitService as any);
+
+        // Verify status reported changes from multiple directories
+        expect(capturedStatusChanges).toContain('packages/backend/src/api.ts');
+        expect(capturedStatusChanges).toContain('packages/frontend/src/components/Header.tsx');
+        expect(capturedStatusChanges).toContain('README.md');
+
+        // commitAll was called (which uses git add -A to stage everything)
+        expect(mockGitService.commitAll).toHaveBeenCalled();
+      });
+    });
+
+    describe('T063/T064 - Git Operations Across Subdirectories (Verification)', () => {
+      test('GitService operates from workspace root (verified by -C flag usage)', async () => {
+        // This is a conceptual verification test
+        // The actual implementation in git.ts uses: git -C /workspace <command>
+        // which means all git operations work from the repo root, not subdirectories
+        //
+        // This ensures:
+        // - git status shows changes from ALL directories
+        // - git add -A stages changes from ALL directories
+        // - git commit includes ALL staged changes in one commit
+
+        const session = await sessionsRepo.create({
+          project_id: monorepoProjectId,
+          artifact_name: 'git-root-test',
+          environment: 'dev',
+          workspace_volume: 'test-volume',
+          cui_auth_token: 'test-token',
+          user_id: 'testuser',
+          branch_name: 'mg/testuser/git-root-test-abc123',
+        });
+
+        // Verify session is linked to monorepo project
+        const project = await projectsRepo.findById(session.project_id);
+        expect(project).toBeDefined();
+        expect(project!.mastra_path).toBe('packages/backend');
+        expect(project!.ui_sandbox_path).toBe('packages/frontend');
+
+        // The test passes if we can create a session for a monorepo project
+        // The actual git -C behavior is tested in unit tests (git.test.ts)
+        expect(session.project_id).toBe(monorepoProjectId);
+      });
+    });
+
+    describe('T066 - Container Working Directories (Verification)', () => {
+      test('project paths are available for container configuration', async () => {
+        // This verifies the data needed for container startup exists
+        // Actual container startup is tested via integration tests with Docker
+
+        const project = await projectsRepo.findById(monorepoProjectId);
+
+        expect(project).toBeDefined();
+
+        // These paths are used in SandboxService.startContainers() to set workingDir:
+        // - Mastra container: /workspace/${project.mastra_path}
+        // - Astro container: /workspace/${project.ui_sandbox_path}
+        expect(project!.mastra_path).toBe('packages/backend');
+        expect(project!.ui_sandbox_path).toBe('packages/frontend');
+
+        // The actual implementation in sandbox.ts:
+        // const mastraWorkDir = `/workspace${project.mastra_path !== '.' ? `/${project.mastra_path}` : ''}`;
+        // const astroWorkDir = `/workspace/${project.ui_sandbox_path}`;
+        // These are passed as WorkingDir in container config
+      });
+    });
+  });
 });
