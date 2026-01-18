@@ -7,47 +7,72 @@
 ## Overview
 
 Phase 3 extends the existing data model with:
-1. **Users** table for authenticated users
-2. **Project cui Configuration** tables for MCP servers, commands, skills
-3. **Session Shares** table for collaborative access
-4. **User-Project Membership** for access control
+1. **Users** table for GitHub-authenticated users
+2. **GitHub App Installations** table for installation-derived access control
+3. **Project cui Configuration** tables for MCP servers, commands, skills
+4. **Session Shares** table for collaborative access
 
 ## Entity Relationship Diagram
 
 ```
-┌─────────────┐     ┌─────────────────────┐     ┌──────────────────────┐
-│   users     │────<│ user_project_members │>────│      projects        │
-└─────────────┘     └─────────────────────┘     └──────────────────────┘
-      │                                                    │
-      │                                                    │
-      │                                         ┌──────────┴──────────┐
-      │                                         │                     │
-      │                              ┌──────────────────┐   ┌─────────────────┐
-      │                              │ project_cui_config│   │project_environments│
-      │                              └──────────────────┘   └─────────────────┘
-      │                                         │
-      │                              ┌──────────┴──────────┐
-      │                              │                     │
-      │                    ┌─────────────────┐   ┌─────────────────┐
-      │                    │ project_commands │   │  project_skills  │
-      │                    └─────────────────┘   └─────────────────┘
-      │
-      │             ┌─────────────┐
-      └────────────>│  sessions   │<────────────────────────────────────
-                    └─────────────┘                                    │
-                           │                                           │
-                    ┌──────┴──────┐                                   │
-                    │             │                                   │
-             ┌──────────────┐                                  ┌──────────────┐
-             │session_shares │─────────────────────────────────│    users     │
-             └──────────────┘ (shared_with)                    └──────────────┘
+┌─────────────────────────┐
+│ github_app_installations │
+└───────────┬─────────────┘
+            │
+            │ 1:N
+            ▼
+┌─────────────────────────┐     ┌─────────────┐
+│       projects          │     │    users    │
+└───────────┬─────────────┘     └──────┬──────┘
+            │                          │
+            │                          │
+ ┌──────────┴──────────┐               │
+ │                     │               │
+ ▼                     ▼               ▼
+┌──────────────────┐ ┌─────────────────┐ ┌─────────────┐
+│project_cui_config│ │project_environments│ │  sessions   │
+└──────────────────┘ └─────────────────┘ └──────┬──────┘
+          │                                     │
+ ┌────────┴────────┐                           │
+ │                 │                           │
+ ▼                 ▼                           ▼
+┌─────────────────┐ ┌─────────────────┐ ┌──────────────┐
+│ project_commands │ │  project_skills  │ │session_shares│
+└─────────────────┘ └─────────────────┘ └──────────────┘
 ```
+
+**Access Control**: Users can access projects where:
+1. The project's linked GitHub App installation includes the repository
+2. The user has access to that repository (verified via GitHub API)
+
+No manual membership management required - access is derived from GitHub.
 
 ## New Tables
 
+### github_app_installations
+
+Stores GitHub App installation records, synced via webhooks.
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| id | TEXT | PK | UUID, unique installation record ID |
+| installation_id | INTEGER | NOT NULL, UNIQUE | GitHub's installation ID (not our internal UUID `id`) |
+| account_type | TEXT | NOT NULL | 'User' or 'Organization' |
+| account_login | TEXT | NOT NULL | GitHub login/org name |
+| account_id | INTEGER | NOT NULL | GitHub account ID |
+| permissions | TEXT | NOT NULL, DEFAULT '{}' | JSON: granted permissions |
+| repository_selection | TEXT | NOT NULL | 'all' or 'selected' |
+| suspended_at | TEXT | | NULL if active, ISO 8601 if suspended |
+| created_at | TEXT | NOT NULL, DEFAULT NOW | ISO 8601 timestamp |
+| updated_at | TEXT | NOT NULL, DEFAULT NOW | ISO 8601 timestamp |
+
+**Indexes**:
+- `github_app_installations_installation_id_idx` on (installation_id)
+- `github_app_installations_account_idx` on (account_login)
+
 ### users
 
-Stores authenticated user information from OIDC provider.
+Stores authenticated user information from GitHub OAuth.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -55,33 +80,16 @@ Stores authenticated user information from OIDC provider.
 | email | TEXT | NOT NULL, UNIQUE | User's email address |
 | name | TEXT | | Display name |
 | avatar_url | TEXT | | Profile picture URL |
-| provider | TEXT | NOT NULL | OIDC provider name (google, github, azure) |
-| provider_id | TEXT | NOT NULL | User ID from provider |
+| github_id | INTEGER | NOT NULL, UNIQUE | GitHub user ID |
+| github_login | TEXT | NOT NULL | GitHub username |
+| github_access_token | TEXT | | Encrypted OAuth access token |
 | created_at | TEXT | NOT NULL, DEFAULT NOW | ISO 8601 timestamp |
 | updated_at | TEXT | NOT NULL, DEFAULT NOW | ISO 8601 timestamp |
 
 **Indexes**:
 - `users_email_idx` on (email)
-- `users_provider_idx` on (provider, provider_id)
-
-### user_project_members
-
-Junction table for user-project membership (access control).
-
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| id | TEXT | PK | UUID |
-| user_id | TEXT | FK users(id), NOT NULL | User reference |
-| project_id | TEXT | FK projects(id), NOT NULL | Project reference |
-| role | TEXT | NOT NULL, DEFAULT 'member' | Role: 'admin', 'member' |
-| created_at | TEXT | NOT NULL, DEFAULT NOW | When membership was granted |
-
-**Constraints**:
-- UNIQUE (user_id, project_id)
-
-**Indexes**:
-- `user_project_members_user_idx` on (user_id)
-- `user_project_members_project_idx` on (project_id)
+- `users_github_id_idx` on (github_id)
+- `users_github_login_idx` on (github_login)
 
 ### project_cui_config
 
@@ -172,9 +180,21 @@ Records session sharing for collaborative access.
 
 ## Extended Tables
 
+### projects (extended from Phase 2)
+
+Add column for GitHub App installation reference:
+
+| New Column | Type | Constraints | Description |
+|------------|------|-------------|-------------|
+| installation_id | TEXT | FK github_app_installations(id) | GitHub App installation for this project |
+
+**Access Control**: To access a project, a user must:
+1. Have the project's installation in their accessible installations (`GET /user/installations`)
+2. Have access to the project's github_repo in that installation
+
 ### sessions (extended from Phase 2)
 
-Add columns for activity tracking and user association:
+Add columns for activity tracking:
 
 | New Column | Type | Constraints | Description |
 |------------|------|-------------|-------------|
@@ -228,7 +248,8 @@ Add columns for activity tracking and user association:
 
 ### Users
 - `email`: Must be valid email format
-- `provider`: Must be one of: 'google', 'github', 'azure', 'custom'
+- `github_id`: Must be positive integer
+- `github_login`: Must be valid GitHub username format
 
 ### Project Commands
 - `name`: Alphanumeric + hyphens, 1-50 chars, cannot start with number
@@ -245,33 +266,41 @@ Add columns for activity tracking and user association:
 ## Migration: 003_cui_config
 
 ```sql
--- Users table
+-- GitHub App Installations table
+CREATE TABLE IF NOT EXISTS github_app_installations (
+  id TEXT PRIMARY KEY,
+  installation_id INTEGER NOT NULL UNIQUE,
+  account_type TEXT NOT NULL,
+  account_login TEXT NOT NULL,
+  account_id INTEGER NOT NULL,
+  permissions TEXT NOT NULL DEFAULT '{}',
+  repository_selection TEXT NOT NULL,
+  suspended_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS github_app_installations_installation_id_idx
+  ON github_app_installations(installation_id);
+CREATE INDEX IF NOT EXISTS github_app_installations_account_idx
+  ON github_app_installations(account_login);
+
+-- Users table (GitHub-only)
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT NOT NULL UNIQUE,
   name TEXT,
   avatar_url TEXT,
-  provider TEXT NOT NULL,
-  provider_id TEXT NOT NULL,
+  github_id INTEGER NOT NULL UNIQUE,
+  github_login TEXT NOT NULL,
+  github_access_token TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS users_email_idx ON users(email);
-CREATE INDEX IF NOT EXISTS users_provider_idx ON users(provider, provider_id);
-
--- User-Project membership
-CREATE TABLE IF NOT EXISTS user_project_members (
-  id TEXT PRIMARY KEY,
-  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  role TEXT NOT NULL DEFAULT 'member',
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(user_id, project_id)
-);
-
-CREATE INDEX IF NOT EXISTS user_project_members_user_idx ON user_project_members(user_id);
-CREATE INDEX IF NOT EXISTS user_project_members_project_idx ON user_project_members(project_id);
+CREATE INDEX IF NOT EXISTS users_github_id_idx ON users(github_id);
+CREATE INDEX IF NOT EXISTS users_github_login_idx ON users(github_login);
 
 -- Project cui config
 CREATE TABLE IF NOT EXISTS project_cui_config (
@@ -326,6 +355,9 @@ CREATE TABLE IF NOT EXISTS session_shares (
 
 CREATE INDEX IF NOT EXISTS session_shares_session_idx ON session_shares(session_id);
 CREATE INDEX IF NOT EXISTS session_shares_shared_with_idx ON session_shares(shared_with_user_id);
+
+-- Extend projects table with installation reference
+ALTER TABLE projects ADD COLUMN installation_id TEXT REFERENCES github_app_installations(id);
 
 -- Extend sessions table
 ALTER TABLE sessions ADD COLUMN last_activity_at TEXT NOT NULL DEFAULT (datetime('now'));

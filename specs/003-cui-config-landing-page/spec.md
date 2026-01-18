@@ -114,18 +114,19 @@ Claude has access to built-in skills that provide knowledge about Mastra develop
 
 ### User Story 6 - Authentication & Authorization (Priority: P2)
 
-Users authenticate via OIDC/SSO, receive a JWT for API calls, and their Tailscale identity controls sandbox access. Project membership determines which projects a user can access.
+Users authenticate via GitHub App OAuth, receive a JWT for API calls, and their Tailscale identity controls sandbox access. Project access is determined by GitHub App installations - users can access projects linked to repos where they have GitHub access and the app is installed.
 
 **Why this priority**: Security and access control are essential for multi-user operation but can be tested with mock auth during development.
 
-**Independent Test**: Can be fully tested by authenticating and verifying API access and project visibility. Delivers value by enabling secure multi-user access.
+**Independent Test**: Can be fully tested by authenticating via GitHub and verifying API access and project visibility based on repo access. Delivers value by enabling secure multi-user access with automatic permission sync.
 
 **Acceptance Scenarios**:
 
-1. **Given** an unauthenticated user, **When** they access the landing page, **Then** they are redirected to the OIDC provider for authentication
-2. **Given** a successful authentication, **When** the user returns to Mastragen, **Then** they have a valid JWT and can make API calls
-3. **Given** a user with membership in projects A and B but not C, **When** they view the project list, **Then** they see only projects A and B
+1. **Given** an unauthenticated user, **When** they access the landing page, **Then** they are redirected to GitHub OAuth for authentication
+2. **Given** a successful GitHub authentication, **When** the user returns to Mastragen, **Then** they have a valid JWT and can make API calls
+3. **Given** a user with GitHub access to repos A and B (where app is installed) but not C, **When** they view the project list, **Then** they see only projects linked to repos A and B
 4. **Given** an active session, **When** a user not granted access tries to connect via Tailscale, **Then** the connection is rejected
+5. **Given** a GitHub App installation is suspended, **When** a user tries to create a session for that project, **Then** the system displays an error indicating the installation is suspended
 
 ---
 
@@ -196,11 +197,17 @@ Users authenticate via OIDC/SSO, receive a JWT for API calls, and their Tailscal
 
 **Authentication**:
 
-- **FR-028**: System MUST authenticate users via OIDC/SSO provider
+- **FR-028**: System MUST authenticate users via GitHub App OAuth
 - **FR-029**: System MUST issue JWT tokens for orchestrator API authentication
-- **FR-030**: System MUST enforce project membership for API access control
+- **FR-030**: System MUST enforce GitHub repo access via app installation for API access control
 - **FR-031**: System MUST use Tailscale identity for sandbox access control
 - **FR-032**: System MUST emit structured audit logs (user, action, timestamp, resource IDs) for security-sensitive actions (session creation, sharing, PR creation)
+
+**GitHub App Integration**:
+
+- **FR-034**: System MUST sync GitHub App installation state via webhooks (created, deleted, suspended, unsuspended)
+- **FR-035**: System MUST list available GitHub App installations when user creates a project
+- **FR-036**: System MUST verify user repo access via GitHub API before session creation
 
 **Data Retention**:
 
@@ -208,7 +215,8 @@ Users authenticate via OIDC/SSO, receive a JWT for API calls, and their Tailscal
 
 ### Key Entities
 
-- **Project**: A Mastra codebase configuration including git repo, workspace structure, and cui settings
+- **GitHubAppInstallation**: A record of where the GitHub App is installed (user or organization), synced via webhooks
+- **Project**: A Mastra codebase configuration including git repo, workspace structure, cui settings, and linked installation
 - **ProjectEnvironment**: Named environment configuration (staging, dev, prod) with env vars and secret references
 - **ProjectCuiConfig**: cui configuration for a project including MCP servers, CLAUDE.md, and auto-approve patterns
 - **ProjectCommand**: Custom slash command available in cui for a project's sessions
@@ -220,7 +228,7 @@ Users authenticate via OIDC/SSO, receive a JWT for API calls, and their Tailscal
 
 ### Measurable Outcomes
 
-- **SC-001**: Users can navigate from landing page to active cui session in under 10 seconds
+- **SC-001**: Users can navigate from landing page to active cui session in under 10 seconds (measured for authenticated users with cached session list)
 - **SC-002**: New session creation (form submit to cui ready) completes in under 90 seconds
 - **SC-003**: /suspend command completes (commit, push, terminate) in under 30 seconds
 - **SC-004**: /pr command creates a pull request in under 15 seconds
@@ -237,8 +245,9 @@ Users authenticate via OIDC/SSO, receive a JWT for API calls, and their Tailscal
 - The orchestrator API from Phase 2 provides all necessary endpoints for session and project management
 - Kubernetes infrastructure is available for sandbox pod deployment
 - Tailscale is configured and operational for secure sandbox access
-- An OIDC/SSO provider is available and configured for authentication
-- Users have Tailscale clients installed and connected to the tailnet
+- A GitHub App is created and configured with OAuth credentials and webhook endpoint
+- Users have GitHub accounts and Tailscale clients installed and connected to the tailnet
+- The GitHub App is installed on repositories that will be used for projects
 
 ## Out of Scope
 

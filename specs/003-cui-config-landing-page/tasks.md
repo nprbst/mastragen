@@ -48,16 +48,17 @@ Based on plan.md project structure:
 
 - [X] T009 [P] Unit test for JWT validation middleware in orchestrator/tests/unit/middleware/auth.test.ts
 - [X] T010 [P] Unit test for audit logger service in orchestrator/tests/unit/services/audit-logger.test.ts
-- [X] T011 [P] Integration test for auth routes (login, callback, logout, me, refresh) in orchestrator/tests/integration/auth.test.ts
+- [ ] T011 [P] Integration test for auth routes (login, callback, logout, me, refresh) in orchestrator/tests/integration/auth.test.ts
+- [ ] T011.1 [P] Unit test for GitHub webhook handler (installation events) in orchestrator/tests/unit/routes/webhooks.test.ts
 
 ### Implementation for Foundational
 
 - [X] T012 Create database migration 003_cui_config in orchestrator/src/db/migrations/003_cui_config.ts
-- [X] T013 Update database types in orchestrator/src/db/types.ts with new tables (users, user_project_members, project_cui_config, project_commands, project_skills, session_shares)
+- [ ] T013 Update database types in orchestrator/src/db/types.ts with new tables (users, github_app_installations, project_cui_config, project_commands, project_skills, session_shares)
 - [X] T014 [P] Create users repository in orchestrator/src/repositories/users.ts
-- [X] T015 [P] Create user_project_members repository in orchestrator/src/repositories/user-project-members.ts
+- [ ] T015 [P] Create github_app_installations repository in orchestrator/src/repositories/github-app-installations.ts
 - [X] T016 [P] Create session_shares repository in orchestrator/src/repositories/session-shares.ts
-- [X] T017 Configure better-auth with OIDC provider in orchestrator/src/services/auth.ts
+- [ ] T017 Configure better-auth with GitHub App OAuth in orchestrator/src/services/auth.ts
 - [X] T018 Create JWT validation middleware in orchestrator/src/middleware/auth.ts
 - [X] T019 Create audit logger service in orchestrator/src/services/audit-logger.ts
 - [X] T020 [P] Create Valibot schemas for auth in orchestrator/src/schemas/auth.ts
@@ -65,7 +66,9 @@ Based on plan.md project structure:
 - [X] T022 [P] Create Valibot schemas for commands in orchestrator/src/schemas/commands.ts
 - [X] T023 [P] Create Valibot schemas for skills in orchestrator/src/schemas/skills.ts
 - [ ] T024 Setup oRPC router base in orchestrator/src/orpc/router.ts
-- [X] T025 Register auth routes in orchestrator (GET /auth/login, GET /auth/callback, POST /auth/logout, GET /auth/me, POST /auth/refresh)
+- [ ] T025 Register auth routes in orchestrator (GET /auth/login, GET /auth/callback, POST /auth/logout, GET /auth/me, POST /auth/refresh)
+- [ ] T025.1 [P] Create GitHub App installation routes (GET /auth/installations, GET /auth/installations/:id/repos) in orchestrator/src/routes/auth.ts
+- [ ] T025.2 Create GitHub webhook handler (POST /webhooks/github) for installation events in orchestrator/src/routes/webhooks.ts
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -81,21 +84,21 @@ Based on plan.md project structure:
 
 > **TDD**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [X] T026 [P] [US1] Unit test for sessions list filtering in orchestrator/tests/unit/routes/sessions.test.ts
-- [X] T027 [P] [US1] Integration test for GET /sessions with query params in orchestrator/tests/integration/sessions.test.ts
+- [ ] T026 [P] [US1] Unit test for sessions list filtering in orchestrator/tests/unit/routes/sessions.test.ts
+- [ ] T027 [P] [US1] Integration test for GET /sessions with query params in orchestrator/tests/integration/sessions.test.ts
 
 ### Implementation for User Story 1
 
-- [X] T028 [US1] Create dashboard page in landing-page/src/pages/index.astro
-- [X] T029 [US1] Extend GET /sessions endpoint with dashboard query params (state, projectId, sharedWithMe, pagination) in orchestrator/src/routes/sessions.ts
-- [X] T030 [P] [US1] Create SessionCard React component in landing-page/src/components/SessionCard.tsx
-- [X] T031 [P] [US1] Create SessionList React component (interactive island) in landing-page/src/components/SessionList.tsx
-- [X] T032 [P] [US1] Create ServiceLinks Astro component in landing-page/src/components/ServiceLinks.astro
-- [X] T033 [US1] Add session grouping logic by project in SessionList component
-- [X] T034 [US1] Add status indicators (Active, Suspended, PR Open) styling in SessionCard
-- [X] T035 [US1] Implement "Shared with me" section in dashboard showing sessions shared by other users
-- [X] T036 [US1] Create empty state with onboarding guidance and "Create your first session" CTA when user has no sessions (supports SC-005: 95% first-time success)
-- [X] T037 [US1] Add session URLs for cui (:3001), Mastra (:4111), Astro (:4321), VS Code (:8080) in SessionCard
+- [ ] T028 [US1] Create dashboard page in landing-page/src/pages/index.astro
+- [ ] T029 [US1] Extend GET /sessions endpoint with dashboard query params (state, projectId, sharedWithMe, pagination) in orchestrator/src/routes/sessions.ts
+- [ ] T030 [P] [US1] Create SessionCard React component in landing-page/src/components/SessionCard.tsx
+- [ ] T031 [P] [US1] Create SessionList React component (interactive island) in landing-page/src/components/SessionList.tsx
+- [ ] T032 [P] [US1] Create ServiceLinks Astro component in landing-page/src/components/ServiceLinks.astro
+- [ ] T033 [US1] Add session grouping logic by project in SessionList component
+- [ ] T034 [US1] Add status indicators (Active, Suspended, PR Open) styling in SessionCard
+- [ ] T035 [US1] Implement "Shared with me" section in dashboard showing sessions shared by other users
+- [ ] T036 [US1] Create empty state with onboarding guidance and "Create your first session" CTA when user has no sessions (supports SC-005: 95% first-time success)
+- [ ] T037 [US1] Add session URLs for cui (:3001), Mastra (:4111), Astro (:4321), VS Code (:8080) in SessionCard
 
 **Checkpoint**: Dashboard displays sessions grouped by project with service links - User Story 1 complete
 
@@ -124,10 +127,11 @@ Based on plan.md project structure:
 - [ ] T045 [US2] Create project_cui_config repository in orchestrator/src/repositories/project-cui-config.ts (also used by US3)
 - [ ] T046 [US2] Create cui-injection service in orchestrator/src/services/cui-injection.ts
 - [ ] T047 [US2] Implement config file generation (settings.json at ~/.claude/settings.json, CLAUDE.md, commands) with env var interpolation (${VAR_NAME}) in cui-injection service
-- [ ] T048 [US2] Extend POST /sessions to inject cui config during sandbox provisioning in orchestrator/src/routes/sessions.ts
+- [ ] T048 [US2] Extend POST /sessions to inject cui config during sandbox provisioning in orchestrator/src/routes/sessions.ts (requires T058 for access checks)
 - [ ] T049 [US2] Implement redirect to cui URL after successful session creation in NewSessionForm
 - [ ] T050 [US2] Add session-specific env vars injection (MASTRAGEN_SESSION_ID, MASTRAGEN_API_URL, MASTRAGEN_USER_TOKEN)
 - [ ] T051 [US2] Handle uiSandboxPath configuration - start Astro service only if configured
+- [ ] T051.1 [US2] Display error when project has no environments configured on new session form
 
 **Checkpoint**: New sessions can be created with full cui config injection - User Story 2 complete
 
@@ -135,25 +139,25 @@ Based on plan.md project structure:
 
 ## Phase 5: User Story 6 - Authentication & Authorization (Priority: P2)
 
-**Goal**: Users authenticate via OIDC/SSO, receive JWT for API calls, and project membership controls access.
+**Goal**: Users authenticate via GitHub App OAuth, receive JWT for API calls, and GitHub App installation-derived access controls project visibility.
 
-**Independent Test**: Access landing page unauthenticated → redirected to OIDC → return with valid session and see only authorized projects.
+**Independent Test**: Access landing page unauthenticated → redirected to GitHub OAuth → return with valid session and see only projects linked to repos where app is installed and user has access.
 
 ### Tests for User Story 6
 
 > **TDD**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T052 [P] [US6] Unit test for project membership filtering in orchestrator/tests/unit/middleware/project-access.test.ts
-- [ ] T053 [P] [US6] Integration test for protected routes with membership checks in orchestrator/tests/integration/project-access.test.ts
+- [ ] T052 [P] [US6] Unit test for GitHub installation-based project access in orchestrator/tests/unit/middleware/project-access.test.ts
+- [ ] T053 [P] [US6] Integration test for protected routes with GitHub installation access checks in orchestrator/tests/integration/project-access.test.ts
 
 ### Implementation for User Story 6
 
 - [ ] T054 [US6] Create auth callback page in landing-page/src/pages/auth/callback.astro
-- [ ] T055 [US6] Create login page with provider selection in landing-page/src/pages/auth/login.astro
+- [ ] T055 [US6] Create login page with GitHub OAuth in landing-page/src/pages/auth/login.astro
 - [ ] T056 [US6] Add auth state management in landing-page/src/lib/auth.ts
 - [ ] T057 [US6] Implement protected route wrapper in landing-page/src/middleware/index.ts (Astro middleware)
-- [ ] T058 [US6] Add project membership check to all project-scoped routes in orchestrator/src/middleware/auth.ts
-- [ ] T059 [US6] Filter projects list by user membership in GET /projects
+- [ ] T058 [US6] Add GitHub installation access check to all project-scoped routes in orchestrator/src/middleware/auth.ts
+- [ ] T059 [US6] Filter projects list by user's accessible GitHub installations in GET /projects
 - [ ] T060 [US6] Add structured audit logging for auth events (login, logout) in auth routes
 - [ ] T061 [P] [US6] Create Tailscale service for ACL management in orchestrator/src/services/tailscale.ts
 - [ ] T062 [US6] Implement Tailscale access control for session sandboxes based on user identity
@@ -298,7 +302,7 @@ Based on plan.md project structure:
 |-------|------------|-------------------|
 | US1 (Dashboard) | Foundational | US2, US6 |
 | US2 (Create Session) | Foundational | US1, US6 |
-| US6 (Auth) | Foundational | US1, US2 |
+| US6 (Auth) | Foundational (including T025.1, T025.2 for GitHub installations) | US1, US2 |
 | US3 (Project Admin) | Foundational, US6 (for admin checks), T045 (cui-config repo) | US4, US5 |
 | US4 (Commands) | US2 (cui-injection service) | US3, US5 |
 | US5 (Skills) | US2 (cui-injection service) | US3, US4 |
@@ -318,9 +322,10 @@ Based on plan.md project structure:
 - T002, T003, T004, T005, T008 (dependencies, configs, dirs)
 
 **Phase 2 (Foundational)** - run in parallel:
-- T009, T010, T011 (tests)
+- T009, T010, T011, T011.1 (tests)
 - T014, T015, T016 (repositories)
 - T020, T021, T022, T023 (schemas)
+- T025.1, T025.2 (GitHub installation routes and webhook handler)
 
 **Phase 3 (US1)** - run in parallel:
 - T026, T027 (tests)
@@ -412,7 +417,7 @@ With multiple developers:
 | Phase | Tasks | Test Tasks | Parallel Tasks | Story |
 |-------|-------|------------|----------------|-------|
 | Phase 1: Setup | T001-T008 | 0 | 5 | - |
-| Phase 2: Foundational | T009-T025 | 3 | 9 | - |
+| Phase 2: Foundational | T009-T025.2 | 4 | 11 | - |
 | Phase 3: US1 Dashboard | T026-T037 | 2 | 5 | US1 (P1) |
 | Phase 4: US2 Create Session | T038-T051 | 2 | 4 | US2 (P1) |
 | Phase 5: US6 Auth | T052-T062 | 2 | 3 | US6 (P2) |
@@ -420,7 +425,7 @@ With multiple developers:
 | Phase 7: US4 Commands | T084-T104 | 4 | 8 | US4 (P2) |
 | Phase 8: US5 Skills | T105-T109 | 1 | 2 | US5 (P3) |
 | Phase 9: Polish | T110-T119 | 0 | 5 | - |
-| **Total** | **119 tasks** | **18 test tasks** | **51 parallel** | **6 stories** |
+| **Total** | **122 tasks** | **19 test tasks** | **53 parallel** | **6 stories** |
 
 ---
 

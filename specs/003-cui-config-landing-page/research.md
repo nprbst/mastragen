@@ -8,27 +8,48 @@
 
 ### 1. Authentication Architecture
 
-**Question**: How should we implement OIDC/SSO authentication with JWT tokens for the orchestrator API?
+**Question**: How should we implement authentication with JWT tokens for the orchestrator API?
 
-**Decision**: Use better-auth library with OIDC provider integration
+**Decision**: GitHub App with OAuth for user authentication and installation-derived access control
 
 **Rationale**:
-- better-auth is the recommended auth library for modern TypeScript applications
-- Native Hono integration via `@better-auth/hono`
-- Built-in OIDC/OAuth2 support for common providers (Google, GitHub, Azure AD)
-- JWT-based session tokens that work with stateless API authentication
-- Supports both server-side sessions and client-side JWT tokens
+- **Fine-grained permissions**: GitHub App allows requesting only necessary permissions (no broad `repo` scope)
+- **Installation-based access**: Access control derived from where app is installed, no manual membership management
+- **Viral distribution**: When one team member installs on an org, all org members benefit
+- **Webhook-driven sync**: Real-time updates when installations change
+- **Security**: User's OAuth token stored encrypted, used only for GitHub API calls
+
+**Two-Part Auth Model**:
+1. **User Authentication**: GitHub App OAuth identifies *who* the user is
+2. **Installation Tokens**: Scoped to repos where app is installed, determines *what* they can access
 
 **Implementation Approach**:
-1. Configure better-auth in orchestrator with OIDC provider settings
-2. Use `betterAuth()` middleware for protected routes
-3. Issue JWT tokens after successful OIDC authentication
-4. Store user info in new `users` table (id, email, name, avatar, provider)
-5. Add `user_id` foreign key to sessions table (already exists)
+1. Configure GitHub App with OAuth credentials (client ID, client secret)
+2. Use better-auth with GitHub OAuth provider
+3. Store user's GitHub OAuth access token (encrypted) for API calls
+4. Receive installation webhooks to track where app is installed
+5. At session creation, verify user has repo access via GitHub API
+6. No manual `user_project_members` table - access derived from GitHub
+
+**Access Control Flow**:
+```
+User requests project list:
+1. Get user's GitHub ID from JWT
+2. Query GitHub API: GET /user/installations (using stored OAuth token)
+3. For each installation, check: GET /installation/{id}/repositories
+4. Return projects where project.github_repo is in accessible repos
+```
+
+**Webhook Events to Handle**:
+- `installation.created` - Store new installation record
+- `installation.deleted` - Remove installation, orphan projects
+- `installation.suspend` / `unsuspend` - Track suspension state
+- `installation_repositories` - Track repo additions/removals
 
 **Alternatives Considered**:
-- **Lucia Auth**: Good but less feature-complete for OIDC
-- **Auth.js (NextAuth)**: Designed for Next.js, not ideal for Hono
+- **Generic OIDC/SSO**: More flexible but requires manual membership management
+- **GitHub OAuth (without App)**: Requires broad `repo` scope, no installation-based access
+- **Lucia Auth**: Good but less feature-complete for GitHub App integration
 - **Custom JWT + passport**: More complexity, harder to maintain
 
 ### 2. cui Configuration Injection
@@ -261,10 +282,10 @@ All research questions resolved. Ready to proceed with Phase 1 design artifacts.
 
 | Topic | Decision | Implementation Complexity |
 |-------|----------|--------------------------|
-| Authentication | better-auth + OIDC | Medium |
+| Authentication | GitHub App OAuth + installation-derived access | Medium |
 | cui Injection | File-based via init container | Low |
 | Tailscale Shares | Tailscale API for ACL management | Medium |
-| Landing Page | Next.js with direct API calls | Low |
+| Landing Page | Astro with React islands + oRPC | Low |
 | Built-in Commands | Markdown + orchestrator API | Low |
 | Dashboard Performance | Indexed queries + pagination | Low |
 | Audit Logging | Structured JSON to stdout | Low |

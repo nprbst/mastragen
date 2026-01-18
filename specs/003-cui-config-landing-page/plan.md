@@ -6,7 +6,7 @@
 
 ## Summary
 
-Phase 3 delivers the self-service user experience layer for Mastragen, transforming it from an API-only platform to a complete self-service experience. This includes an Astro landing page with React islands for session/project management, per-project cui configuration injection, built-in commands (/suspend, /pr, /share, /extract, /env), and OIDC/JWT authentication.
+Phase 3 delivers the self-service user experience layer for Mastragen, transforming it from an API-only platform to a complete self-service experience. This includes an Astro landing page with React islands for session/project management, per-project cui configuration injection, built-in commands (/suspend, /pr, /share, /extract, /env), and GitHub App OAuth authentication with installation-derived access control.
 
 ## Technical Context
 
@@ -15,7 +15,7 @@ Phase 3 delivers the self-service user experience layer for Mastragen, transform
 - Orchestrator: Hono, Kysely, Valibot (existing)
 - Landing Page: Astro 5, React 19 (islands), TailwindCSS
 - API Client: oRPC for type-safe orchestrator communication
-- Authentication: better-auth (OIDC/SSO), JWT
+- Authentication: better-auth (GitHub App OAuth), JWT, GitHub webhooks
 **Storage**: SQLite via Kysely (existing), extended with new tables
 **Testing**: Bun test (unit, integration, e2e)
 **Target Platform**: Web (Node.js/Bun server, Browser client)
@@ -138,13 +138,13 @@ cui-skills/
 ## Phase Summary
 
 ### Phase 0: Research (Complete)
-- Authentication approach: better-auth with OIDC provider
+- Authentication approach: GitHub App OAuth with installation-derived access control
 - cui injection mechanism: File-based injection on container startup
 - Tailscale share management: ACL updates via Tailscale API
 
 ### Phase 1: Design (Complete)
-- Data model: New tables for cui config, commands, skills, shares
-- API contracts: Extended session API, new auth/config endpoints
+- Data model: New tables for installations, cui config, commands, skills, shares (no user_project_members - access derived from GitHub)
+- API contracts: Extended session API, new auth/installations/webhook endpoints
 - Quickstart: Developer setup guide
 
 ### Phase 2: Tasks
