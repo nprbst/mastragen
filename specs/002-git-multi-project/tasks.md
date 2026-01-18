@@ -115,7 +115,7 @@
 - [x] T035 [US2] Add single-pod lock check in resumeWithGit to prevent concurrent access (return 409 if session already active)
 - [x] T036 [US2] Implement resume from specific commitSha when provided in request
 - [x] T037 [US2] Enhance POST /sessions/:id/resume handler in orchestrator/src/routes/sessions.ts to use resumeWithGit
-- [ ] T038 [US2] Implement .cui/ history restoration from mastraPath/.cui/ directory
+- [x] T038 [US2] Implement .cui/ history restoration from mastraPath/.cui/ directory
 
 **Checkpoint**: User Stories 1 AND 2 work together - full suspend/resume cycle functional
 

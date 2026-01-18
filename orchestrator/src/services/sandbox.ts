@@ -25,11 +25,29 @@ export interface GitServiceResumeInterface {
 }
 
 /**
+ * Interface for CUI history service to persist/restore conversation history.
+ * On suspend: Copies history from CUI container to workspace's .cui/ directory
+ * On resume: Copies history from workspace's .cui/ to CUI container
+ */
+export interface CuiHistoryServiceInterface {
+  saveCuiHistory(): Promise<void>;
+  restoreCuiHistory(): Promise<void>;
+}
+
+/**
+ * Options for suspendWithGit method.
+ */
+export interface SuspendWithGitOptions {
+  cuiHistoryService?: CuiHistoryServiceInterface;
+}
+
+/**
  * Options for resumeWithGit method.
  */
 export interface ResumeWithGitOptions {
   commitSha?: string;
   checkLock?: boolean;
+  cuiHistoryService?: CuiHistoryServiceInterface;
 }
 
 export interface ServiceUrls {
@@ -280,11 +298,13 @@ export class SandboxService {
    *
    * @param sessionId - The session ID to suspend
    * @param gitService - GitService instance for git operations
+   * @param options - Optional suspend options (cuiHistoryService)
    * @returns The updated session
    */
   async suspendWithGit(
     sessionId: string,
-    gitService: GitServiceInterface
+    gitService: GitServiceInterface,
+    options: SuspendWithGitOptions = {}
   ): Promise<Session> {
     const session = await this.sessionsRepo.findById(sessionId);
     if (!session) {
@@ -293,6 +313,11 @@ export class SandboxService {
 
     if (session.state !== 'active') {
       throw new SessionNotActiveError(sessionId);
+    }
+
+    // Save CUI conversation history to workspace before committing (T038)
+    if (options.cuiHistoryService) {
+      await options.cuiHistoryService.saveCuiHistory();
     }
 
     // Check for changes
@@ -473,6 +498,11 @@ export class SandboxService {
     // Start Docker containers if enabled
     if (this.dockerEnabled && env) {
       await this.startContainers(updatedSession, project, env.env_vars);
+    }
+
+    // Restore CUI conversation history from workspace after containers start (T038)
+    if (options.cuiHistoryService) {
+      await options.cuiHistoryService.restoreCuiHistory();
     }
 
     return {

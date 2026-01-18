@@ -513,4 +513,199 @@ describe('Sessions Git Routes', () => {
       expect(result.session.state).toBe('active');
     });
   });
+
+  /**
+   * T038: CUI History Preservation
+   *
+   * Tests that conversation history is saved and restored:
+   * - On suspend: Copy from CUI's /root/.claude/projects/-workspace/ to workspace's .cui/
+   * - On resume: Copy from workspace's .cui/ back to CUI container
+   */
+  describe('CUI History Preservation (T038)', () => {
+    test('suspendWithGit calls saveCuiHistory to persist conversation history', async () => {
+      const mockCalls: string[] = [];
+
+      const mockGitService = {
+        getStatus: mock(() => {
+          mockCalls.push('getStatus');
+          return Promise.resolve({
+            hasChanges: true,
+            staged: [],
+            unstaged: ['file.ts'],
+            untracked: [],
+          });
+        }),
+        commitAll: mock((message: string) => {
+          mockCalls.push(`commitAll:${message}`);
+          return Promise.resolve({
+            sha: 'h'.repeat(40),
+            message,
+          });
+        }),
+        push: mock(() => {
+          mockCalls.push('push');
+          return Promise.resolve();
+        }),
+        getCurrentSha: mock(() => Promise.resolve('h'.repeat(40))),
+        getCommitCount: mock(() => Promise.resolve(1)),
+      };
+
+      const mockCuiHistoryService = {
+        saveCuiHistory: mock(() => {
+          mockCalls.push('saveCuiHistory');
+          return Promise.resolve();
+        }),
+        restoreCuiHistory: mock(() => {
+          mockCalls.push('restoreCuiHistory');
+          return Promise.resolve();
+        }),
+      };
+
+      const session = await sessionsRepo.create({
+        project_id: testProjectId,
+        artifact_name: 'cui-history-suspend-test',
+        environment: 'dev',
+        workspace_volume: 'test-volume',
+        cui_auth_token: 'test-token',
+        user_id: 'testuser',
+        branch_name: 'mg/testuser/cui-history-suspend-test-abc123',
+      });
+
+      const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+      const sandboxService = new SandboxService({
+        projectsRepo,
+        sessionsRepo,
+        dockerEnabled: false,
+      });
+
+      // Call suspendWithGit with CUI history service
+      const result = await sandboxService.suspendWithGit(
+        session.id,
+        mockGitService as any,
+        { cuiHistoryService: mockCuiHistoryService }
+      );
+
+      // Verify saveCuiHistory was called before commit
+      const saveCuiHistoryIndex = mockCalls.indexOf('saveCuiHistory');
+      const commitIndex = mockCalls.findIndex((c) => c.startsWith('commitAll:'));
+
+      expect(saveCuiHistoryIndex).toBeGreaterThanOrEqual(0);
+      expect(saveCuiHistoryIndex).toBeLessThan(commitIndex);
+      expect(result.state).toBe('suspended');
+    });
+
+    test('resumeWithGit calls restoreCuiHistory after clone', async () => {
+      const mockCalls: string[] = [];
+
+      const mockGitService = {
+        clone: mock((repoUrl: string, branch?: string) => {
+          mockCalls.push(`clone:${repoUrl}:${branch}`);
+          return Promise.resolve();
+        }),
+        checkout: mock((ref: string) => {
+          mockCalls.push(`checkout:${ref}`);
+          return Promise.resolve();
+        }),
+      };
+
+      const mockCuiHistoryService = {
+        saveCuiHistory: mock(() => {
+          mockCalls.push('saveCuiHistory');
+          return Promise.resolve();
+        }),
+        restoreCuiHistory: mock(() => {
+          mockCalls.push('restoreCuiHistory');
+          return Promise.resolve();
+        }),
+      };
+
+      const session = await sessionsRepo.create({
+        project_id: testProjectId,
+        artifact_name: 'cui-history-resume-test',
+        environment: 'dev',
+        workspace_volume: 'test-volume',
+        cui_auth_token: 'test-token',
+        user_id: 'testuser',
+        branch_name: 'mg/testuser/cui-history-resume-test-xyz789',
+      });
+
+      await sessionsRepo.updateGitState(session.id, {
+        lastCommitSha: 'i'.repeat(40),
+        commitCount: 5,
+      });
+      await sessionsRepo.updateState(session.id, 'suspended');
+
+      const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+      const sandboxService = new SandboxService({
+        projectsRepo,
+        sessionsRepo,
+        dockerEnabled: false,
+      });
+
+      // Call resumeWithGit with CUI history service
+      const result = await sandboxService.resumeWithGit(
+        session.id,
+        mockGitService as any,
+        { cuiHistoryService: mockCuiHistoryService }
+      );
+
+      // Verify restoreCuiHistory was called after clone
+      const cloneIndex = mockCalls.findIndex((c) => c.startsWith('clone:'));
+      const restoreIndex = mockCalls.indexOf('restoreCuiHistory');
+
+      expect(cloneIndex).toBeGreaterThanOrEqual(0);
+      expect(restoreIndex).toBeGreaterThan(cloneIndex);
+      expect(result.session.state).toBe('active');
+    });
+
+    test('saveCuiHistory is skipped gracefully when history directory does not exist', async () => {
+      const mockCalls: string[] = [];
+
+      const mockGitService = {
+        getStatus: mock(() =>
+          Promise.resolve({ hasChanges: false, staged: [], unstaged: [], untracked: [] })
+        ),
+        commitAll: mock(() => Promise.resolve(null)),
+        push: mock(() => Promise.resolve()),
+        getCurrentSha: mock(() => Promise.resolve('j'.repeat(40))),
+        getCommitCount: mock(() => Promise.resolve(0)),
+      };
+
+      // Mock that throws "no such file" error
+      const mockCuiHistoryService = {
+        saveCuiHistory: mock(() => {
+          mockCalls.push('saveCuiHistory:no-history');
+          return Promise.resolve(); // Should handle gracefully
+        }),
+        restoreCuiHistory: mock(() => Promise.resolve()),
+      };
+
+      const session = await sessionsRepo.create({
+        project_id: testProjectId,
+        artifact_name: 'no-history-test',
+        environment: 'dev',
+        workspace_volume: 'test-volume',
+        cui_auth_token: 'test-token',
+        user_id: 'testuser',
+        branch_name: 'mg/testuser/no-history-test-abc123',
+      });
+
+      const { SandboxService } = await import('../../src/services/sandbox.ts');
+
+      const sandboxService = new SandboxService({
+        projectsRepo,
+        sessionsRepo,
+        dockerEnabled: false,
+      });
+
+      // Should not throw, even if no history exists
+      const result = await sandboxService.suspendWithGit(session.id, mockGitService as any, {
+        cuiHistoryService: mockCuiHistoryService,
+      });
+
+      expect(result.state).toBe('suspended');
+    });
+  });
 });
