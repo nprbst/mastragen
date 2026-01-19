@@ -215,30 +215,30 @@ Based on plan.md project structure:
 
 > **TDD**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T084 [P] [US4] Unit test for suspend logic (commit, push, terminate) in orchestrator/tests/unit/services/session-suspend.test.ts
-- [ ] T085 [P] [US4] Unit test for PR creation logic in orchestrator/tests/unit/services/session-pr.test.ts
-- [ ] T086 [P] [US4] Unit test for share logic (record + ACL update) in orchestrator/tests/unit/services/session-share.test.ts
-- [ ] T087 [P] [US4] Integration test for session action endpoints in orchestrator/tests/integration/session-actions.test.ts
+- [X] T084 [P] [US4] Unit test for suspend logic (commit, push, terminate) in orchestrator/tests/unit/services/session-suspend.test.ts
+- [X] T085 [P] [US4] Unit test for PR creation logic in orchestrator/tests/unit/services/session-pr.test.ts
+- [X] T086 [P] [US4] Unit test for share logic (record + ACL update) in orchestrator/tests/unit/services/session-share.test.ts
+- [X] T087 [P] [US4] Integration test for session action endpoints in orchestrator/tests/integration/session-actions.test.ts
 
 ### Implementation for User Story 4
 
-- [ ] T088 [US4] Create /suspend command markdown in cui-commands/suspend.md
-- [ ] T089 [P] [US4] Create /pr command markdown in cui-commands/pr.md
-- [ ] T090 [P] [US4] Create /share command markdown in cui-commands/share.md
-- [ ] T091 [P] [US4] Create /extract command markdown in cui-commands/extract.md
-- [ ] T092 [P] [US4] Create /env command markdown in cui-commands/env.md
-- [ ] T093 [US4] Create POST /sessions/:sessionId/suspend endpoint in orchestrator/src/routes/sessions.ts
-- [ ] T094 [US4] Implement suspend logic (commit all changes, push to remote, terminate sandbox, update state)
-- [ ] T095 [US4] Create POST /sessions/:sessionId/pr endpoint in orchestrator/src/routes/sessions.ts
-- [ ] T096 [US4] Implement PR creation via GitHub API with auto-generated description
-- [ ] T097 [US4] Create POST /sessions/:sessionId/share endpoint per sessions-extended contract
-- [ ] T098 [US4] Implement share logic (create share record, update Tailscale ACL)
-- [ ] T099 [US4] Create DELETE /sessions/:sessionId/share/:shareId endpoint for revoking access
-- [ ] T100 [US4] Create GET /sessions/:sessionId/shares endpoint to list active shares
-- [ ] T101 [US4] Extend GET /sessions/:sessionId with full session details for /env command
-- [ ] T102 [US4] Create POST /sessions/:sessionId/activity endpoint for activity tracking
-- [ ] T103 [US4] Add structured audit logging for security-sensitive actions (session share, PR creation)
-- [ ] T104 [US4] Update cui-injection service to inject built-in commands from cui-commands/
+- [X] T088 [US4] Create /suspend command markdown in cui-commands/suspend.md
+- [X] T089 [P] [US4] Create /pr command markdown in cui-commands/pr.md
+- [X] T090 [P] [US4] Create /share command markdown in cui-commands/share.md
+- [X] T091 [P] [US4] Create /extract command markdown in cui-commands/extract.md
+- [X] T092 [P] [US4] Create /env command markdown in cui-commands/env.md
+- [X] T093 [US4] Create POST /sessions/:sessionId/suspend endpoint in orchestrator/src/routes/sessions.ts
+- [X] T094 [US4] Implement suspend logic (commit all changes, push to remote, terminate sandbox, update state)
+- [X] T095 [US4] Create POST /sessions/:sessionId/pr endpoint in orchestrator/src/routes/sessions.ts
+- [X] T096 [US4] Implement PR creation via GitHub API with auto-generated description
+- [X] T097 [US4] Create POST /sessions/:sessionId/share endpoint per sessions-extended contract
+- [X] T098 [US4] Implement share logic (create share record, update Tailscale ACL)
+- [X] T099 [US4] Create DELETE /sessions/:sessionId/share/:shareId endpoint for revoking access
+- [X] T100 [US4] Create GET /sessions/:sessionId/shares endpoint to list active shares
+- [X] T101 [US4] Extend GET /sessions/:sessionId with full session details for /env command
+- [X] T102 [US4] Create POST /sessions/:sessionId/activity endpoint for activity tracking
+- [X] T103 [US4] Add structured audit logging for security-sensitive actions (session share, PR creation)
+- [X] T104 [US4] Update cui-injection service to inject built-in commands from cui-commands/
 
 **Checkpoint**: All built-in commands functional - User Story 4 complete
 
