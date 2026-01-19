@@ -142,7 +142,7 @@ export function sessionCommand(client: MgenClient): Command {
 
         // 4. Claude token (optional)
         let claudeToken = options.token as string | undefined;
-        if (!claudeToken && options.useCached) {
+        if (!claudeToken && options.cachedToken) {
           claudeToken = getCachedToken() ?? undefined;
         } else if (!claudeToken && !options.json) {
           claudeToken = await promptForClaudeToken();
