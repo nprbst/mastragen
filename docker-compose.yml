@@ -96,6 +96,8 @@ services:
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - GITHUB_REPO=${GITHUB_REPO}
+      - BRANCH=${BRANCH}
+      - UI_SANDBOX_PATH=${UI_SANDBOX_PATH}
     profiles:
       - sandbox
 

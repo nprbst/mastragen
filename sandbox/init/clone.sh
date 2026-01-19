@@ -33,4 +33,23 @@ else
     echo "Workspace is not empty, skipping clone"
 fi
 
+# Install dependencies if package.json exists
+cd /workspace
+if [ -f "package.json" ] && [ ! -d "node_modules" ]; then
+    echo "Installing root dependencies..."
+    bun install
+fi
+
+# Install UI sandbox dependencies if path is set and exists
+if [ -n "$UI_SANDBOX_PATH" ] && [ -f "/workspace/${UI_SANDBOX_PATH}/package.json" ]; then
+    if [ ! -d "/workspace/${UI_SANDBOX_PATH}/node_modules" ]; then
+        echo "Installing UI dependencies in ${UI_SANDBOX_PATH}..."
+        cd "/workspace/${UI_SANDBOX_PATH}"
+        bun install
+    fi
+fi
+
+# Create marker file to signal init is complete
+touch /workspace/.init-complete
+
 echo "Init complete"
