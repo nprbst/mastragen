@@ -254,14 +254,14 @@ Based on plan.md project structure:
 
 > **TDD**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T105 [P] [US5] Unit test for skills injection in cui-injection service in orchestrator/tests/unit/services/cui-injection-skills.test.ts
+- [X] T105 [P] [US5] Unit test for skills injection in cui-injection service in orchestrator/tests/unit/services/cui-injection-skills.test.ts
 
 ### Implementation for User Story 5
 
-- [ ] T106 [US5] Create mastra-development skill in cui-skills/mastra-development.md (tool signatures, agent patterns, workflow composition, Mastra SDK usage)
-- [ ] T107 [P] [US5] Create artifact-extraction skill in cui-skills/artifact-extraction.md (/extract workflow, artifact file structure, when to extract vs inline)
-- [ ] T108 [P] [US5] Create session-management skill in cui-skills/session-management.md (git workflow, /suspend vs /pr decision tree, sharing best practices)
-- [ ] T109 [US5] Update cui-injection service to inject built-in skills to /mnt/skills/project/
+- [X] T106 [US5] Create mastra-development skill in cui-skills/mastra-development.md (tool signatures, agent patterns, workflow composition, Mastra SDK usage)
+- [X] T107 [P] [US5] Create artifact-extraction skill in cui-skills/artifact-extraction.md (/extract workflow, artifact file structure, when to extract vs inline)
+- [X] T108 [P] [US5] Create session-management skill in cui-skills/session-management.md (git workflow, /suspend vs /pr decision tree, sharing best practices)
+- [X] T109 [US5] Update cui-injection service to inject built-in skills to /mnt/skills/project/
 
 **Checkpoint**: Built-in skills available in all sessions - User Story 5 complete
 
@@ -271,16 +271,16 @@ Based on plan.md project structure:
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T110 [P] Create data retention cleanup job in orchestrator/src/jobs/session-cleanup.ts
-- [ ] T111 Implement 90-day auto-deletion of inactive sessions (state: suspended/archived, last_activity_at < 90 days)
-- [ ] T112 Delete git branches via GitHub API during cleanup
-- [ ] T113 [P] Add database indexes per data-model.md (sessions_user_state_idx, sessions_activity_idx)
-- [ ] T114 [P] Add pagination to SessionList with "Load more" functionality
-- [ ] T115 Implement client-side caching with SWR in landing-page components
-- [ ] T116 Add error handling for /suspend retry logic (push failures)
-- [ ] T117 [P] Add loading states to all interactive components
-- [ ] T118 [P] Add error boundaries to React islands
-- [ ] T119 Run quickstart.md validation - verify all development commands work
+- [X] T110 [P] Create data retention cleanup job in orchestrator/src/jobs/session-cleanup.ts
+- [X] T111 Implement 90-day auto-deletion of inactive sessions (state: suspended/archived, last_activity_at < 90 days)
+- [X] T112 Delete git branches via GitHub API during cleanup
+- [X] T113 [P] Add database indexes per data-model.md (sessions_user_state_idx, sessions_activity_idx)
+- [X] T114 [P] Add pagination to SessionList with "Load more" functionality
+- [X] T115 Implement client-side caching with SWR in landing-page components
+- [X] T116 Add error handling for /suspend retry logic (push failures)
+- [X] T117 [P] Add loading states to all interactive components
+- [X] T118 [P] Add error boundaries to React islands
+- [X] T119 Run quickstart.md validation - verify all development commands work
 
 ---
 
