@@ -1,11 +1,13 @@
 /**
  * Cui config routes - CRUD for project cui configuration.
+ * T080: Modification routes require admin access.
  */
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database } from '../db/types.ts';
 import { ProjectsRepository, ProjectCuiConfigRepository, ProjectCommandsRepository, ProjectSkillsRepository } from '../repositories/index.ts';
+import { requireAuth, requireProjectAdmin } from '../middleware/auth.ts';
 
 /**
  * Schema for updating cui config.
@@ -83,8 +85,9 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
 
   /**
    * PUT /:projectId/cui-config - Update/create project cui config
+   * T080: Requires admin access to modify config
    */
-  app.put('/:projectId/cui-config', async (c) => {
+  app.put('/:projectId/cui-config', requireAuth(), requireProjectAdmin(), async (c) => {
     const projectId = c.req.param('projectId');
 
     // Verify project exists
@@ -135,8 +138,9 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
 
   /**
    * DELETE /:projectId/cui-config - Delete project cui config
+   * T080: Requires admin access to delete config
    */
-  app.delete('/:projectId/cui-config', async (c) => {
+  app.delete('/:projectId/cui-config', requireAuth(), requireProjectAdmin(), async (c) => {
     const projectId = c.req.param('projectId');
 
     // Verify project exists

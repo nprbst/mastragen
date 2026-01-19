@@ -1,5 +1,6 @@
 /**
  * Skills routes - CRUD for project skills (domain knowledge).
+ * T080: Modification routes require admin access.
  */
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
@@ -7,6 +8,7 @@ import * as v from 'valibot';
 import type { Database, ProjectSkill } from '../db/types.ts';
 import { ProjectsRepository } from '../repositories/index.ts';
 import { ProjectSkillsRepository } from '../repositories/project-skills.ts';
+import { requireAuth, requireProjectAdmin } from '../middleware/auth.ts';
 
 /**
  * Schema for creating a skill.
@@ -80,8 +82,9 @@ export function skillsRoutes(db: Kysely<Database>): Hono {
 
   /**
    * POST /:projectId/skills - Create a skill
+   * T080: Requires admin access to create skills
    */
-  app.post('/:projectId/skills', async (c) => {
+  app.post('/:projectId/skills', requireAuth(), requireProjectAdmin(), async (c) => {
     const projectId = c.req.param('projectId');
 
     // Verify project exists
@@ -146,8 +149,9 @@ export function skillsRoutes(db: Kysely<Database>): Hono {
 
   /**
    * PUT /:projectId/skills/:id - Update a skill
+   * T080: Requires admin access to update skills
    */
-  app.put('/:projectId/skills/:id', async (c) => {
+  app.put('/:projectId/skills/:id', requireAuth(), requireProjectAdmin(), async (c) => {
     const projectId = c.req.param('projectId');
     const skillId = c.req.param('id');
 
@@ -198,8 +202,9 @@ export function skillsRoutes(db: Kysely<Database>): Hono {
 
   /**
    * DELETE /:projectId/skills/:id - Delete a skill
+   * T080: Requires admin access to delete skills
    */
-  app.delete('/:projectId/skills/:id', async (c) => {
+  app.delete('/:projectId/skills/:id', requireAuth(), requireProjectAdmin(), async (c) => {
     const projectId = c.req.param('projectId');
     const skillId = c.req.param('id');
 

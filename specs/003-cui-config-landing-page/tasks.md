@@ -176,30 +176,30 @@ Based on plan.md project structure:
 
 > **TDD**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T063 [P] [US3] Unit test for cui-config CRUD operations in orchestrator/tests/unit/routes/cui-config.test.ts
-- [ ] T064 [P] [US3] Unit test for commands CRUD operations in orchestrator/tests/unit/routes/commands.test.ts
-- [ ] T065 [P] [US3] Unit test for skills CRUD operations in orchestrator/tests/unit/routes/skills.test.ts
-- [ ] T066 [P] [US3] Integration test for project admin endpoints in orchestrator/tests/integration/project-admin.test.ts
+- [X] T063 [P] [US3] Unit test for cui-config CRUD operations in orchestrator/tests/unit/routes/cui-config.test.ts
+- [X] T064 [P] [US3] Unit test for commands CRUD operations in orchestrator/tests/unit/routes/commands.test.ts
+- [X] T065 [P] [US3] Unit test for skills CRUD operations in orchestrator/tests/unit/routes/skills.test.ts
+- [X] T066 [P] [US3] Integration test for project admin endpoints in orchestrator/tests/integration/project-admin.test.ts
 
 ### Implementation for User Story 3
 
-- [ ] T067 [US3] Create project admin page in landing-page/src/pages/projects/[id].astro
-- [ ] T068 [P] [US3] Create ProjectTabs React component in landing-page/src/components/ProjectTabs.tsx
-- [ ] T069 [P] [US3] Create OverviewTab React component in landing-page/src/components/admin/OverviewTab.tsx
-- [ ] T070 [P] [US3] Create EnvironmentsTab React component in landing-page/src/components/admin/EnvironmentsTab.tsx
-- [ ] T071 [P] [US3] Create CuiConfigTab React component in landing-page/src/components/admin/CuiConfigTab.tsx
-- [ ] T072 [P] [US3] Create SkillsTab React component in landing-page/src/components/admin/SkillsTab.tsx
-- [ ] T073 [P] [US3] Create AccessTab React component in landing-page/src/components/admin/AccessTab.tsx
-- [ ] T074 [US3] Create cui-config routes (GET, PUT, DELETE /projects/:projectId/cui-config) in orchestrator/src/routes/cui-config.ts
-- [ ] T075 [US3] Implement config preview endpoint (GET /projects/:projectId/cui-config/preview)
-- [ ] T076 [US3] Create project_commands repository in orchestrator/src/repositories/project-commands.ts
-- [ ] T077 [US3] Create commands routes (CRUD /projects/:projectId/commands) in orchestrator/src/routes/commands.ts
-- [ ] T078 [US3] Create project_skills repository in orchestrator/src/repositories/project-skills.ts
-- [ ] T079 [US3] Create skills routes (CRUD /projects/:projectId/skills) in orchestrator/src/routes/skills.ts
-- [ ] T080 [US3] Add admin role check middleware for project modification routes
-- [ ] T081 [US3] Implement MCP server configuration editor in CuiConfigTab
-- [ ] T082 [US3] Implement custom command editor with markdown preview in CuiConfigTab
-- [ ] T083 [US3] Implement auto-approve patterns editor in CuiConfigTab
+- [X] T067 [US3] Create project admin page in landing-page/src/pages/projects/[id].astro
+- [X] T068 [P] [US3] Create ProjectTabs React component in landing-page/src/components/ProjectTabs.tsx
+- [X] T069 [P] [US3] Create OverviewTab React component in landing-page/src/components/admin/OverviewTab.tsx
+- [X] T070 [P] [US3] Create EnvironmentsTab React component in landing-page/src/components/admin/EnvironmentsTab.tsx
+- [X] T071 [P] [US3] Create CuiConfigTab React component in landing-page/src/components/admin/CuiConfigTab.tsx
+- [X] T072 [P] [US3] Create SkillsTab React component in landing-page/src/components/admin/SkillsTab.tsx
+- [X] T073 [P] [US3] Create AccessTab React component in landing-page/src/components/admin/AccessTab.tsx
+- [X] T074 [US3] Create cui-config routes (GET, PUT, DELETE /projects/:projectId/cui-config) in orchestrator/src/routes/cui-config.ts
+- [X] T075 [US3] Implement config preview endpoint (GET /projects/:projectId/cui-config/preview)
+- [X] T076 [US3] Create project_commands repository in orchestrator/src/repositories/project-commands.ts
+- [X] T077 [US3] Create commands routes (CRUD /projects/:projectId/commands) in orchestrator/src/routes/commands.ts
+- [X] T078 [US3] Create project_skills repository in orchestrator/src/repositories/project-skills.ts
+- [X] T079 [US3] Create skills routes (CRUD /projects/:projectId/skills) in orchestrator/src/routes/skills.ts
+- [X] T080 [US3] Add admin role check middleware for project modification routes
+- [X] T081 [US3] Implement MCP server configuration editor in CuiConfigTab
+- [X] T082 [US3] Implement custom command editor with markdown preview in CuiConfigTab
+- [X] T083 [US3] Implement auto-approve patterns editor in CuiConfigTab
 
 **Checkpoint**: Project admins can fully configure projects - User Story 3 complete
 

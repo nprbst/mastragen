@@ -1,5 +1,6 @@
 /**
  * Commands routes - CRUD for project custom commands.
+ * T080: Modification routes require admin access.
  */
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
@@ -7,6 +8,7 @@ import * as v from 'valibot';
 import type { Database, ProjectCommand } from '../db/types.ts';
 import { ProjectsRepository } from '../repositories/index.ts';
 import { ProjectCommandsRepository } from '../repositories/project-commands.ts';
+import { requireAuth, requireProjectAdmin } from '../middleware/auth.ts';
 
 /**
  * Schema for creating a command.
@@ -80,8 +82,9 @@ export function commandsRoutes(db: Kysely<Database>): Hono {
 
   /**
    * POST /:projectId/commands - Create a command
+   * T080: Requires admin access to create commands
    */
-  app.post('/:projectId/commands', async (c) => {
+  app.post('/:projectId/commands', requireAuth(), requireProjectAdmin(), async (c) => {
     const projectId = c.req.param('projectId');
 
     // Verify project exists
@@ -146,8 +149,9 @@ export function commandsRoutes(db: Kysely<Database>): Hono {
 
   /**
    * PUT /:projectId/commands/:id - Update a command
+   * T080: Requires admin access to update commands
    */
-  app.put('/:projectId/commands/:id', async (c) => {
+  app.put('/:projectId/commands/:id', requireAuth(), requireProjectAdmin(), async (c) => {
     const projectId = c.req.param('projectId');
     const commandId = c.req.param('id');
 
@@ -198,8 +202,9 @@ export function commandsRoutes(db: Kysely<Database>): Hono {
 
   /**
    * DELETE /:projectId/commands/:id - Delete a command
+   * T080: Requires admin access to delete commands
    */
-  app.delete('/:projectId/commands/:id', async (c) => {
+  app.delete('/:projectId/commands/:id', requireAuth(), requireProjectAdmin(), async (c) => {
     const projectId = c.req.param('projectId');
     const commandId = c.req.param('id');
 
