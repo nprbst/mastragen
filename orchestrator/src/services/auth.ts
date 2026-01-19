@@ -8,6 +8,7 @@
  * - User installation queries
  */
 
+import * as jose from 'jose';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.ts';
 import { UsersRepository } from '../repositories/users.ts';
@@ -17,6 +18,9 @@ import { getAuditLogger } from './audit-logger.ts';
 const JWT_SECRET = process.env.JWT_SECRET || 'development-secret-change-in-production';
 const JWT_EXPIRY_SECONDS = 86400; // 24 hours
 const REFRESH_TOKEN_EXPIRY_SECONDS = 604800; // 7 days
+
+// Convert secret string to Uint8Array for jose
+const getSecretKey = () => new TextEncoder().encode(JWT_SECRET);
 
 // GitHub App OAuth configuration from environment
 const GITHUB_CONFIG = {
@@ -82,34 +86,37 @@ function generateRandomString(length: number = 32): string {
 }
 
 /**
- * Base64url encode a string.
+ * Create a JWT token using jose with proper HMAC-SHA256 signing.
  */
-function base64urlEncode(str: string): string {
-  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+async function createJwt(
+  payload: Record<string, unknown>,
+  expirySeconds: number
+): Promise<string> {
+  const jwt = await new jose.SignJWT(payload as jose.JWTPayload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(`${expirySeconds}s`)
+    .sign(getSecretKey());
+
+  return jwt;
 }
 
 /**
- * Create a simple JWT token.
- * In production, use a proper JWT library with HMAC-SHA256 signature.
+ * Verify and decode a JWT token using jose.
+ * Returns the payload if valid, throws if invalid.
+ * Exported for use in auth middleware.
  */
-function createJwt(payload: Record<string, unknown>, secret: string, expirySeconds: number): string {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-
-  const fullPayload = {
-    ...payload,
-    iat: now,
-    exp: now + expirySeconds,
-  };
-
-  const headerBase64 = base64urlEncode(JSON.stringify(header));
-  const payloadBase64 = base64urlEncode(JSON.stringify(fullPayload));
-
-  // Simple signature (in production, use proper HMAC-SHA256)
-  const signature = base64urlEncode(`${headerBase64}.${payloadBase64}.${secret}`);
-
-  return `${headerBase64}.${payloadBase64}.${signature}`;
+export async function verifyJwt(token: string): Promise<jose.JWTPayload> {
+  const { payload } = await jose.jwtVerify(token, getSecretKey(), {
+    algorithms: ['HS256'],
+  });
+  return payload;
 }
+
+/**
+ * Re-export jose errors for use in middleware.
+ */
+export const JWTExpired = jose.errors.JWTExpired;
 
 /**
  * Authentication service for GitHub App OAuth.
@@ -227,8 +234,8 @@ export class AuthService {
     });
 
     // Generate our own JWT tokens
-    const accessToken = this.generateAccessToken(user);
-    const refreshToken = this.generateRefreshToken(user.id);
+    const accessToken = await this.generateAccessToken(user);
+    const refreshToken = await this.generateRefreshToken(user.id);
 
     // Log successful login
     this.auditLogger.logAuthEvent({
@@ -499,13 +506,13 @@ export class AuthService {
   /**
    * Generate access token JWT.
    */
-  generateAccessToken(user: {
+  async generateAccessToken(user: {
     id: string;
     email: string;
     name: string | null;
     github_id: number;
     github_login: string;
-  }): string {
+  }): Promise<string> {
     return createJwt(
       {
         sub: user.id,
@@ -514,7 +521,6 @@ export class AuthService {
         github_id: user.github_id,
         github_login: user.github_login,
       },
-      JWT_SECRET,
       JWT_EXPIRY_SECONDS
     );
   }
@@ -522,13 +528,12 @@ export class AuthService {
   /**
    * Generate refresh token.
    */
-  generateRefreshToken(userId: string): string {
+  async generateRefreshToken(userId: string): Promise<string> {
     return createJwt(
       {
         sub: userId,
         type: 'refresh',
       },
-      JWT_SECRET,
       REFRESH_TOKEN_EXPIRY_SECONDS
     );
   }
@@ -540,21 +545,9 @@ export class AuthService {
     accessToken: string;
     refreshToken: string;
   }> {
-    // Decode and validate refresh token
-    const parts = refreshToken.split('.');
-    if (parts.length !== 3) {
-      throw new Error('Invalid refresh token');
-    }
-
     try {
-      const payloadJson = atob(parts[1]!.replace(/-/g, '+').replace(/_/g, '/'));
-      const payload = JSON.parse(payloadJson);
-
-      // Check expiry
-      const now = Math.floor(Date.now() / 1000);
-      if (payload.exp < now) {
-        throw new Error('Refresh token expired');
-      }
+      // Verify and decode the refresh token using jose
+      const payload = await verifyJwt(refreshToken);
 
       // Check token type
       if (payload.type !== 'refresh') {
@@ -562,14 +555,15 @@ export class AuthService {
       }
 
       // Get user from database
-      const user = await this.usersRepo.findById(payload.sub);
+      const userId = payload.sub as string;
+      const user = await this.usersRepo.findById(userId);
       if (!user) {
         throw new Error('User not found');
       }
 
       // Generate new tokens
-      const newAccessToken = this.generateAccessToken(user);
-      const newRefreshToken = this.generateRefreshToken(user.id);
+      const newAccessToken = await this.generateAccessToken(user);
+      const newRefreshToken = await this.generateRefreshToken(user.id);
 
       // Log token refresh
       this.auditLogger.logAuthEvent({
@@ -584,8 +578,8 @@ export class AuthService {
         refreshToken: newRefreshToken,
       };
     } catch (error) {
-      if (error instanceof Error && error.message === 'Refresh token expired') {
-        throw error;
+      if (error instanceof jose.errors.JWTExpired) {
+        throw new Error('Refresh token expired');
       }
       throw new Error('Invalid refresh token');
     }

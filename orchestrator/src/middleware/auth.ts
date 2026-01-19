@@ -1,6 +1,5 @@
 import type { Context, MiddlewareHandler } from 'hono';
-import type { JwtPayload } from '../schemas/auth.ts';
-import { validateJwtPayload, isJwtExpired } from '../schemas/auth.ts';
+import { verifyJwt, JWTExpired } from '../services/auth.ts';
 
 // Symbol for storing auth user in context
 const AUTH_USER_KEY = 'authUser';
@@ -12,58 +11,6 @@ export interface AuthUser {
   id: string;
   email: string;
   name?: string | null;
-}
-
-/**
- * JWT verification options.
- */
-export interface JwtVerifyOptions {
-  secret: string;
-  algorithms?: string[];
-}
-
-// Default JWT secret (should be configured via environment)
-const JWT_SECRET = process.env.JWT_SECRET || 'development-secret-change-in-production';
-
-/**
- * Decode and verify a JWT token.
- * Returns the payload if valid, throws if invalid.
- */
-async function verifyJwt(token: string, _secret: string = JWT_SECRET): Promise<JwtPayload> {
-  // Simple JWT verification
-  // In production, use a proper JWT library like jose
-  const parts = token.split('.');
-  if (parts.length !== 3) {
-    throw new Error('Invalid token format');
-  }
-
-  try {
-    // Decode payload (middle part)
-    const payloadBase64 = parts[1]!;
-    const payloadJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
-    const payload = JSON.parse(payloadJson);
-
-    // Validate payload structure
-    const validated = validateJwtPayload(payload);
-
-    // Check expiration
-    if (isJwtExpired(validated)) {
-      throw new Error('Token expired');
-    }
-
-    // In production, also verify signature using the secret
-    // For now, we trust the payload if it's well-formed
-    // TODO: Implement proper signature verification
-
-    return validated;
-  } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === 'Token expired') {
-        throw error;
-      }
-    }
-    throw new Error('Invalid token');
-  }
 }
 
 /**
@@ -104,18 +51,16 @@ export function requireAuth(): MiddlewareHandler {
 
       // Set user in context
       const user: AuthUser = {
-        id: payload.sub,
-        email: payload.email,
-        name: payload.name,
+        id: payload.sub as string,
+        email: payload.email as string,
+        name: payload.name as string | null | undefined,
       };
 
       c.set(AUTH_USER_KEY, user);
       await next();
     } catch (error) {
-      if (error instanceof Error) {
-        if (error.message === 'Token expired') {
-          return c.json({ error: 'Token expired' }, 401);
-        }
+      if (error instanceof JWTExpired) {
+        return c.json({ error: 'Token expired' }, 401);
       }
       return c.json({ error: 'Invalid token' }, 401);
     }
@@ -137,9 +82,9 @@ export function optionalAuth(): MiddlewareHandler {
           const payload = await verifyJwt(token);
 
           const user: AuthUser = {
-            id: payload.sub,
-            email: payload.email,
-            name: payload.name,
+            id: payload.sub as string,
+            email: payload.email as string,
+            name: payload.name as string | null | undefined,
           };
 
           c.set(AUTH_USER_KEY, user);

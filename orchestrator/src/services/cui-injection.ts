@@ -9,6 +9,7 @@ export interface CuiSettingsConfig {
   projectId: string;
   environment: string;
   sessionId: string;
+  userId?: string;
 }
 
 /**
@@ -18,7 +19,7 @@ export interface SessionEnvVarsConfig {
   projectId: string;
   environment: string;
   sessionId: string;
-  userId: string;
+  userId?: string;
 }
 
 /**
@@ -94,10 +95,7 @@ export class CuiInjectionService {
     }
 
     // Interpolate environment variables in MCP server configs
-    const envVars = await this.getSessionEnvVars({
-      ...config,
-      userId: '', // Will be set by caller
-    });
+    const envVars = await this.getSessionEnvVars(config);
     mcpServers = this.interpolateEnvVars(mcpServers, envVars);
 
     return {

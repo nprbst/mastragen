@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createAuthHeaders } from '../../lib/auth';
 
 interface CuiConfig {
   id: string;
@@ -36,7 +37,9 @@ export default function CuiConfigTab({ projectId, orchestratorUrl }: CuiConfigTa
 
   async function fetchConfig() {
     try {
-      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/cui-config`);
+      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/cui-config`, {
+        headers: createAuthHeaders(),
+      });
       if (!response.ok) throw new Error('Failed to fetch config');
       const data = await response.json() as CuiConfig;
 
@@ -69,7 +72,10 @@ export default function CuiConfigTab({ projectId, orchestratorUrl }: CuiConfigTa
 
       const response = await fetch(`${orchestratorUrl}/projects/${projectId}/cui-config`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...createAuthHeaders(),
+        },
         body: JSON.stringify({
           claudeMd: claudeMd || null,
           mcpServers,

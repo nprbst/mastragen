@@ -7,40 +7,11 @@ import { runMigrations as runMigrations002 } from '../../../src/db/migrations/00
 import { runMigrations as runMigrations003 } from '../../../src/db/migrations/003_cui_config.ts';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../../src/db/types.ts';
+import { createTestJwt } from '../../helpers/jwt.ts';
 
 // Test T009: Unit test for JWT validation middleware
 
 const TEST_DB_PATH = './data/test-auth-middleware.db';
-
-/**
- * Helper to create a test JWT token.
- */
-function createTestJwt(payload: {
-  sub: string;
-  email: string;
-  name?: string | null;
-  exp?: number;
-  iat?: number;
-}): string {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-
-  const fullPayload = {
-    ...payload,
-    iat: payload.iat ?? now,
-    exp: payload.exp ?? now + 3600,
-  };
-
-  const base64urlEncode = (str: string): string => {
-    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  };
-
-  const headerBase64 = base64urlEncode(JSON.stringify(header));
-  const payloadBase64 = base64urlEncode(JSON.stringify(fullPayload));
-  const signature = base64urlEncode(`${headerBase64}.${payloadBase64}.test-secret`);
-
-  return `${headerBase64}.${payloadBase64}.${signature}`;
-}
 
 describe('JWT validation middleware', () => {
   let app: Hono;
@@ -126,7 +97,7 @@ describe('JWT validation middleware', () => {
       app.get('/protected/resource', (c) => c.json({ message: 'protected' }));
 
       // Create an expired token with exp in the past
-      const expiredToken = createTestJwt({
+      const expiredToken = await createTestJwt({
         sub: 'user-123',
         email: 'test@example.com',
         exp: Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
@@ -242,7 +213,7 @@ describe('JWT validation middleware', () => {
         updated_at: new Date().toISOString(),
       }).execute();
 
-      const validToken = createTestJwt({ sub: testUserId, email: 'access@test.com' });
+      const validToken = await createTestJwt({ sub: testUserId, email: 'access@test.com' });
 
       const res = await app.request('/projects/project-123/settings', {
         headers: { Authorization: `Bearer ${validToken}` },
@@ -340,7 +311,7 @@ describe('JWT validation middleware', () => {
         return originalFetch(url);
       };
 
-      const memberToken = createTestJwt({ sub: testUserId, email: 'admin@test.com' });
+      const memberToken = await createTestJwt({ sub: testUserId, email: 'admin@test.com' });
 
       const res = await app.request(`/projects/${testProjectId}/admin/settings`, {
         method: 'PUT',

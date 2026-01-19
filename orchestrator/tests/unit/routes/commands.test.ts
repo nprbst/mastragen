@@ -8,36 +8,9 @@ import { runMigrations as runMigrations001 } from '../../../src/db/migrations/00
 import { runMigrations as runMigrations002 } from '../../../src/db/migrations/002_git_fields.ts';
 import { runMigrations as runMigrations003 } from '../../../src/db/migrations/003_cui_config.ts';
 import { ProjectsRepository } from '../../../src/repositories/index.ts';
+import { createTestJwt } from '../../helpers/jwt.ts';
 
 const TEST_DB_PATH = './data/test-commands-routes.db';
-
-/**
- * Helper to create a test JWT token.
- */
-function createTestJwt(payload: {
-  sub: string;
-  email: string;
-  name?: string | null;
-}, expiresIn: number = 3600): string {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-
-  const fullPayload = {
-    ...payload,
-    iat: now,
-    exp: now + expiresIn,
-  };
-
-  const base64urlEncode = (str: string): string => {
-    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  };
-
-  const headerBase64 = base64urlEncode(JSON.stringify(header));
-  const payloadBase64 = base64urlEncode(JSON.stringify(fullPayload));
-  const signature = base64urlEncode(`${headerBase64}.${payloadBase64}.test-secret`);
-
-  return `${headerBase64}.${payloadBase64}.${signature}`;
-}
 
 /**
  * T064: Unit test for commands CRUD operations
@@ -134,7 +107,7 @@ describe('commands routes', () => {
       .execute();
 
     // Create auth token
-    authToken = createTestJwt({ sub: testUserId, email: 'commands@test.com', name: 'Test User' });
+    authToken = await createTestJwt({ sub: testUserId, email: 'commands@test.com', name: 'Test User' });
     authHeaders = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${authToken}`,

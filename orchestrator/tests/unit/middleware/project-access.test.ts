@@ -2,6 +2,7 @@ import { describe, expect, test, beforeEach, mock } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../../src/db/types.ts';
+import { createTestJwt } from '../../helpers/jwt.ts';
 
 // Type for our app's context variables
 type AppVariables = {
@@ -19,15 +20,6 @@ type AppVariables = {
  */
 describe('GitHub installation-based project access', () => {
   let app: Hono<{ Variables: AppVariables }>;
-
-  // Create a valid JWT payload for testing
-  function createTestJwt(payload: { sub: string; email: string; name?: string; exp?: number }): string {
-    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-    const exp = payload.exp ?? Math.floor(Date.now() / 1000) + 3600;
-    const payloadStr = btoa(JSON.stringify({ ...payload, exp, iat: Math.floor(Date.now() / 1000) }));
-    const signature = btoa('test-signature');
-    return `${header}.${payloadStr}.${signature}`;
-  }
 
   // Mock database for testing
   function createMockDb(options: {
@@ -99,7 +91,7 @@ describe('GitHub installation-based project access', () => {
       app.use('/projects/:projectId/*', requireAuth(), requireProjectAccess());
       app.get('/projects/:projectId/details', (c) => c.json({ ok: true }));
 
-      const token = createTestJwt({ sub: 'user-123', email: 'test@example.com' });
+      const token = await createTestJwt({ sub: 'user-123', email: 'test@example.com' });
 
       const res = await app.request('/projects/proj-123/details', {
         headers: { Authorization: `Bearer ${token}` },
@@ -128,7 +120,7 @@ describe('GitHub installation-based project access', () => {
       app.use('/projects/:projectId/*', requireAuth(), requireProjectAccess());
       app.get('/projects/:projectId/details', (c) => c.json({ ok: true }));
 
-      const token = createTestJwt({ sub: 'user-123', email: 'test@example.com' });
+      const token = await createTestJwt({ sub: 'user-123', email: 'test@example.com' });
 
       const res = await app.request('/projects/proj-123/details', {
         headers: { Authorization: `Bearer ${token}` },
@@ -166,7 +158,7 @@ describe('GitHub installation-based project access', () => {
       app.use('/projects/:projectId/*', requireAuth(), requireProjectAccess());
       app.get('/projects/:projectId/details', (c) => c.json({ ok: true }));
 
-      const token = createTestJwt({ sub: 'user-123', email: 'test@example.com' });
+      const token = await createTestJwt({ sub: 'user-123', email: 'test@example.com' });
 
       const res = await app.request('/projects/proj-123/details', {
         headers: { Authorization: `Bearer ${token}` },
@@ -204,7 +196,7 @@ describe('GitHub installation-based project access', () => {
       app.use('/projects/:projectId/*', requireAuth(), requireProjectAccess());
       app.get('/projects/:projectId/details', (c) => c.json({ ok: true }));
 
-      const token = createTestJwt({ sub: 'user-123', email: 'test@example.com' });
+      const token = await createTestJwt({ sub: 'user-123', email: 'test@example.com' });
 
       const res = await app.request('/projects/proj-123/details', {
         headers: { Authorization: `Bearer ${token}` },
@@ -256,7 +248,7 @@ describe('GitHub installation-based project access', () => {
       app.use('/projects/:projectId/*', requireAuth(), requireProjectAccess());
       app.get('/projects/:projectId/details', (c) => c.json({ ok: true }));
 
-      const token = createTestJwt({ sub: 'user-123', email: 'test@example.com' });
+      const token = await createTestJwt({ sub: 'user-123', email: 'test@example.com' });
 
       const res = await app.request('/projects/proj-123/details', {
         headers: { Authorization: `Bearer ${token}` },
@@ -311,7 +303,7 @@ describe('GitHub installation-based project access', () => {
       app.use('/projects/:projectId/*', requireAuth(), requireProjectAccess());
       app.get('/projects/:projectId/details', (c) => c.json({ ok: true }));
 
-      const token = createTestJwt({ sub: 'user-123', email: 'test@example.com' });
+      const token = await createTestJwt({ sub: 'user-123', email: 'test@example.com' });
 
       const res = await app.request('/projects/proj-123/details', {
         headers: { Authorization: `Bearer ${token}` },
@@ -368,7 +360,7 @@ describe('GitHub installation-based project access', () => {
       app.use('/projects/:projectId/admin/*', requireAuth(), requireProjectAdmin());
       app.put('/projects/:projectId/admin/settings', (c) => c.json({ ok: true }));
 
-      const token = createTestJwt({ sub: 'user-123', email: 'test@example.com' });
+      const token = await createTestJwt({ sub: 'user-123', email: 'test@example.com' });
 
       const res = await app.request('/projects/proj-123/admin/settings', {
         method: 'PUT',
@@ -428,7 +420,7 @@ describe('GitHub installation-based project access', () => {
       app.use('/projects/:projectId/admin/*', requireAuth(), requireProjectAdmin());
       app.put('/projects/:projectId/admin/settings', (c) => c.json({ ok: true }));
 
-      const token = createTestJwt({ sub: 'user-123', email: 'test@example.com' });
+      const token = await createTestJwt({ sub: 'user-123', email: 'test@example.com' });
 
       const res = await app.request('/projects/proj-123/admin/settings', {
         method: 'PUT',
