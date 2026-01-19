@@ -188,8 +188,12 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
     .execute();
 
   // Extend sessions table with last_activity_at column
-  // Using raw SQL since ALTER TABLE ADD COLUMN doesn't support all Kysely methods
-  await sql`ALTER TABLE sessions ADD COLUMN last_activity_at TEXT NOT NULL DEFAULT (datetime('now'))`.execute(
+  // SQLite ALTER TABLE ADD COLUMN doesn't support non-constant defaults like datetime('now')
+  // Add as nullable, backfill existing rows, then handle defaults in application layer
+  await sql`ALTER TABLE sessions ADD COLUMN last_activity_at TEXT`.execute(db);
+
+  // Backfill existing sessions with current timestamp
+  await sql`UPDATE sessions SET last_activity_at = datetime('now') WHERE last_activity_at IS NULL`.execute(
     db
   );
 

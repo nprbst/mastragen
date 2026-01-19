@@ -71,7 +71,7 @@ export interface SessionsTable {
   commit_count: Generated<number>;
   pr_number: number | null;
   pr_url: string | null;
-  last_activity_at: Generated<string>;
+  last_activity_at: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }

@@ -39,6 +39,7 @@ export class SessionsRepository {
    * Creates a new session.
    */
   async create(input: CreateSessionInput): Promise<Session> {
+    const now = new Date().toISOString();
     const values: NewSession = {
       project_id: input.project_id,
       artifact_name: input.artifact_name,
@@ -48,6 +49,7 @@ export class SessionsRepository {
       cui_auth_token: input.cui_auth_token ?? null,
       user_id: input.user_id ?? null,
       branch_name: input.branch_name ?? null,
+      last_activity_at: now,
     };
 
     // If ID is provided, use it (needed for createWithGit to generate branch name)
