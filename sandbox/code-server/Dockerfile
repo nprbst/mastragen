@@ -18,10 +18,17 @@ RUN ln -s /home/coder/.bun/bin/bun /usr/local/bin/bun \
     && ln -s /home/coder/.bun/bin/bunx /usr/local/bin/bunx
 ENV PATH="/home/coder/.bun/bin:${PATH}"
 
+# Copy default settings (dark mode, minimal UI)
+COPY --chown=coder:coder settings.json /home/coder/.local/share/code-server/User/settings.json
+
+# Copy entrypoint script (installs extensions at startup for latest versions)
+COPY --chown=coder:coder entrypoint.sh /home/coder/entrypoint.sh
+RUN chmod +x /home/coder/entrypoint.sh
+
 WORKDIR /workspace
 
 USER coder
 
 EXPOSE 8080
 
-CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", "--log", "warn", "/workspace"]
+ENTRYPOINT ["/home/coder/entrypoint.sh"]
