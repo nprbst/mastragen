@@ -20,8 +20,6 @@ const UpdateCuiConfigSchema = v.object({
   autoApproveBashCommands: v.optional(v.array(v.string())),
 });
 
-type UpdateCuiConfigInput = v.InferOutput<typeof UpdateCuiConfigSchema>;
-
 /**
  * API response format for cui config.
  */

@@ -2,7 +2,7 @@ import { describe, expect, test, beforeAll, afterAll, beforeEach } from 'bun:tes
 import { existsSync, unlinkSync } from 'node:fs';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
-import type { Database as DatabaseSchema, Project } from '../../src/db/types.ts';
+import type { Database as DatabaseSchema } from '../../src/db/types.ts';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations as runMigrations001 } from '../../src/db/migrations/001_initial.ts';
 import { runMigrations as runMigrations002 } from '../../src/db/migrations/002_git_fields.ts';
@@ -12,6 +12,34 @@ import { commandsRoutes } from '../../src/routes/commands.ts';
 import { skillsRoutes } from '../../src/routes/skills.ts';
 
 const TEST_DB_PATH = './data/test-project-admin-integration.db';
+
+/**
+ * Helper to create a test JWT token.
+ */
+function createTestJwt(payload: {
+  sub: string;
+  email: string;
+  name?: string | null;
+}, expiresIn: number = 3600): string {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+
+  const fullPayload = {
+    ...payload,
+    iat: now,
+    exp: now + expiresIn,
+  };
+
+  const base64urlEncode = (str: string): string => {
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  };
+
+  const headerBase64 = base64urlEncode(JSON.stringify(header));
+  const payloadBase64 = base64urlEncode(JSON.stringify(fullPayload));
+  const signature = base64urlEncode(`${headerBase64}.${payloadBase64}.test-secret`);
+
+  return `${headerBase64}.${payloadBase64}.${signature}`;
+}
 
 /**
  * T066: Integration test for full project admin workflow
@@ -27,6 +55,10 @@ describe('Project admin workflow', () => {
   let db: Kysely<DatabaseSchema>;
   let app: Hono;
   let testProjectId: string;
+  let testUserId: string;
+  let testInstallationId: string;
+  let authToken: string;
+  let authHeaders: Record<string, string>;
 
   beforeAll(async () => {
     if (existsSync(TEST_DB_PATH)) {
@@ -50,10 +82,48 @@ describe('Project admin workflow', () => {
     await db.deleteFrom('project_skills').execute();
     await db.deleteFrom('project_commands').execute();
     await db.deleteFrom('project_cui_config').execute();
+    await db.deleteFrom('sessions').execute();
     await db.deleteFrom('projects').execute();
+    await db.deleteFrom('github_app_installations').execute();
+    await db.deleteFrom('users').execute();
 
-    // Create test project
     const now = new Date().toISOString();
+
+    // Create test user
+    testUserId = 'user-admin-test';
+    await db
+      .insertInto('users')
+      .values({
+        id: testUserId,
+        email: 'admin@test.com',
+        name: 'Test Admin',
+        github_id: 12345,
+        github_login: 'testadmin',
+        github_access_token: 'test-token',
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    // Create test GitHub installation
+    testInstallationId = 'inst-admin-test';
+    await db
+      .insertInto('github_app_installations')
+      .values({
+        id: testInstallationId,
+        installation_id: 99999,
+        account_type: 'Organization',
+        account_login: 'test-org',
+        account_id: 67890,
+        permissions: '{}',
+        repository_selection: 'all',
+        suspended_at: null,
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    // Create test project linked to installation
     testProjectId = 'proj-admin-test';
     await db
       .insertInto('projects')
@@ -65,14 +135,26 @@ describe('Project admin workflow', () => {
         branch_prefix: 'mg/',
         mastra_path: '.',
         ui_sandbox_path: null,
-        installation_id: null,
+        installation_id: testInstallationId,
         created_at: now,
         updated_at: now,
       })
       .execute();
 
-    // Create app with all admin routes
+    // Create auth token
+    authToken = createTestJwt({ sub: testUserId, email: 'admin@test.com', name: 'Test Admin' });
+    authHeaders = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`,
+    };
+
+    // Create app with all admin routes and db in context
     app = new Hono();
+    // Add middleware to set db in context for auth middleware
+    app.use('*', async (c, next) => {
+      c.set('db', db);
+      await next();
+    });
     app.route('/projects', cuiConfigRoutes(db));
     app.route('/projects', commandsRoutes(db));
     app.route('/projects', skillsRoutes(db));
@@ -93,7 +175,7 @@ describe('Project admin workflow', () => {
       // Step 2: Update cui config
       res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           mcpServers: {
             filesystem: {
@@ -120,7 +202,7 @@ describe('Project admin workflow', () => {
       // Step 3: Create a command
       res = await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'deploy',
           description: 'Deploy the application',
@@ -141,7 +223,7 @@ describe('Project admin workflow', () => {
       // Step 5: Create a skill
       res = await app.request(`/projects/${testProjectId}/skills`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'mastra-development',
           description: 'Mastra framework development patterns',
@@ -176,7 +258,7 @@ describe('Project admin workflow', () => {
       // Step 8: Update command
       res = await app.request(`/projects/${testProjectId}/commands/${command.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           description: 'Deploy the application to production',
         }),
@@ -188,6 +270,7 @@ describe('Project admin workflow', () => {
       // Step 9: Delete command
       res = await app.request(`/projects/${testProjectId}/commands/${command.id}`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
       });
       expect(res.status).toBe(200);
 
@@ -199,7 +282,7 @@ describe('Project admin workflow', () => {
       // Step 10: Update skill
       res = await app.request(`/projects/${testProjectId}/skills/${skill.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           content: '# Mastra Development\n\nUpdated patterns...',
         }),
@@ -211,6 +294,7 @@ describe('Project admin workflow', () => {
       // Step 11: Delete skill
       res = await app.request(`/projects/${testProjectId}/skills/${skill.id}`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
       });
       expect(res.status).toBe(200);
 
@@ -222,6 +306,7 @@ describe('Project admin workflow', () => {
       // Step 12: Delete cui config
       res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
       });
       expect(res.status).toBe(200);
 
@@ -238,7 +323,7 @@ describe('Project admin workflow', () => {
       // Create first command
       await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'unique-command',
           description: 'First command',
@@ -249,7 +334,7 @@ describe('Project admin workflow', () => {
       // Try to create duplicate
       const res = await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'unique-command',
           description: 'Duplicate command',
@@ -266,7 +351,7 @@ describe('Project admin workflow', () => {
       // Create first skill
       await app.request(`/projects/${testProjectId}/skills`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'unique-skill',
           description: 'First skill',
@@ -277,7 +362,7 @@ describe('Project admin workflow', () => {
       // Try to create duplicate
       const res = await app.request(`/projects/${testProjectId}/skills`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'unique-skill',
           description: 'Duplicate skill',
@@ -295,7 +380,7 @@ describe('Project admin workflow', () => {
     test('should validate command fields', async () => {
       const res = await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: '', // Empty name
           description: 'Valid description',
@@ -309,7 +394,7 @@ describe('Project admin workflow', () => {
     test('should validate skill fields', async () => {
       const res = await app.request(`/projects/${testProjectId}/skills`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'valid-name',
           // Missing description
@@ -323,7 +408,7 @@ describe('Project admin workflow', () => {
     test('should validate cui config mcpServers JSON', async () => {
       const res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           mcpServers: 'invalid-not-json-object',
         }),
@@ -356,7 +441,7 @@ describe('Project admin workflow', () => {
       // Create command in first project
       await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'project1-command',
           description: 'Project 1 command',
@@ -367,7 +452,7 @@ describe('Project admin workflow', () => {
       // Create command in second project
       await app.request(`/projects/${otherProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'project2-command',
           description: 'Project 2 command',

@@ -132,7 +132,7 @@ describe('Git Workflow E2E', () => {
       };
 
       const mockGitServiceForResume = {
-        clone: mock((repoUrl: string, branch?: string) => {
+        clone: mock((_repoUrl: string, branch?: string) => {
           operationLog.push(`git:clone:${branch}`);
           return Promise.resolve();
         }),
@@ -255,7 +255,7 @@ describe('Git Workflow E2E', () => {
       };
 
       const mockGitServiceForResume = {
-        clone: mock((repoUrl: string, branch?: string) => {
+        clone: mock((_repoUrl: string, branch?: string) => {
           operationLog.push(`clone:${branch}`);
           return Promise.resolve();
         }),
@@ -330,7 +330,7 @@ describe('Git Workflow E2E', () => {
         checkout: mock(() => Promise.resolve()),
       };
 
-      const { SandboxService, SessionNotSuspendedError } = await import(
+      const { SandboxService, SessionAlreadyActiveError } = await import(
         '../../src/services/sandbox.ts'
       );
 
@@ -366,7 +366,7 @@ describe('Git Workflow E2E', () => {
       // The session is now active, so resumeWithGit should fail
       await expect(
         sandboxService.resumeWithGit(sessionId, mockGitServiceForResume as any)
-      ).rejects.toThrow(SessionNotSuspendedError);
+      ).rejects.toThrow(SessionAlreadyActiveError);
     });
 
     test('returns SessionLockError when session has running containers', async () => {

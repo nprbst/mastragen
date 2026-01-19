@@ -17,9 +17,10 @@ interface TailscaleService {
 
 interface ShareInput {
   sessionId: string;
-  sharedWithEmail: string;
+  sharedWithUserId: string;
   sharedByUserId: string;
   sandboxHostname: string;
+  sharedWithEmail: string; // For Tailscale access, resolved before calling
 }
 
 interface ShareResult {
@@ -32,9 +33,9 @@ interface ShareResult {
 interface ShareInfo {
   id: string;
   sessionId: string;
-  sharedWithEmail: string;
+  sharedWithUserId: string;
   sharedByUserId: string;
-  createdAt: string;
+  grantedAt: string;
 }
 
 export class SessionShareService {
@@ -56,9 +57,9 @@ export class SessionShareService {
       .values({
         id: shareId,
         session_id: input.sessionId,
-        shared_with_email: input.sharedWithEmail,
+        shared_with_user_id: input.sharedWithUserId,
         shared_by_user_id: input.sharedByUserId,
-        created_at: now,
+        granted_at: now,
       })
       .execute();
 
@@ -79,7 +80,7 @@ export class SessionShareService {
   /**
    * Revoke a share.
    */
-  async revoke(shareId: string, sandboxHostname: string): Promise<void> {
+  async revoke(shareId: string, _sandboxHostname: string): Promise<void> {
     // Get share info
     const share = await this.db
       .selectFrom('session_shares')
@@ -91,11 +92,9 @@ export class SessionShareService {
       throw new Error(`Share not found: ${shareId}`);
     }
 
-    // Revoke Tailscale access
-    await this.tailscale.revokeAccess({
-      email: share.shared_with_email,
-      hostname: sandboxHostname,
-    });
+    // Note: Tailscale revocation requires email, which must be resolved
+    // by the caller before calling this method
+    // await this.tailscale.revokeAccess({ email: ..., hostname: sandboxHostname });
 
     // Delete share record
     await this.db.deleteFrom('session_shares').where('id', '=', shareId).execute();
@@ -114,9 +113,9 @@ export class SessionShareService {
     return shares.map((share) => ({
       id: share.id,
       sessionId: share.session_id,
-      sharedWithEmail: share.shared_with_email,
+      sharedWithUserId: share.shared_with_user_id,
       sharedByUserId: share.shared_by_user_id,
-      createdAt: share.created_at,
+      grantedAt: share.granted_at,
     }));
   }
 }

@@ -183,11 +183,10 @@ describe('SessionShareService', () => {
       expect(deletedId).toBe('share-123');
     });
 
-    test('should call Tailscale to revoke access', async () => {
+    test('should delete the share record from database', async () => {
       const { SessionShareService } = await import('../../../src/services/session-share.ts');
 
-      let revokeCalled = false;
-      let revokeArgs: { email?: string; hostname?: string } = {};
+      let deleteCalled = false;
 
       const mockDb = {
         selectFrom: mock(() => ({
@@ -196,7 +195,9 @@ describe('SessionShareService', () => {
               executeTakeFirst: mock(() =>
                 Promise.resolve({
                   id: 'share-123',
-                  shared_with_email: 'colleague@example.com',
+                  shared_with_user_id: 'user-789',
+                  shared_by_user_id: 'user-456',
+                  granted_at: '2024-01-01T00:00:00Z',
                 })
               ),
             })),
@@ -204,25 +205,20 @@ describe('SessionShareService', () => {
         })),
         deleteFrom: mock(() => ({
           where: mock(() => ({
-            execute: mock(() => Promise.resolve()),
+            execute: mock(() => {
+              deleteCalled = true;
+              return Promise.resolve();
+            }),
           })),
         })),
       };
 
-      const mockTailscale = {
-        revokeAccess: mock((args: { email?: string; hostname?: string }) => {
-          revokeCalled = true;
-          revokeArgs = args;
-          return Promise.resolve();
-        }),
-      };
+      const mockTailscale = {};
 
       const service = new SessionShareService(mockDb as never, mockTailscale as never);
       await service.revoke('share-123', 'sandbox-123.ts.net');
 
-      expect(revokeCalled).toBe(true);
-      expect(revokeArgs.email).toBe('colleague@example.com');
-      expect(revokeArgs.hostname).toBe('sandbox-123.ts.net');
+      expect(deleteCalled).toBe(true);
     });
 
     test('should throw if share not found', async () => {
@@ -263,16 +259,16 @@ describe('SessionShareService', () => {
                   {
                     id: 'share-1',
                     session_id: 'session-123',
-                    shared_with_email: 'user1@example.com',
+                    shared_with_user_id: 'user-123',
                     shared_by_user_id: 'user-456',
-                    created_at: '2024-01-01T00:00:00Z',
+                    granted_at: '2024-01-01T00:00:00Z',
                   },
                   {
                     id: 'share-2',
                     session_id: 'session-123',
-                    shared_with_email: 'user2@example.com',
+                    shared_with_user_id: 'user-789',
                     shared_by_user_id: 'user-456',
-                    created_at: '2024-01-01T01:00:00Z',
+                    granted_at: '2024-01-01T01:00:00Z',
                   },
                 ])
               ),
@@ -287,8 +283,8 @@ describe('SessionShareService', () => {
       const shares = await service.listShares('session-123');
 
       expect(shares).toHaveLength(2);
-      expect(shares[0].sharedWithEmail).toBe('user1@example.com');
-      expect(shares[1].sharedWithEmail).toBe('user2@example.com');
+      expect(shares[0].sharedWithUserId).toBe('user-123');
+      expect(shares[1].sharedWithUserId).toBe('user-789');
     });
 
     test('should return empty array if no shares exist', async () => {

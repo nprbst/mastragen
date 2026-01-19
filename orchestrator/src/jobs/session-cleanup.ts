@@ -67,7 +67,7 @@ export class SessionCleanupJob {
         .selectFrom('sessions')
         .selectAll()
         .where('updated_at', '<', cutoffIso)
-        .where('state', 'in', ['completed', 'suspended'])
+        .where('state', 'in', ['closed', 'merged', 'archived', 'suspended'])
         .limit(cfg.batchSize)
         .execute();
 
@@ -168,14 +168,16 @@ export class SessionCleanupJob {
       .selectFrom('sessions')
       .select(['id', 'updated_at'])
       .where('updated_at', '<', cutoffIso)
-      .where('state', 'in', ['completed', 'suspended'])
+      .where('state', 'in', ['closed', 'merged', 'archived', 'suspended'])
       .orderBy('updated_at', 'asc')
       .execute();
 
+    const oldest = sessions[0];
+    const newest = sessions[sessions.length - 1];
     return {
       sessionsToDelete: sessions.length,
-      oldestSession: sessions.length > 0 ? sessions[0].updated_at : null,
-      newestSession: sessions.length > 0 ? sessions[sessions.length - 1].updated_at : null,
+      oldestSession: oldest?.updated_at ?? null,
+      newestSession: newest?.updated_at ?? null,
     };
   }
 }

@@ -35,7 +35,7 @@ interface CommandResponse {
   id: string;
   projectId: string;
   name: string;
-  description: string;
+  description: string | null;
   content: string;
   createdAt: string;
   updatedAt: string;

@@ -65,7 +65,7 @@ export class SessionSuspendService {
     await this.db
       .updateTable('sessions')
       .set({
-        status: 'suspended',
+        state: 'suspended',
         updated_at: new Date().toISOString(),
       })
       .where('id', '=', sessionId)
@@ -95,7 +95,7 @@ export class SessionSuspendService {
     await this.db
       .updateTable('sessions')
       .set({
-        status: 'active',
+        state: 'active',
         updated_at: new Date().toISOString(),
       })
       .where('id', '=', sessionId)

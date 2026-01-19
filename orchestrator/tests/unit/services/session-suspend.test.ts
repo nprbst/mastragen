@@ -75,7 +75,7 @@ describe('SessionSuspendService', () => {
     test('should update session status to suspended', async () => {
       const { SessionSuspendService } = await import('../../../src/services/session-suspend.ts');
 
-      let statusUpdate: { status?: string } = {};
+      let statusUpdate: { state?: string } = {};
       const mockSandboxClient = {
         exec: mock(() =>
           Promise.resolve({ exitCode: 0, stdout: 'abc123\n', stderr: '' })
@@ -85,7 +85,7 @@ describe('SessionSuspendService', () => {
 
       const mockDb = {
         updateTable: mock(() => ({
-          set: mock((data: { status?: string }) => {
+          set: mock((data: { state?: string }) => {
             statusUpdate = data;
             return {
               where: mock(() => ({
@@ -99,7 +99,7 @@ describe('SessionSuspendService', () => {
       const service = new SessionSuspendService(mockDb as never, mockSandboxClient as never);
       await service.suspend('session-123', 'WIP');
 
-      expect(statusUpdate.status).toBe('suspended');
+      expect(statusUpdate.state).toBe('suspended');
     });
 
     test('should stop sandbox container after pushing', async () => {
@@ -248,7 +248,7 @@ describe('SessionSuspendService', () => {
     test('should update session status to active', async () => {
       const { SessionSuspendService } = await import('../../../src/services/session-suspend.ts');
 
-      let statusUpdate: { status?: string } = {};
+      let statusUpdate: { state?: string } = {};
       const mockSandboxClient = {
         start: mock(() => Promise.resolve()),
         exec: mock(() =>
@@ -258,7 +258,7 @@ describe('SessionSuspendService', () => {
 
       const mockDb = {
         updateTable: mock(() => ({
-          set: mock((data: { status?: string }) => {
+          set: mock((data: { state?: string }) => {
             statusUpdate = data;
             return {
               where: mock(() => ({
@@ -272,7 +272,7 @@ describe('SessionSuspendService', () => {
       const service = new SessionSuspendService(mockDb as never, mockSandboxClient as never);
       await service.resume('session-123', 'mg/session-123');
 
-      expect(statusUpdate.status).toBe('active');
+      expect(statusUpdate.state).toBe('active');
     });
   });
 });
