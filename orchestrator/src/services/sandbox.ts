@@ -52,7 +52,7 @@ export interface RepoPermissions {
  */
 export interface GitHubServiceCreateInterface {
   checkUserPermissions(owner: string, repo: string, username: string): Promise<RepoPermissions>;
-  getDefaultBranchSha(owner: string, repo: string): Promise<string>;
+  getDefaultBranchSha(owner: string, repo: string, branch?: string): Promise<string>;
   createBranch(owner: string, repo: string, branchName: string, fromSha: string): Promise<void>;
 }
 
@@ -369,7 +369,7 @@ export class SandboxService {
     const branchName = this.generateBranchName(project, userId, artifactName, sessionId);
 
     // Get default branch SHA and create branch on GitHub (T045)
-    const defaultSha = await gitHubService.getDefaultBranchSha(owner, repo);
+    const defaultSha = await gitHubService.getDefaultBranchSha(owner, repo, project.default_branch);
     await gitHubService.createBranch(owner, repo, branchName, defaultSha);
 
     // Generate workspace volume name
@@ -889,16 +889,21 @@ export class SandboxService {
   private async runInitContainer(
     sessionId: string,
     volumeName: string,
-    githubRepo: string
+    githubRepo: string,
+    branch?: string
   ): Promise<void> {
     const containerName = `${sessionId}-init`;
-    console.log(`[SandboxService] Running init container to clone ${githubRepo}...`);
+    console.log(`[SandboxService] Running init container to clone ${githubRepo}${branch ? ` (branch: ${branch})` : ''}...`);
 
     try {
       const container = await this.docker.createContainer({
         name: containerName,
         Image: SandboxService.IMAGES.init,
-        Env: [`GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`, `GITHUB_REPO=${githubRepo}`],
+        Env: [
+          `GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`,
+          `GITHUB_REPO=${githubRepo}`,
+          ...(branch ? [`BRANCH=${branch}`] : []),
+        ],
         HostConfig: {
           Binds: [`${volumeName}:/workspace`],
         },
@@ -968,8 +973,8 @@ export class SandboxService {
       console.log('[SandboxService] Volume already exists, continuing...');
     }
 
-    // Run init container to clone the repo
-    await this.runInitContainer(session.id, volumeName, project.github_repo);
+    // Run init container to clone the repo (using session branch if available)
+    await this.runInitContainer(session.id, volumeName, project.github_repo, session.branch_name ?? undefined);
 
     // Parse environment variables from JSON string
     let parsedEnvVars: Record<string, string> = {};
@@ -1018,7 +1023,10 @@ export class SandboxService {
         name: `${session.id}-vscode`,
         image: SandboxService.IMAGES.vscode,
         port: SandboxService.PORTS.vscode,
-        env: baseEnv,
+        env: [
+          ...baseEnv,
+          ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
+        ],
       },
     ];
 

@@ -21,8 +21,13 @@ fi
 
 # Check if workspace is empty (ignore hidden files)
 if [ -z "$(ls -A /workspace 2>/dev/null)" ]; then
-    echo "Cloning $REPO_URL into /workspace..."
-    git clone "$REPO_URL" /workspace
+    if [ -n "$BRANCH" ]; then
+        echo "Cloning $REPO_URL (branch: $BRANCH) into /workspace..."
+        git clone -b "$BRANCH" "$REPO_URL" /workspace
+    else
+        echo "Cloning $REPO_URL into /workspace..."
+        git clone "$REPO_URL" /workspace
+    fi
     echo "Clone complete!"
 else
     echo "Workspace is not empty, skipping clone"

@@ -46,10 +46,22 @@ export class ApiError extends Error {
  * HTTP client for the Mastragen Orchestrator API.
  */
 export class MgenClient {
-  private baseUrl: string;
+  readonly baseUrl: string;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+  }
+
+  /**
+   * Returns true if connected to a localhost server.
+   */
+  isLocalhost(): boolean {
+    try {
+      const url = new URL(this.baseUrl);
+      return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    } catch {
+      return false;
+    }
   }
 
   /**

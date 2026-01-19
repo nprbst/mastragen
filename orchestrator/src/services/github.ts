@@ -339,26 +339,29 @@ export class GitHubService {
   }
 
   /**
-   * Gets the default branch SHA for a repository.
+   * Gets the SHA for a branch. If branch is not provided, uses the repo's default branch.
    */
-  async getDefaultBranchSha(owner: string, repo: string): Promise<string> {
+  async getDefaultBranchSha(owner: string, repo: string, branch?: string): Promise<string> {
     const startTime = Date.now();
-    console.log(`[GitHubService] getDefaultBranchSha - fetching for ${owner}/${repo}`);
+    console.log(`[GitHubService] getDefaultBranchSha - fetching for ${owner}/${repo}${branch ? ` (branch: ${branch})` : ''}`);
 
     const result = await this.withRetry(
       'getDefaultBranchSha',
       async () => {
-        const repoResponse = await this.octokit.rest.repos.get({
-          owner,
-          repo,
-        });
+        let targetBranch = branch;
 
-        const defaultBranch = repoResponse.data.default_branch;
+        if (!targetBranch) {
+          const repoResponse = await this.octokit.rest.repos.get({
+            owner,
+            repo,
+          });
+          targetBranch = repoResponse.data.default_branch;
+        }
 
         const branchResponse = await this.octokit.rest.repos.getBranch({
           owner,
           repo,
-          branch: defaultBranch,
+          branch: targetBranch,
         });
 
         return branchResponse.data.commit.sha;
