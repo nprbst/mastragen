@@ -68,7 +68,7 @@ export function sessionCommand(client: MgenClient): Command {
   session
     .command('create')
     .description('Create a new development session')
-    .option('-p, --project <id>', 'Project ID')
+    .option('-p, --project <id>', 'Project ID or name')
     .option('-n, --name <name>', 'Artifact name (lowercase, hyphens allowed)')
     .option('-e, --env <environment>', 'Environment (e.g., dev, staging)')
     .option('-t, --token <token>', 'Claude OAuth token (from `claude setup-token`)')
@@ -84,8 +84,10 @@ export function sessionCommand(client: MgenClient): Command {
         }
 
         // 1. Project selection
-        let projectId = options.project as string | undefined;
-        if (!projectId) {
+        let projectId: string | undefined;
+        if (options.project) {
+          projectId = await client.resolveProjectId(options.project);
+        } else {
           const projects = await client.listProjects();
 
           if (projects.length === 0) {
@@ -206,13 +208,18 @@ export function sessionCommand(client: MgenClient): Command {
     .alias('ls')
     .description('List sessions')
     .option('-s, --state <state>', 'Filter by state (active, suspended)')
-    .option('-p, --project <id>', 'Filter by project ID')
+    .option('-p, --project <id>', 'Filter by project ID or name')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
+        let projectId: string | undefined;
+        if (options.project) {
+          projectId = await client.resolveProjectId(options.project);
+        }
+
         const sessions = await client.listSessions({
           state: options.state,
-          projectId: options.project,
+          projectId,
         });
 
         if (options.json) {

@@ -213,6 +213,29 @@ export class MgenClient {
   }
 
   /**
+   * Resolves a project identifier (ID or name) to a project ID.
+   * If the identifier matches the 6-char hex ID format, returns it directly.
+   * Otherwise, fetches all projects and finds one with a matching name.
+   * @throws ApiError if project not found
+   */
+  async resolveProjectId(identifier: string): Promise<string> {
+    // Check if it's already a valid ID (6-char hex)
+    if (/^[A-Fa-f0-9]{6}$/.test(identifier)) {
+      return identifier;
+    }
+
+    // Otherwise, look up by name
+    const projects = await this.listProjects();
+    const project = projects.find((p) => p.name === identifier);
+
+    if (!project) {
+      throw new ApiError(404, `Project not found: ${identifier}`);
+    }
+
+    return project.id;
+  }
+
+  /**
    * Gets a project by ID with its environments.
    */
   async getProject(id: string): Promise<ProjectDetail> {
