@@ -76,7 +76,7 @@ describe('Session Lifecycle E2E', () => {
     expect(session.id).toBeDefined();
     expect(session.state).toBe('active');
     expect(session.urls).toBeDefined();
-    expect((session.urls as Record<string, unknown>).cui).toMatch(/^http:\/\/localhost:\d+/);
+    expect((session.urls as Record<string, unknown>).vscode).toMatch(/^http:\/\/localhost:\d+/);
 
     const sessionId = session.id;
 

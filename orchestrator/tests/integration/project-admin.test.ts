@@ -7,7 +7,7 @@ import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations as runMigrations001 } from '../../src/db/migrations/001_initial.ts';
 import { runMigrations as runMigrations002 } from '../../src/db/migrations/002_git_fields.ts';
 import { runMigrations as runMigrations003 } from '../../src/db/migrations/003_cui_config.ts';
-import { cuiConfigRoutes } from '../../src/routes/cui-config.ts';
+import { claudeConfigRoutes } from '../../src/routes/claude-config.ts';
 import { commandsRoutes } from '../../src/routes/commands.ts';
 import { skillsRoutes } from '../../src/routes/skills.ts';
 
@@ -46,7 +46,7 @@ function createTestJwt(payload: {
  *
  * Tests the complete project administration flow:
  * 1. Create project
- * 2. Configure cui config (MCP servers, CLAUDE.md, auto-approve patterns)
+ * 2. Configure Claude config (MCP servers, CLAUDE.md, auto-approve patterns)
  * 3. Add/edit/delete commands
  * 4. Add/edit/delete skills
  * 5. Verify preview generation
@@ -82,7 +82,7 @@ describe('Project admin workflow', () => {
     // Clean tables
     await db.deleteFrom('project_skills').execute();
     await db.deleteFrom('project_commands').execute();
-    await db.deleteFrom('project_cui_config').execute();
+    await db.deleteFrom('project_claude_config').execute();
     await db.deleteFrom('sessions').execute();
     await db.deleteFrom('projects').execute();
     await db.deleteFrom('github_app_installations').execute();
@@ -188,8 +188,8 @@ describe('Project admin workflow', () => {
   });
 
   describe('Complete admin workflow', () => {
-    test('should configure cui config, add commands, and add skills', async () => {
-      // Step 1: Get initial cui config (should create default)
+    test('should configure Claude config, add commands, and add skills', async () => {
+      // Step 1: Get initial Claude config (should create default)
       let res = await app.request(`/projects/${testProjectId}/cui-config`);
       expect(res.status).toBe(200);
       const initialConfig = (await res.json()) as {
@@ -199,7 +199,7 @@ describe('Project admin workflow', () => {
       };
       expect(initialConfig.projectId).toBe(testProjectId);
 
-      // Step 2: Update cui config
+      // Step 2: Update Claude config
       res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'PUT',
         headers: authHeaders,
@@ -330,7 +330,7 @@ describe('Project admin workflow', () => {
       const remainingSkills = (await res.json()) as unknown[];
       expect(remainingSkills).toHaveLength(0);
 
-      // Step 12: Delete cui config
+      // Step 12: Delete Claude config
       res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${authToken}` },
@@ -432,7 +432,7 @@ describe('Project admin workflow', () => {
       expect(res.status).toBe(400);
     });
 
-    test('should validate cui config mcpServers JSON', async () => {
+    test('should validate Claude config mcpServers JSON', async () => {
       const res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'PUT',
         headers: authHeaders,

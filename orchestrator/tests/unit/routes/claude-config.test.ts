@@ -7,24 +7,24 @@ import { createDatabase } from '../../../src/db/index.ts';
 import { runMigrations as runMigrations001 } from '../../../src/db/migrations/001_initial.ts';
 import { runMigrations as runMigrations002 } from '../../../src/db/migrations/002_git_fields.ts';
 import { runMigrations as runMigrations003 } from '../../../src/db/migrations/003_cui_config.ts';
-import { ProjectsRepository, ProjectCuiConfigRepository } from '../../../src/repositories/index.ts';
+import { ProjectsRepository, ProjectClaudeConfigRepository } from '../../../src/repositories/index.ts';
 import { createTestJwt } from '../../helpers/jwt.ts';
 
-const TEST_DB_PATH = './data/test-cui-config-routes.db';
+const TEST_DB_PATH = './data/test-claude-config-routes.db';
 
 /**
- * T063: Unit test for cui-config CRUD operations
+ * T063: Unit test for claude-config CRUD operations
  *
- * Tests the cui-config routes:
- * - GET /projects/:projectId/cui-config - Get project cui config
- * - PUT /projects/:projectId/cui-config - Update/create project cui config
- * - DELETE /projects/:projectId/cui-config - Delete project cui config
- * - GET /projects/:projectId/cui-config/preview - Preview rendered config
+ * Tests the claude-config routes:
+ * - GET /projects/:projectId/claude-config - Get project cui config
+ * - PUT /projects/:projectId/claude-config - Update/create project cui config
+ * - DELETE /projects/:projectId/claude-config - Delete project cui config
+ * - GET /projects/:projectId/claude-config/preview - Preview rendered config
  */
-describe('cui-config routes', () => {
+describe('claude-config routes', () => {
   let db: Kysely<Database>;
   let projectsRepo: ProjectsRepository;
-  let cuiConfigRepo: ProjectCuiConfigRepository;
+  let claudeConfigRepo: ProjectClaudeConfigRepository;
   let testProjectId: string;
   let testUserId: string;
   let testInstallationId: string;
@@ -42,7 +42,7 @@ describe('cui-config routes', () => {
     await runMigrations003(db);
 
     projectsRepo = new ProjectsRepository(db);
-    cuiConfigRepo = new ProjectCuiConfigRepository(db);
+    claudeConfigRepo = new ProjectClaudeConfigRepository(db);
   });
 
   afterAll(async () => {
@@ -56,7 +56,7 @@ describe('cui-config routes', () => {
     const now = new Date().toISOString();
 
     // Create test user
-    testUserId = 'user-cui-config-test';
+    testUserId = 'user-claude-config-test';
     await db
       .insertInto('users')
       .values({
@@ -72,7 +72,7 @@ describe('cui-config routes', () => {
       .execute();
 
     // Create test GitHub installation
-    testInstallationId = 'inst-cui-config-test';
+    testInstallationId = 'inst-claude-config-test';
     await db
       .insertInto('github_app_installations')
       .values({
@@ -90,7 +90,7 @@ describe('cui-config routes', () => {
       .execute();
 
     // Create test project linked to installation
-    testProjectId = 'proj-cui-config-test';
+    testProjectId = 'proj-claude-config-test';
     await db
       .insertInto('projects')
       .values({
@@ -146,9 +146,9 @@ describe('cui-config routes', () => {
     await db.deleteFrom('users').execute();
   });
 
-  describe('GET /projects/:projectId/cui-config', () => {
+  describe('GET /projects/:projectId/claude-config', () => {
     test('should return 404 for non-existent project', async () => {
-      const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
+      const { cuiConfigRoutes } = await import('../../../src/routes/claude-config.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
         c.set('db', db);
@@ -156,12 +156,12 @@ describe('cui-config routes', () => {
       });
       app.route('/projects', cuiConfigRoutes(db));
 
-      const res = await app.request('/projects/non-existent/cui-config');
+      const res = await app.request('/projects/non-existent/claude-config');
       expect(res.status).toBe(404);
     });
 
     test('should return default config when none exists', async () => {
-      const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
+      const { cuiConfigRoutes } = await import('../../../src/routes/claude-config.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
         c.set('db', db);
@@ -169,7 +169,7 @@ describe('cui-config routes', () => {
       });
       app.route('/projects', cuiConfigRoutes(db));
 
-      const res = await app.request(`/projects/${testProjectId}/cui-config`);
+      const res = await app.request(`/projects/${testProjectId}/claude-config`);
       expect(res.status).toBe(200);
 
       const body = (await res.json()) as {
@@ -187,14 +187,14 @@ describe('cui-config routes', () => {
 
     test('should return existing config', async () => {
       // Create config first
-      await cuiConfigRepo.create({
+      await claudeConfigRepo.create({
         project_id: testProjectId,
         mcp_servers: JSON.stringify({ filesystem: { command: 'npx', args: [] } }),
         claude_md: '# Project Guide',
         auto_approve_file_patterns: JSON.stringify(['*.ts']),
       });
 
-      const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
+      const { cuiConfigRoutes } = await import('../../../src/routes/claude-config.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
         c.set('db', db);
@@ -202,7 +202,7 @@ describe('cui-config routes', () => {
       });
       app.route('/projects', cuiConfigRoutes(db));
 
-      const res = await app.request(`/projects/${testProjectId}/cui-config`);
+      const res = await app.request(`/projects/${testProjectId}/claude-config`);
       expect(res.status).toBe(200);
 
       const body = (await res.json()) as {
@@ -217,9 +217,9 @@ describe('cui-config routes', () => {
     });
   });
 
-  describe('PUT /projects/:projectId/cui-config', () => {
+  describe('PUT /projects/:projectId/claude-config', () => {
     test('should create config when none exists', async () => {
-      const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
+      const { cuiConfigRoutes } = await import('../../../src/routes/claude-config.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
         c.set('db', db);
@@ -227,7 +227,7 @@ describe('cui-config routes', () => {
       });
       app.route('/projects', cuiConfigRoutes(db));
 
-      const res = await app.request(`/projects/${testProjectId}/cui-config`, {
+      const res = await app.request(`/projects/${testProjectId}/claude-config`, {
         method: 'PUT',
         headers: authHeaders,
         body: JSON.stringify({
@@ -248,12 +248,12 @@ describe('cui-config routes', () => {
 
     test('should update existing config', async () => {
       // Create config first
-      await cuiConfigRepo.create({
+      await claudeConfigRepo.create({
         project_id: testProjectId,
         claude_md: '# Old Guide',
       });
 
-      const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
+      const { cuiConfigRoutes } = await import('../../../src/routes/claude-config.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
         c.set('db', db);
@@ -261,7 +261,7 @@ describe('cui-config routes', () => {
       });
       app.route('/projects', cuiConfigRoutes(db));
 
-      const res = await app.request(`/projects/${testProjectId}/cui-config`, {
+      const res = await app.request(`/projects/${testProjectId}/claude-config`, {
         method: 'PUT',
         headers: authHeaders,
         body: JSON.stringify({
@@ -276,7 +276,7 @@ describe('cui-config routes', () => {
     });
 
     test('should return 400 for invalid data', async () => {
-      const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
+      const { cuiConfigRoutes } = await import('../../../src/routes/claude-config.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
         c.set('db', db);
@@ -284,7 +284,7 @@ describe('cui-config routes', () => {
       });
       app.route('/projects', cuiConfigRoutes(db));
 
-      const res = await app.request(`/projects/${testProjectId}/cui-config`, {
+      const res = await app.request(`/projects/${testProjectId}/claude-config`, {
         method: 'PUT',
         headers: authHeaders,
         body: JSON.stringify({
@@ -296,15 +296,15 @@ describe('cui-config routes', () => {
     });
   });
 
-  describe('DELETE /projects/:projectId/cui-config', () => {
+  describe('DELETE /projects/:projectId/claude-config', () => {
     test('should delete existing config', async () => {
       // Create config first
-      await cuiConfigRepo.create({
+      await claudeConfigRepo.create({
         project_id: testProjectId,
         claude_md: '# To Delete',
       });
 
-      const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
+      const { cuiConfigRoutes } = await import('../../../src/routes/claude-config.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
         c.set('db', db);
@@ -312,7 +312,7 @@ describe('cui-config routes', () => {
       });
       app.route('/projects', cuiConfigRoutes(db));
 
-      const res = await app.request(`/projects/${testProjectId}/cui-config`, {
+      const res = await app.request(`/projects/${testProjectId}/claude-config`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -320,12 +320,12 @@ describe('cui-config routes', () => {
       expect(res.status).toBe(200);
 
       // Verify deleted
-      const config = await cuiConfigRepo.findByProjectId(testProjectId);
+      const config = await claudeConfigRepo.findByProjectId(testProjectId);
       expect(config).toBeUndefined();
     });
 
     test('should return 200 even when no config exists', async () => {
-      const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
+      const { cuiConfigRoutes } = await import('../../../src/routes/claude-config.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
         c.set('db', db);
@@ -333,7 +333,7 @@ describe('cui-config routes', () => {
       });
       app.route('/projects', cuiConfigRoutes(db));
 
-      const res = await app.request(`/projects/${testProjectId}/cui-config`, {
+      const res = await app.request(`/projects/${testProjectId}/claude-config`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${authToken}` },
       });
@@ -342,17 +342,17 @@ describe('cui-config routes', () => {
     });
   });
 
-  describe('GET /projects/:projectId/cui-config/preview', () => {
+  describe('GET /projects/:projectId/claude-config/preview', () => {
     test('should return preview of rendered config', async () => {
       // Create config
-      await cuiConfigRepo.create({
+      await claudeConfigRepo.create({
         project_id: testProjectId,
         mcp_servers: JSON.stringify({ filesystem: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem'] } }),
         claude_md: '# Project: {{projectName}}',
         auto_approve_file_patterns: JSON.stringify(['*.ts', '*.tsx']),
       });
 
-      const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
+      const { cuiConfigRoutes } = await import('../../../src/routes/claude-config.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
         c.set('db', db);
@@ -360,7 +360,7 @@ describe('cui-config routes', () => {
       });
       app.route('/projects', cuiConfigRoutes(db));
 
-      const res = await app.request(`/projects/${testProjectId}/cui-config/preview`);
+      const res = await app.request(`/projects/${testProjectId}/claude-config/preview`);
       expect(res.status).toBe(200);
 
       const body = (await res.json()) as {
@@ -372,7 +372,7 @@ describe('cui-config routes', () => {
     });
 
     test('should return 404 for non-existent project in preview', async () => {
-      const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
+      const { cuiConfigRoutes } = await import('../../../src/routes/claude-config.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
         c.set('db', db);
@@ -380,7 +380,7 @@ describe('cui-config routes', () => {
       });
       app.route('/projects', cuiConfigRoutes(db));
 
-      const res = await app.request('/projects/non-existent/cui-config/preview');
+      const res = await app.request('/projects/non-existent/claude-config/preview');
       expect(res.status).toBe(404);
     });
   });

@@ -8,6 +8,6 @@ export * from './sessions.ts';
 
 // Phase 3 schemas
 export * from './auth.ts';
-export * from './cui-config.ts';
+export * from './claude-config.ts';
 export * from './commands.ts';
 export * from './skills.ts';

@@ -359,7 +359,7 @@ A  staged-file.ts`;
   });
 
   describe('ensureGitAttributes', () => {
-    it('adds .cui/ export-ignore to .gitattributes when not present', async () => {
+    it('adds .claude-history/ export-ignore to .gitattributes when not present', async () => {
       let callCount = 0;
       const mockExec = mock(() => {
         callCount++;
@@ -414,7 +414,7 @@ A  staged-file.ts`;
       expect(callCount).toBe(2);
     });
 
-    it('skips if .cui/ export-ignore already exists', async () => {
+    it('skips if .claude-history/ export-ignore already exists', async () => {
       let callCount = 0;
       const mockExec = mock(() => {
         callCount++;
@@ -427,7 +427,7 @@ A  staged-file.ts`;
             const stream = {
               on: (event: string, handler: (data?: Buffer) => void) => {
                 if (event === 'data')
-                  handler(Buffer.from('.cui/ export-ignore\n'));
+                  handler(Buffer.from('.claude-history/ export-ignore\n'));
                 if (event === 'end') setTimeout(() => handler(), 0);
                 return stream;
               },

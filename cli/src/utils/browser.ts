@@ -3,7 +3,7 @@
  */
 import { existsSync } from 'node:fs';
 
-export type ServiceName = 'cui' | 'mastra' | 'astro' | 'vscode';
+export type ServiceName = 'mastra' | 'astro' | 'vscode';
 
 const CHROME_PATHS = [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -65,16 +65,16 @@ export function openInChrome(urls: string[]): void {
 
 /**
  * Resolves service names to URLs based on the --open flag value.
- * @param flag - 'all' or comma-separated service names (e.g., 'vscode,cui')
+ * @param flag - 'all' or comma-separated service names (e.g., 'vscode,mastra')
  * @param availableUrls - The URLs object from session response
  * @returns Array of URLs to open
  */
 export function resolveServices(
   flag: string,
-  availableUrls: { cui: string; mastra: string; astro?: string | null; vscode: string }
+  availableUrls: { mastra: string; astro?: string | null; vscode: string }
 ): string[] {
-  const all: ServiceName[] = ['cui', 'mastra', 'vscode'];
-  if (availableUrls.astro) all.splice(2, 0, 'astro');
+  const all: ServiceName[] = ['mastra', 'vscode'];
+  if (availableUrls.astro) all.splice(1, 0, 'astro');
 
   const requested = flag === 'all' ? all : (flag.split(',') as ServiceName[]);
 

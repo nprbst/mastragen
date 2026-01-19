@@ -44,7 +44,6 @@ function generateServiceUrls(sessionId: string, baseUrl: string): ServiceUrls {
   // URLs are port-based per Constitution III. Multi-Service Architecture
   const baseHost = new URL(baseUrl).hostname;
   return {
-    cui: `http://${sessionId}.${baseHost}:3001`,
     mastra: `http://${sessionId}.${baseHost}:4111`,
     astro: `http://${sessionId}.${baseHost}:4321`,
     vscode: `http://${sessionId}.${baseHost}:8080`,

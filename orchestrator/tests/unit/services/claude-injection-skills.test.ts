@@ -93,7 +93,7 @@ describe('Skills injection', () => {
       expect(writtenFiles[0].content).toContain('description: Test skill description');
     });
 
-    test('should inject built-in skills from cui-skills directory', async () => {
+    test('should inject built-in skills from claude-skills directory', async () => {
       // Built-in skills that should be available
       const builtInSkills = [
         'mastra-development',
@@ -128,7 +128,7 @@ describe('Skills injection', () => {
         }
       }
 
-      await injectBuiltInSkills('/app/cui-skills', '/mnt/skills/builtin', mockFs);
+      await injectBuiltInSkills('/app/claude-skills', '/mnt/skills/builtin', mockFs);
 
       expect(writtenFiles).toHaveLength(3);
       expect(writtenFiles).toContain('/mnt/skills/builtin/mastra-development.md');

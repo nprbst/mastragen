@@ -81,7 +81,7 @@ describe('SandboxService', () => {
       });
 
       expect(result.urls).toBeDefined();
-      expect(result.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+      expect(result.urls.vscode).toMatch(/^http:\/\/localhost:\d+/);
       expect(result.urls.mastra).toMatch(/^http:\/\/localhost:\d+/);
       expect(result.urls.vscode).toMatch(/^http:\/\/localhost:\d+/);
     });
@@ -133,7 +133,7 @@ describe('SandboxService', () => {
 
       const urls = sandboxService.getServiceUrls(result.session.id);
 
-      expect(urls.cui).toBe('http://localhost:3001');
+      expect(urls.mastra).toBe('http://localhost:3001');
       expect(urls.mastra).toBe('http://localhost:4111');
       expect(urls.vscode).toBe('http://localhost:8080');
     });

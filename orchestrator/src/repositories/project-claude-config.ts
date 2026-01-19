@@ -2,14 +2,14 @@ import type { Kysely } from 'kysely';
 import { nanoid } from 'nanoid';
 import type {
   Database,
-  ProjectCuiConfig,
-  ProjectCuiConfigUpdate,
+  ProjectClaudeConfig,
+  ProjectClaudeConfigUpdate,
 } from '../db/types.ts';
 
 /**
- * Input for creating a new project cui config.
+ * Input for creating a new project Claude config.
  */
-export interface CreateCuiConfigInput {
+export interface CreateClaudeConfigInput {
   project_id: string;
   mcp_servers?: string;
   claude_md?: string | null;
@@ -19,9 +19,9 @@ export interface CreateCuiConfigInput {
 }
 
 /**
- * Input for updating a project cui config.
+ * Input for updating a project Claude config.
  */
-export interface UpdateCuiConfigInput {
+export interface UpdateClaudeConfigInput {
   mcp_servers?: string;
   claude_md?: string | null;
   auto_approve_file_patterns?: string;
@@ -30,21 +30,21 @@ export interface UpdateCuiConfigInput {
 }
 
 /**
- * Repository for managing project cui configuration.
- * Each project has at most one cui config record.
+ * Repository for managing project Claude configuration.
+ * Each project has at most one Claude config record.
  */
-export class ProjectCuiConfigRepository {
+export class ProjectClaudeConfigRepository {
   constructor(private db: Kysely<Database>) {}
 
   /**
-   * Create a new cui config for a project.
+   * Create a new Claude config for a project.
    */
-  async create(data: CreateCuiConfigInput): Promise<ProjectCuiConfig> {
+  async create(data: CreateClaudeConfigInput): Promise<ProjectClaudeConfig> {
     const id = nanoid(12);
     const now = new Date().toISOString();
 
     await this.db
-      .insertInto('project_cui_config')
+      .insertInto('project_claude_config')
       .values({
         id,
         project_id: data.project_id,
@@ -60,39 +60,39 @@ export class ProjectCuiConfigRepository {
 
     const config = await this.findById(id);
     if (!config) {
-      throw new Error('Failed to create cui config');
+      throw new Error('Failed to create Claude config');
     }
     return config;
   }
 
   /**
-   * Find a cui config by ID.
+   * Find a Claude config by ID.
    */
-  async findById(id: string): Promise<ProjectCuiConfig | undefined> {
+  async findById(id: string): Promise<ProjectClaudeConfig | undefined> {
     return this.db
-      .selectFrom('project_cui_config')
+      .selectFrom('project_claude_config')
       .selectAll()
       .where('id', '=', id)
       .executeTakeFirst();
   }
 
   /**
-   * Find a cui config by project ID.
-   * Each project has at most one cui config.
+   * Find a Claude config by project ID.
+   * Each project has at most one Claude config.
    */
-  async findByProjectId(projectId: string): Promise<ProjectCuiConfig | undefined> {
+  async findByProjectId(projectId: string): Promise<ProjectClaudeConfig | undefined> {
     return this.db
-      .selectFrom('project_cui_config')
+      .selectFrom('project_claude_config')
       .selectAll()
       .where('project_id', '=', projectId)
       .executeTakeFirst();
   }
 
   /**
-   * Find or create a cui config for a project.
+   * Find or create a Claude config for a project.
    * Creates with default values if not exists.
    */
-  async findOrCreate(projectId: string): Promise<ProjectCuiConfig> {
+  async findOrCreate(projectId: string): Promise<ProjectClaudeConfig> {
     const existing = await this.findByProjectId(projectId);
     if (existing) {
       return existing;
@@ -102,10 +102,10 @@ export class ProjectCuiConfigRepository {
   }
 
   /**
-   * Update a cui config by project ID.
+   * Update a Claude config by project ID.
    * Creates the config if it doesn't exist (upsert behavior).
    */
-  async upsert(projectId: string, data: UpdateCuiConfigInput): Promise<ProjectCuiConfig> {
+  async upsert(projectId: string, data: UpdateClaudeConfigInput): Promise<ProjectClaudeConfig> {
     const existing = await this.findByProjectId(projectId);
 
     if (existing) {
@@ -119,16 +119,16 @@ export class ProjectCuiConfigRepository {
   }
 
   /**
-   * Update a cui config by ID.
+   * Update a Claude config by ID.
    */
   async update(
     id: string,
-    data: Omit<ProjectCuiConfigUpdate, 'id' | 'project_id' | 'created_at'>
-  ): Promise<ProjectCuiConfig | undefined> {
+    data: Omit<ProjectClaudeConfigUpdate, 'id' | 'project_id' | 'created_at'>
+  ): Promise<ProjectClaudeConfig | undefined> {
     const now = new Date().toISOString();
 
     const result = await this.db
-      .updateTable('project_cui_config')
+      .updateTable('project_claude_config')
       .set({
         ...data,
         updated_at: now,
@@ -144,16 +144,16 @@ export class ProjectCuiConfigRepository {
   }
 
   /**
-   * Update a cui config by project ID.
+   * Update a Claude config by project ID.
    */
   async updateByProjectId(
     projectId: string,
-    data: Omit<ProjectCuiConfigUpdate, 'id' | 'project_id' | 'created_at'>
-  ): Promise<ProjectCuiConfig | undefined> {
+    data: Omit<ProjectClaudeConfigUpdate, 'id' | 'project_id' | 'created_at'>
+  ): Promise<ProjectClaudeConfig | undefined> {
     const now = new Date().toISOString();
 
     const result = await this.db
-      .updateTable('project_cui_config')
+      .updateTable('project_claude_config')
       .set({
         ...data,
         updated_at: now,
@@ -169,11 +169,11 @@ export class ProjectCuiConfigRepository {
   }
 
   /**
-   * Delete a cui config by ID.
+   * Delete a Claude config by ID.
    */
   async delete(id: string): Promise<boolean> {
     const result = await this.db
-      .deleteFrom('project_cui_config')
+      .deleteFrom('project_claude_config')
       .where('id', '=', id)
       .execute();
 
@@ -181,11 +181,11 @@ export class ProjectCuiConfigRepository {
   }
 
   /**
-   * Delete a cui config by project ID.
+   * Delete a Claude config by project ID.
    */
   async deleteByProjectId(projectId: string): Promise<boolean> {
     const result = await this.db
-      .deleteFrom('project_cui_config')
+      .deleteFrom('project_claude_config')
       .where('project_id', '=', projectId)
       .execute();
 
@@ -193,11 +193,11 @@ export class ProjectCuiConfigRepository {
   }
 
   /**
-   * List all cui configs (with pagination).
+   * List all Claude configs (with pagination).
    */
-  async findAll(options?: { limit?: number; offset?: number }): Promise<ProjectCuiConfig[]> {
+  async findAll(options?: { limit?: number; offset?: number }): Promise<ProjectClaudeConfig[]> {
     let query = this.db
-      .selectFrom('project_cui_config')
+      .selectFrom('project_claude_config')
       .selectAll()
       .orderBy('created_at', 'desc');
 

@@ -6,7 +6,7 @@ import type { ProjectsRepository } from '../repositories/projects.ts';
 import type { SessionsRepository } from '../repositories/sessions.ts';
 import type { GitStatus, CommitResult } from './git.ts';
 import { InsufficientPermissionsError, GitHubService, type PRResult, type PRCreateInput } from './github.ts';
-import { CuiInjectionService } from './cui-injection.ts';
+import { ClaudeInjectionService } from './claude-injection.ts';
 
 export { InsufficientPermissionsError };
 
@@ -30,13 +30,13 @@ export interface GitServiceResumeInterface {
 }
 
 /**
- * Interface for CUI history service to persist/restore conversation history.
- * On suspend: Copies history from CUI container to workspace's .cui/ directory
- * On resume: Copies history from workspace's .cui/ to CUI container
+ * Interface for Claude history service to persist/restore conversation history.
+ * On suspend: Copies history from vscode container to workspace's .claude-history/ directory
+ * On resume: Copies history from workspace's .claude-history/ to vscode container
  */
-export interface CuiHistoryServiceInterface {
-  saveCuiHistory(): Promise<void>;
-  restoreCuiHistory(): Promise<void>;
+export interface ClaudeHistoryServiceInterface {
+  saveClaudeHistory(): Promise<void>;
+  restoreClaudeHistory(): Promise<void>;
 }
 
 /**
@@ -77,7 +77,7 @@ export interface CreatePRInput {
  * Options for suspendWithGit method.
  */
 export interface SuspendWithGitOptions {
-  cuiHistoryService?: CuiHistoryServiceInterface;
+  claudeHistoryService?: ClaudeHistoryServiceInterface;
 }
 
 /**
@@ -86,12 +86,11 @@ export interface SuspendWithGitOptions {
 export interface ResumeWithGitOptions {
   commitSha?: string;
   checkLock?: boolean;
-  cuiHistoryService?: CuiHistoryServiceInterface;
+  claudeHistoryService?: ClaudeHistoryServiceInterface;
   claudeToken?: string;
 }
 
 export interface ServiceUrls {
-  cui: string;
   mastra: string;
   astro: string | null;
   vscode: string;
@@ -212,11 +211,10 @@ export class SandboxService {
   private sessionsRepo: SessionsRepository;
   private dockerEnabled: boolean;
   private docker: Docker;
-  private cuiInjectionService: CuiInjectionService | null = null;
+  private claudeInjectionService: ClaudeInjectionService | null = null;
 
   // Default ports for services
   private static readonly PORTS = {
-    cui: 3001,
     mastra: 4111,
     astro: 4321,
     vscode: 8080,
@@ -225,7 +223,6 @@ export class SandboxService {
   // Container image names (built from sandbox/ Dockerfiles)
   private static readonly IMAGES = {
     init: 'mastragen-init',
-    cui: 'mastragen-cui',
     mastra: 'mastragen-mastra',
     astro: 'mastragen-astro',
     vscode: 'mastragen-code-server',
@@ -240,7 +237,7 @@ export class SandboxService {
     this.dockerEnabled = options.dockerEnabled ?? true;
     this.docker = new Docker();
     if (options.db) {
-      this.cuiInjectionService = new CuiInjectionService(options.db);
+      this.claudeInjectionService = new ClaudeInjectionService(options.db);
     }
   }
 
@@ -274,16 +271,12 @@ export class SandboxService {
     // Generate workspace volume name
     const workspaceVolume = this.generateWorkspaceVolumeName(projectId, artifactName);
 
-    // Generate CUI auth token
-    const cuiAuthToken = randomUUID().replace(/-/g, '');
-
     // Create session in database
     const session = await this.sessionsRepo.create({
       project_id: projectId,
       artifact_name: artifactName,
       environment,
       workspace_volume: workspaceVolume,
-      cui_auth_token: cuiAuthToken,
       // container_id will be set when Docker containers are started
     });
 
@@ -307,7 +300,7 @@ export class SandboxService {
 
     return {
       session,
-      urls: this.getServiceUrls(session.id, project, session.cui_auth_token),
+      urls: this.getServiceUrls(session.id, project),
     };
   }
 
@@ -382,9 +375,6 @@ export class SandboxService {
     // Generate workspace volume name
     const workspaceVolume = this.generateWorkspaceVolumeName(projectId, artifactName);
 
-    // Generate CUI auth token
-    const cuiAuthToken = randomUUID().replace(/-/g, '');
-
     // Create session in database with user_id and branch_name
     const session = await this.sessionsRepo.create({
       id: sessionId,
@@ -392,7 +382,6 @@ export class SandboxService {
       artifact_name: artifactName,
       environment,
       workspace_volume: workspaceVolume,
-      cui_auth_token: cuiAuthToken,
       user_id: userId,
       branch_name: branchName,
     });
@@ -417,22 +406,17 @@ export class SandboxService {
 
     return {
       session,
-      urls: this.getServiceUrls(session.id, project, session.cui_auth_token),
+      urls: this.getServiceUrls(session.id, project),
     };
   }
 
   /**
    * Gets service URLs for a session.
    */
-  getServiceUrls(sessionId: string, project?: Project, cuiAuthToken?: string | null): ServiceUrls {
+  getServiceUrls(sessionId: string, project?: Project): ServiceUrls {
     const cachedProject = project ?? this.sessionProjectCache.get(sessionId);
 
-    // Build cui URL with auth token if available
-    const cuiBaseUrl = `http://localhost:${SandboxService.PORTS.cui}`;
-    const cuiUrl = cuiAuthToken ? `${cuiBaseUrl}#token=${cuiAuthToken}` : cuiBaseUrl;
-
     return {
-      cui: cuiUrl,
       mastra: `http://localhost:${SandboxService.PORTS.mastra}`,
       astro: cachedProject?.ui_sandbox_path
         ? `http://localhost:${SandboxService.PORTS.astro}`
@@ -481,7 +465,7 @@ export class SandboxService {
    *
    * @param sessionId - The session ID to suspend
    * @param gitService - GitService instance for git operations
-   * @param options - Optional suspend options (cuiHistoryService)
+   * @param options - Optional suspend options (claudeHistoryService)
    * @returns The updated session
    */
   async suspendWithGit(
@@ -498,9 +482,9 @@ export class SandboxService {
       throw new SessionNotActiveError(sessionId);
     }
 
-    // Save CUI conversation history to workspace before committing (T038)
-    if (options.cuiHistoryService) {
-      await options.cuiHistoryService.saveCuiHistory();
+    // Save Claude conversation history to workspace before committing (T038)
+    if (options.claudeHistoryService) {
+      await options.claudeHistoryService.saveClaudeHistory();
     }
 
     // Check for changes
@@ -616,7 +600,7 @@ export class SandboxService {
 
     return {
       session: updatedSession,
-      urls: this.getServiceUrls(sessionId, project, updatedSession.cui_auth_token),
+      urls: this.getServiceUrls(sessionId, project),
     };
   }
 
@@ -683,14 +667,14 @@ export class SandboxService {
       await this.startContainers(updatedSession, project, env.env_vars, options.claudeToken);
     }
 
-    // Restore CUI conversation history from workspace after containers start (T038)
-    if (options.cuiHistoryService) {
-      await options.cuiHistoryService.restoreCuiHistory();
+    // Restore Claude conversation history to container after containers start (T038)
+    if (options.claudeHistoryService) {
+      await options.claudeHistoryService.restoreClaudeHistory();
     }
 
     return {
       session: updatedSession,
-      urls: this.getServiceUrls(sessionId, project, updatedSession.cui_auth_token),
+      urls: this.getServiceUrls(sessionId, project),
     };
   }
 
@@ -842,7 +826,6 @@ export class SandboxService {
 
     // Also clean up by name pattern (catches orphaned containers)
     const containerNames = [
-      `${sessionId}-cui`,
       `${sessionId}-mastra`,
       `${sessionId}-vscode`,
       `${sessionId}-astro`,
@@ -1011,16 +994,6 @@ export class SandboxService {
       workingDir?: string;
     }> = [
         {
-          name: `${session.id}-cui`,
-          image: SandboxService.IMAGES.cui,
-          port: SandboxService.PORTS.cui,
-          env: [
-            ...baseEnv,
-            `CUI_AUTH_TOKEN=${session.cui_auth_token || ''}`,
-            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
-          ],
-        },
-        {
           name: `${session.id}-mastra`,
           image: SandboxService.IMAGES.mastra,
           port: SandboxService.PORTS.mastra,
@@ -1092,9 +1065,9 @@ export class SandboxService {
     });
     console.log('[SandboxService] Session updated with container IDs');
 
-    // T048: Inject cui configuration into the CUI container
-    const cuiContainerName = `${session.id}-cui`;
-    await this.injectCuiConfig(session.id, cuiContainerName, {
+    // T048: Inject Claude configuration into the vscode container
+    const vscodeContainerName = `${session.id}-vscode`;
+    await this.injectClaudeConfig(session.id, vscodeContainerName, {
       projectId: project.id,
       environment: session.environment,
       userId: userId ?? session.user_id ?? undefined,
@@ -1132,30 +1105,30 @@ export class SandboxService {
   }
 
   /**
-   * Injects cui configuration files into the CUI container.
+   * Injects Claude configuration files into the VS Code container.
    * Writes settings.json, CLAUDE.md, and custom commands to the container.
    *
    * @param sessionId - The session ID
-   * @param cuiContainerName - Name of the CUI container (e.g., "{sessionId}-cui")
-   * @param config - Configuration for cui settings generation
+   * @param containerName - Name of the VS Code container (e.g., "{sessionId}-vscode")
+   * @param config - Configuration for Claude settings generation
    */
-  private async injectCuiConfig(
+  private async injectClaudeConfig(
     sessionId: string,
-    cuiContainerName: string,
+    containerName: string,
     config: { projectId: string; environment: string; userId?: string }
   ): Promise<void> {
-    if (!this.cuiInjectionService) {
-      console.log('[SandboxService] cui injection service not available, skipping config injection');
+    if (!this.claudeInjectionService) {
+      console.log('[SandboxService] Claude injection service not available, skipping config injection');
       return;
     }
 
-    console.log(`[SandboxService] Injecting cui config into container ${cuiContainerName}...`);
+    console.log(`[SandboxService] Injecting Claude config into container ${containerName}...`);
 
-    const container = this.docker.getContainer(cuiContainerName);
+    const container = this.docker.getContainer(containerName);
 
     try {
       // Generate settings.json
-      const settings = await this.cuiInjectionService.generateSettings({
+      const settings = await this.claudeInjectionService.generateSettings({
         projectId: config.projectId,
         environment: config.environment,
         sessionId,
@@ -1163,38 +1136,38 @@ export class SandboxService {
       const settingsJson = JSON.stringify(settings, null, 2);
 
       // Generate CLAUDE.md
-      const claudeMd = await this.cuiInjectionService.generateClaudeMd({
+      const claudeMd = await this.claudeInjectionService.generateClaudeMd({
         projectId: config.projectId,
         environment: config.environment,
         sessionId,
       });
 
       // Get custom commands
-      const commands = await this.cuiInjectionService.getCommands({
+      const commands = await this.claudeInjectionService.getCommands({
         projectId: config.projectId,
         environment: config.environment,
       });
 
-      // Create ~/.claude directory in the container
-      await this.execInContainer(container, ['mkdir', '-p', '/home/user/.claude/commands']);
+      // Create ~/.claude directory in the container (should exist from Dockerfile, but ensure)
+      await this.execInContainer(container, ['mkdir', '-p', '/home/coder/.claude/commands']);
 
       // Write settings.json
-      await this.writeFileToContainer(container, '/home/user/.claude/settings.json', settingsJson);
+      await this.writeFileToContainer(container, '/home/coder/.claude/settings.json', settingsJson);
       console.log('[SandboxService] Wrote settings.json to container');
 
-      // Write CLAUDE.md to workspace (shared volume)
-      await this.writeFileToContainer(container, '/workspace/CLAUDE.md', claudeMd);
-      console.log('[SandboxService] Wrote CLAUDE.md to workspace');
+      // Write CLAUDE.md to .claude directory (global instructions)
+      await this.writeFileToContainer(container, '/home/coder/.claude/CLAUDE.md', claudeMd);
+      console.log('[SandboxService] Wrote CLAUDE.md to .claude directory');
 
       // Write custom commands
       for (const command of commands) {
-        const commandPath = `/home/user/.claude/commands/${command.name}.md`;
+        const commandPath = `/home/coder/.claude/commands/${command.name}.md`;
         await this.writeFileToContainer(container, commandPath, command.content);
         console.log(`[SandboxService] Wrote command ${command.name}.md`);
       }
 
       // Get and set session-specific environment variables
-      const envVars = await this.cuiInjectionService.getSessionEnvVars({
+      const envVars = await this.claudeInjectionService.getSessionEnvVars({
         projectId: config.projectId,
         environment: config.environment,
         sessionId,
@@ -1205,13 +1178,13 @@ export class SandboxService {
       const envContent = Object.entries(envVars)
         .map(([k, v]) => `export ${k}="${v}"`)
         .join('\n');
-      await this.writeFileToContainer(container, '/home/user/.claude/env.sh', envContent);
+      await this.writeFileToContainer(container, '/home/coder/.claude/env.sh', envContent);
       console.log('[SandboxService] Wrote env.sh with session variables');
 
-      console.log('[SandboxService] cui config injection complete');
+      console.log('[SandboxService] Claude config injection complete');
     } catch (err) {
-      console.error('[SandboxService] Failed to inject cui config:', err);
-      // Don't throw - cui config injection failure shouldn't prevent session creation
+      console.error('[SandboxService] Failed to inject Claude config:', err);
+      // Don't throw - Claude config injection failure shouldn't prevent session creation
     }
   }
 

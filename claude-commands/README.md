@@ -1,6 +1,6 @@
 # Built-in Commands
 
-This directory contains the built-in slash commands that are injected into all cui sessions.
+This directory contains the built-in slash commands that are injected into all vscode sessions.
 
 ## Commands
 

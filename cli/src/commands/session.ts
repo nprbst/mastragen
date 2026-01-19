@@ -73,7 +73,7 @@ export function sessionCommand(client: MgenClient): Command {
     .option('-e, --env <environment>', 'Environment (e.g., dev, staging)')
     .option('-t, --token <token>', 'Claude OAuth token (from `claude setup-token`)')
     .option('-c, --cached-token', 'Use cached Claude token without prompting')
-    .option('-o, --open [services]', 'Open services in Chrome incognito (e.g., vscode,cui or all)')
+    .option('-o, --open [services]', 'Open services in Chrome incognito (e.g., vscode,mastra or all)')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
@@ -354,7 +354,7 @@ export function sessionCommand(client: MgenClient): Command {
     .command('resume [id]')
     .description('Resume a suspended session')
     .option('-t, --token <token>', 'Claude OAuth token (from `claude setup-token`)')
-    .option('-o, --open [services]', 'Open services in Chrome incognito (e.g., vscode,cui or all)')
+    .option('-o, --open [services]', 'Open services in Chrome incognito (e.g., vscode,mastra or all)')
     .option('--json', 'Output as JSON')
     .action(async (idArg, options) => {
       try {

@@ -117,7 +117,7 @@ export default function AccessTab({ project }: AccessTabProps) {
       <div className="border-t border-gray-200 pt-6">
         <h4 className="text-sm font-medium text-gray-900 mb-3">Session Sharing</h4>
         <p className="text-sm text-gray-600">
-          Session owners can share active sessions with other users using the <code className="bg-gray-100 px-1 rounded">/share</code> command in cui.
+          Session owners can share active sessions with other users using the <code className="bg-gray-100 px-1 rounded">/share</code> command in Claude.
           Shared access is managed via Tailscale ACLs and recorded in the session history.
         </p>
       </div>

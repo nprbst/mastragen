@@ -1,6 +1,6 @@
 # Built-in Skills
 
-This directory contains the built-in skills (knowledge/instructions) that are injected into all cui sessions.
+This directory contains the built-in skills (knowledge/instructions) that are injected into all vscode sessions.
 
 ## Skills
 

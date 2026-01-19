@@ -1,18 +1,18 @@
 /**
- * Cui config routes - CRUD for project cui configuration.
+ * Claude config routes - CRUD for project Claude configuration.
  * T080: Modification routes require admin access.
  */
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database } from '../db/types.ts';
-import { ProjectsRepository, ProjectCuiConfigRepository, ProjectCommandsRepository, ProjectSkillsRepository } from '../repositories/index.ts';
+import { ProjectsRepository, ProjectClaudeConfigRepository, ProjectCommandsRepository, ProjectSkillsRepository } from '../repositories/index.ts';
 import { requireAuth, requireProjectAdmin } from '../middleware/auth.ts';
 
 /**
- * Schema for updating cui config.
+ * Schema for updating Claude config.
  */
-const UpdateCuiConfigSchema = v.object({
+const UpdateClaudeConfigSchema = v.object({
   claudeMd: v.optional(v.nullable(v.string())),
   mcpServers: v.optional(v.record(v.string(), v.unknown())),
   autoApproveFilePatterns: v.optional(v.array(v.string())),
@@ -21,9 +21,9 @@ const UpdateCuiConfigSchema = v.object({
 });
 
 /**
- * API response format for cui config.
+ * API response format for Claude config.
  */
-interface CuiConfigResponse {
+interface ClaudeConfigResponse {
   id: string;
   projectId: string;
   claudeMd: string | null;
@@ -36,19 +36,19 @@ interface CuiConfigResponse {
 }
 
 /**
- * Creates cui-config routes.
+ * Creates claude-config routes.
  */
-export function cuiConfigRoutes(db: Kysely<Database>): Hono {
+export function claudeConfigRoutes(db: Kysely<Database>): Hono {
   const app = new Hono();
   const projectsRepo = new ProjectsRepository(db);
-  const cuiConfigRepo = new ProjectCuiConfigRepository(db);
+  const claudeConfigRepo = new ProjectClaudeConfigRepository(db);
   const commandsRepo = new ProjectCommandsRepository(db);
   const skillsRepo = new ProjectSkillsRepository(db);
 
   /**
    * Helper to transform DB config to API response.
    */
-  function toResponse(config: Awaited<ReturnType<typeof cuiConfigRepo.findByProjectId>>): CuiConfigResponse | null {
+  function toResponse(config: Awaited<ReturnType<typeof claudeConfigRepo.findByProjectId>>): ClaudeConfigResponse | null {
     if (!config) return null;
 
     return {
@@ -65,9 +65,9 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
   }
 
   /**
-   * GET /:projectId/cui-config - Get project cui config
+   * GET /:projectId/claude-config - Get project Claude config
    */
-  app.get('/:projectId/cui-config', async (c) => {
+  app.get('/:projectId/claude-config', async (c) => {
     const projectId = c.req.param('projectId');
 
     // Verify project exists
@@ -77,15 +77,15 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
     }
 
     // Find or create config with defaults
-    const config = await cuiConfigRepo.findOrCreate(projectId);
+    const config = await claudeConfigRepo.findOrCreate(projectId);
     return c.json(toResponse(config), 200);
   });
 
   /**
-   * PUT /:projectId/cui-config - Update/create project cui config
+   * PUT /:projectId/claude-config - Update/create project Claude config
    * T080: Requires admin access to modify config
    */
-  app.put('/:projectId/cui-config', requireAuth(), requireProjectAdmin(), async (c) => {
+  app.put('/:projectId/claude-config', requireAuth(), requireProjectAdmin(), async (c) => {
     const projectId = c.req.param('projectId');
 
     // Verify project exists
@@ -102,7 +102,7 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
       return c.json({ error: 'Invalid JSON body' }, 400);
     }
 
-    const result = v.safeParse(UpdateCuiConfigSchema, body);
+    const result = v.safeParse(UpdateClaudeConfigSchema, body);
     if (!result.success) {
       const issues = result.issues.map((i) => i.message).join(', ');
       return c.json({ error: `Validation failed: ${issues}` }, 400);
@@ -111,7 +111,7 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
     const input = result.output;
 
     // Build update data
-    const updateData: Parameters<typeof cuiConfigRepo.upsert>[1] = {};
+    const updateData: Parameters<typeof claudeConfigRepo.upsert>[1] = {};
 
     if (input.claudeMd !== undefined) {
       updateData.claude_md = input.claudeMd;
@@ -130,15 +130,15 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
     }
 
     // Upsert config
-    const config = await cuiConfigRepo.upsert(projectId, updateData);
+    const config = await claudeConfigRepo.upsert(projectId, updateData);
     return c.json(toResponse(config), 200);
   });
 
   /**
-   * DELETE /:projectId/cui-config - Delete project cui config
+   * DELETE /:projectId/claude-config - Delete project Claude config
    * T080: Requires admin access to delete config
    */
-  app.delete('/:projectId/cui-config', requireAuth(), requireProjectAdmin(), async (c) => {
+  app.delete('/:projectId/claude-config', requireAuth(), requireProjectAdmin(), async (c) => {
     const projectId = c.req.param('projectId');
 
     // Verify project exists
@@ -148,17 +148,17 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
     }
 
     // Delete config (ok if doesn't exist)
-    await cuiConfigRepo.deleteByProjectId(projectId);
+    await claudeConfigRepo.deleteByProjectId(projectId);
     return c.json({ success: true }, 200);
   });
 
   /**
-   * GET /:projectId/cui-config/preview - Preview rendered config
+   * GET /:projectId/claude-config/preview - Preview rendered config
    *
    * Returns the config as it would be rendered for a session,
    * including template variable substitution.
    */
-  app.get('/:projectId/cui-config/preview', async (c) => {
+  app.get('/:projectId/claude-config/preview', async (c) => {
     const projectId = c.req.param('projectId');
 
     // Verify project exists
@@ -168,7 +168,7 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
     }
 
     // Get config (or defaults)
-    const config = await cuiConfigRepo.findOrCreate(projectId);
+    const config = await claudeConfigRepo.findOrCreate(projectId);
     const response = toResponse(config);
 
     if (!response) {

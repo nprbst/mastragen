@@ -8,11 +8,11 @@ import { runMigrations as runMigrations003 } from '../../../src/db/migrations/00
 import type { Database } from '../../../src/db/types.ts';
 import { ProjectsRepository } from '../../../src/repositories/index.ts';
 
-// Test T038: Unit test for cui-injection service config generation
+// Test T038: Unit test for claude-injection service config generation
 
-const TEST_DB_PATH = './data/test-cui-injection.db';
+const TEST_DB_PATH = './data/test-claude-injection.db';
 
-describe('cui-injection service', () => {
+describe('claude-injection service', () => {
   let db: Kysely<Database>;
   let projectsRepo: ProjectsRepository;
   let testProjectId: string;
@@ -54,8 +54,8 @@ describe('cui-injection service', () => {
 
   describe('generateSettings', () => {
     test('should generate settings.json with default structure', async () => {
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       const settings = await service.generateSettings({
         projectId: testProjectId,
@@ -70,7 +70,7 @@ describe('cui-injection service', () => {
 
     test('should include project-specific MCP servers', async () => {
       // Configure MCP server for project
-      await db.insertInto('project_cui_config').values({
+      await db.insertInto('project_claude_config').values({
         id: 'config-1',
         project_id: testProjectId,
         mcp_servers: JSON.stringify({
@@ -86,8 +86,8 @@ describe('cui-injection service', () => {
         updated_at: new Date().toISOString(),
       }).execute();
 
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       const settings = await service.generateSettings({
         projectId: testProjectId,
@@ -100,7 +100,7 @@ describe('cui-injection service', () => {
     });
 
     test('should interpolate environment variables', async () => {
-      await db.insertInto('project_cui_config').values({
+      await db.insertInto('project_claude_config').values({
         id: 'config-2',
         project_id: testProjectId,
         mcp_servers: JSON.stringify({
@@ -115,8 +115,8 @@ describe('cui-injection service', () => {
         updated_at: new Date().toISOString(),
       }).execute();
 
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       const settings = await service.generateSettings({
         projectId: testProjectId,
@@ -131,8 +131,8 @@ describe('cui-injection service', () => {
 
   describe('generateClaudeMd', () => {
     test('should generate CLAUDE.md with project name', async () => {
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       const claudeMd = await service.generateClaudeMd({
         projectId: testProjectId,
@@ -144,7 +144,7 @@ describe('cui-injection service', () => {
     });
 
     test('should include custom CLAUDE.md content from config', async () => {
-      await db.insertInto('project_cui_config').values({
+      await db.insertInto('project_claude_config').values({
         id: 'config-3',
         project_id: testProjectId,
         claude_md: '## Custom Instructions\n\nAlways use TypeScript.\n',
@@ -152,8 +152,8 @@ describe('cui-injection service', () => {
         updated_at: new Date().toISOString(),
       }).execute();
 
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       const claudeMd = await service.generateClaudeMd({
         projectId: testProjectId,
@@ -168,8 +168,8 @@ describe('cui-injection service', () => {
 
   describe('injectSessionEnvVars', () => {
     test('should include session-specific env vars', async () => {
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       const envVars = await service.getSessionEnvVars({
         projectId: testProjectId,
@@ -184,8 +184,8 @@ describe('cui-injection service', () => {
     });
 
     test('should merge project env vars with session env vars', async () => {
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       const envVars = await service.getSessionEnvVars({
         projectId: testProjectId,
@@ -205,15 +205,15 @@ describe('cui-injection service', () => {
 
   describe('generateCommandFiles', () => {
     test('should include built-in commands', async () => {
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       const commands = await service.getCommands({
         projectId: testProjectId,
         environment: 'dev',
       });
 
-      // Built-in commands from cui-commands/ directory
+      // Built-in commands from claude-commands/ directory
       const commandNames = commands.map(c => c.name);
       // At minimum we expect the standard commands to eventually exist
       expect(Array.isArray(commands)).toBe(true);
@@ -231,8 +231,8 @@ describe('cui-injection service', () => {
         updated_at: new Date().toISOString(),
       }).execute();
 
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       const commands = await service.getCommands({
         projectId: testProjectId,
@@ -247,8 +247,8 @@ describe('cui-injection service', () => {
 
   describe('error handling', () => {
     test('should throw error for non-existent project', async () => {
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       await expect(
         service.generateSettings({
@@ -260,8 +260,8 @@ describe('cui-injection service', () => {
     });
 
     test('should throw error for non-existent environment', async () => {
-      const { CuiInjectionService } = await import('../../../src/services/cui-injection.ts');
-      const service = new CuiInjectionService(db);
+      const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
+      const service = new ClaudeInjectionService(db);
 
       await expect(
         service.generateSettings({

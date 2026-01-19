@@ -58,6 +58,6 @@ export type ApiClient = ReturnType<typeof createApiClient>;
  *   artifactName: 'my-artifact',
  *   environment: 'development',
  * });
- * console.log(session.urls.cui);
+ * console.log(session.urls.vscode);
  * ```
  */

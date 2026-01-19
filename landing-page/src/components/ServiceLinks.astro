@@ -8,10 +8,9 @@ export interface Props {
 const { sessionId, baseHost = 'localhost', hasAstro = true } = Astro.props;
 
 const services = [
-  { name: 'cui', port: 3001, icon: '⌘', description: 'Claude UI' },
+  { name: 'VS Code', port: 8080, icon: '⟨⟩', description: 'Code Editor with Claude' },
   { name: 'Mastra', port: 4111, icon: '◉', description: 'Mastra API' },
   ...(hasAstro ? [{ name: 'Astro', port: 4321, icon: '◎', description: 'Astro Dev Server' }] : []),
-  { name: 'VS Code', port: 8080, icon: '⟨⟩', description: 'Code Editor' },
 ];
 ---
 

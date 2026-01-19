@@ -1,6 +1,26 @@
 #!/bin/bash
 set -e
 
+# Configure git credentials from GITHUB_TOKEN if provided
+if [ -n "$GITHUB_TOKEN" ]; then
+    git config --global credential.helper store
+    echo "https://x-access-token:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
+
+    if [ -z "$(git config --global user.email)" ]; then
+        git config --global user.email "mastragen@local"
+        git config --global user.name "Mastragen"
+    fi
+fi
+
+# Ensure .claude directory structure exists
+mkdir -p /home/coder/.claude/commands
+mkdir -p /home/coder/.claude/projects/-workspace
+
+# Source session environment variables if present (injected by orchestrator)
+if [ -f /home/coder/.claude/env.sh ]; then
+    source /home/coder/.claude/env.sh
+fi
+
 # Install/update extensions (always get latest)
 code-server --install-extension oven.bun-vscode --force 2>/dev/null || true
 code-server --install-extension astro-build.astro-vscode --force 2>/dev/null || true

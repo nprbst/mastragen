@@ -17,9 +17,9 @@ export const McpServersSchema = v.record(v.string(), McpServerConfigSchema);
 export type McpServers = v.InferOutput<typeof McpServersSchema>;
 
 /**
- * Project cui config schema.
+ * Project Claude config schema.
  */
-export const ProjectCuiConfigSchema = v.object({
+export const ProjectClaudeConfigSchema = v.object({
   id: v.string(),
   project_id: v.string(),
   mcp_servers: v.string(), // JSON string
@@ -30,12 +30,12 @@ export const ProjectCuiConfigSchema = v.object({
   created_at: v.string(),
   updated_at: v.string(),
 });
-export type ProjectCuiConfigType = v.InferOutput<typeof ProjectCuiConfigSchema>;
+export type ProjectClaudeConfigType = v.InferOutput<typeof ProjectClaudeConfigSchema>;
 
 /**
- * Parsed cui config (with JSON fields parsed).
+ * Parsed Claude config (with JSON fields parsed).
  */
-export const ParsedCuiConfigSchema = v.object({
+export const ParsedClaudeConfigSchema = v.object({
   id: v.string(),
   project_id: v.string(),
   mcp_servers: McpServersSchema,
@@ -46,24 +46,24 @@ export const ParsedCuiConfigSchema = v.object({
   created_at: v.string(),
   updated_at: v.string(),
 });
-export type ParsedCuiConfig = v.InferOutput<typeof ParsedCuiConfigSchema>;
+export type ParsedClaudeConfig = v.InferOutput<typeof ParsedClaudeConfigSchema>;
 
 /**
- * Create/update cui config request schema.
+ * Create/update Claude config request schema.
  */
-export const CuiConfigUpdateSchema = v.object({
+export const ClaudeConfigUpdateSchema = v.object({
   mcp_servers: v.optional(McpServersSchema),
   claude_md: v.optional(v.nullable(v.string())),
   auto_approve_file_patterns: v.optional(v.array(v.string())),
   auto_approve_mcp_tools: v.optional(v.array(v.string())),
   auto_approve_bash_commands: v.optional(v.array(v.string())),
 });
-export type CuiConfigUpdate = v.InferOutput<typeof CuiConfigUpdateSchema>;
+export type ClaudeConfigUpdate = v.InferOutput<typeof ClaudeConfigUpdateSchema>;
 
 /**
- * cui settings.json schema (for injection).
+ * Claude settings.json schema (for injection).
  */
-export const CuiSettingsSchema = v.object({
+export const ClaudeSettingsSchema = v.object({
   mcpServers: v.optional(McpServersSchema),
   permissions: v.optional(
     v.object({
@@ -72,12 +72,12 @@ export const CuiSettingsSchema = v.object({
     })
   ),
 });
-export type CuiSettings = v.InferOutput<typeof CuiSettingsSchema>;
+export type ClaudeSettings = v.InferOutput<typeof ClaudeSettingsSchema>;
 
 /**
- * Parse a raw cui config from database.
+ * Parse a raw Claude config from database.
  */
-export function parseCuiConfig(raw: ProjectCuiConfigType): ParsedCuiConfig {
+export function parseClaudeConfig(raw: ProjectClaudeConfigType): ParsedClaudeConfig {
   return {
     id: raw.id,
     project_id: raw.project_id,
@@ -92,9 +92,9 @@ export function parseCuiConfig(raw: ProjectCuiConfigType): ParsedCuiConfig {
 }
 
 /**
- * Serialize a cui config for database storage.
+ * Serialize a Claude config for database storage.
  */
-export function serializeCuiConfig(config: CuiConfigUpdate): {
+export function serializeClaudeConfig(config: ClaudeConfigUpdate): {
   mcp_servers?: string;
   auto_approve_file_patterns?: string;
   auto_approve_mcp_tools?: string;

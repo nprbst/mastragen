@@ -27,7 +27,7 @@ export interface UpdateCommandInput {
 
 /**
  * Repository for managing project commands.
- * Commands are custom slash commands available in cui sessions.
+ * Commands are custom slash commands available in Claude sessions.
  */
 export class ProjectCommandsRepository {
   constructor(private db: Kysely<Database>) {}

@@ -166,7 +166,7 @@ describe('Git Workflow E2E', () => {
       expect(createResult.session.user_id).toBe('lifecycle-user');
       expect(createResult.session.branch_name).toMatch(/^mg\/lifecycle-user\/full-lifecycle-test-/);
       expect(createResult.urls).toBeDefined();
-      expect(createResult.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+      expect(createResult.urls.vscode).toMatch(/^http:\/\/localhost:\d+/);
 
       const sessionId = createResult.session.id;
 

@@ -16,7 +16,6 @@ import {
  * Service URLs for active sessions.
  */
 export const ServiceUrlsSchema = v.object({
-  cui: v.string(),
   mastra: v.string(),
   astro: v.nullable(v.string()),
   vscode: v.string(),

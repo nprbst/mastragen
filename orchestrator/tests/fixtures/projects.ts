@@ -2,7 +2,7 @@
 export const testProjects = {
   withConfig: {
     id: 'proj-with-config-001',
-    name: 'Project with cui Config',
+    name: 'Project with Claude Config',
     github_repo: 'org/project-with-config',
     default_branch: 'main',
     branch_prefix: 'feature/',
@@ -20,10 +20,10 @@ export const testProjects = {
   },
 };
 
-// Test cui config fixtures
-export const testCuiConfigs = {
+// Test Claude config fixtures
+export const testClaudeConfigs = {
   full: {
-    id: 'cui-config-full-001',
+    id: 'claude-config-full-001',
     project_id: testProjects.withConfig.id,
     mcp_servers: JSON.stringify({
       'test-server': {
@@ -38,7 +38,7 @@ export const testCuiConfigs = {
     auto_approve_bash_commands: JSON.stringify(['npm test', 'npm run build']),
   },
   empty: {
-    id: 'cui-config-empty-001',
+    id: 'claude-config-empty-001',
     project_id: testProjects.minimal.id,
     mcp_servers: '{}',
     claude_md: null,

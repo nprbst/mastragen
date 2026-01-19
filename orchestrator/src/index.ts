@@ -6,6 +6,7 @@ import { createDatabase } from './db/index.ts';
 import { runMigrations as runMigrations001 } from './db/migrations/001_initial.ts';
 import { runMigrations as runMigrations002 } from './db/migrations/002_git_fields.ts';
 import { runMigrations as runMigrations003 } from './db/migrations/003_cui_config.ts';
+import { runMigrations as runMigrations005 } from './db/migrations/005_rename_cui_to_claude.ts';
 import {
   createAuthRoutes,
   healthRoutes,
@@ -24,6 +25,7 @@ const db = createDatabase(config.databasePath);
 await runMigrations001(db);
 await runMigrations002(db);
 await runMigrations003(db);
+await runMigrations005(db);
 
 // Create Hono app
 const app = new Hono();

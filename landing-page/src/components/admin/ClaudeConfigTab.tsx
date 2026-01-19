@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createAuthHeaders } from '../../lib/auth';
 
-interface CuiConfig {
+interface ClaudeConfig {
   id: string;
   projectId: string;
   claudeMd: string | null;
@@ -13,12 +13,12 @@ interface CuiConfig {
   updatedAt: string;
 }
 
-interface CuiConfigTabProps {
+interface ClaudeConfigTabProps {
   projectId: string;
   orchestratorUrl: string;
 }
 
-export default function CuiConfigTab({ projectId, orchestratorUrl }: CuiConfigTabProps) {
+export default function ClaudeConfigTab({ projectId, orchestratorUrl }: ClaudeConfigTabProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,11 +37,11 @@ export default function CuiConfigTab({ projectId, orchestratorUrl }: CuiConfigTa
 
   async function fetchConfig() {
     try {
-      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/cui-config`, {
+      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/claude-config`, {
         headers: createAuthHeaders(),
       });
       if (!response.ok) throw new Error('Failed to fetch config');
-      const data = await response.json() as CuiConfig;
+      const data = await response.json() as ClaudeConfig;
 
       // Populate form
       setClaudeMd(data.claudeMd || '');
@@ -70,7 +70,7 @@ export default function CuiConfigTab({ projectId, orchestratorUrl }: CuiConfigTa
         throw new Error('Invalid MCP servers JSON');
       }
 
-      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/cui-config`, {
+      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/claude-config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -112,9 +112,9 @@ export default function CuiConfigTab({ projectId, orchestratorUrl }: CuiConfigTa
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-lg font-medium text-gray-900">cui Configuration</h3>
+        <h3 className="text-lg font-medium text-gray-900">Claude Configuration</h3>
         <p className="text-sm text-gray-500 mt-1">
-          Configure MCP servers, CLAUDE.md, and auto-approve patterns for cui sessions.
+          Configure MCP servers, CLAUDE.md, and auto-approve patterns for Claude sessions.
         </p>
       </div>
 
@@ -144,7 +144,7 @@ export default function CuiConfigTab({ projectId, orchestratorUrl }: CuiConfigTa
           placeholder='{\n  "filesystem": {\n    "command": "npx",\n    "args": ["-y", "@modelcontextprotocol/server-filesystem"]\n  }\n}'
         />
         <p className="mt-1 text-xs text-gray-500">
-          Define MCP servers that will be available in cui sessions.
+          Define MCP servers that will be available in Claude sessions.
         </p>
       </div>
 

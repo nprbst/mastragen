@@ -12,7 +12,7 @@ export interface Database {
   // Phase 3 tables
   github_app_installations: GithubAppInstallationsTable;
   users: UsersTable;
-  project_cui_config: ProjectCuiConfigTable;
+  project_claude_config: ProjectClaudeConfigTable;
   project_commands: ProjectCommandsTable;
   project_skills: ProjectSkillsTable;
   session_shares: SessionSharesTable;
@@ -64,7 +64,6 @@ export interface SessionsTable {
   state: Generated<SessionStateType>;
   container_id: string | null;
   workspace_volume: string | null;
-  cui_auth_token: string | null;
   user_id: string | null;
   branch_name: string | null;
   last_commit_sha: string | null;
@@ -132,9 +131,9 @@ export interface UsersTable {
 }
 
 /**
- * cui configuration for a project (MCP servers, CLAUDE.md, auto-approve patterns).
+ * Claude configuration for a project (MCP servers, CLAUDE.md, auto-approve patterns).
  */
-export interface ProjectCuiConfigTable {
+export interface ProjectClaudeConfigTable {
   id: Generated<string>;
   project_id: string;
   mcp_servers: Generated<string>; // JSON object
@@ -194,10 +193,10 @@ export type User = Selectable<UsersTable>;
 export type NewUser = Insertable<UsersTable>;
 export type UserUpdate = Updateable<UsersTable>;
 
-// Convenience types for ProjectCuiConfig
-export type ProjectCuiConfig = Selectable<ProjectCuiConfigTable>;
-export type NewProjectCuiConfig = Insertable<ProjectCuiConfigTable>;
-export type ProjectCuiConfigUpdate = Updateable<ProjectCuiConfigTable>;
+// Convenience types for ProjectClaudeConfig
+export type ProjectClaudeConfig = Selectable<ProjectClaudeConfigTable>;
+export type NewProjectClaudeConfig = Insertable<ProjectClaudeConfigTable>;
+export type ProjectClaudeConfigUpdate = Updateable<ProjectClaudeConfigTable>;
 
 // Convenience types for ProjectCommands
 export type ProjectCommand = Selectable<ProjectCommandsTable>;

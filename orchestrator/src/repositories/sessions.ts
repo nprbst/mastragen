@@ -9,7 +9,6 @@ export interface CreateSessionInput {
   environment: string;
   container_id?: string | null;
   workspace_volume?: string | null;
-  cui_auth_token?: string | null;
   user_id?: string | null;
   branch_name?: string | null;
 }
@@ -46,7 +45,6 @@ export class SessionsRepository {
       environment: input.environment,
       container_id: input.container_id ?? null,
       workspace_volume: input.workspace_volume ?? null,
-      cui_auth_token: input.cui_auth_token ?? null,
       user_id: input.user_id ?? null,
       branch_name: input.branch_name ?? null,
       last_activity_at: now,

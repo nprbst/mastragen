@@ -1,21 +1,21 @@
 import Docker from 'dockerode';
 
 /**
- * Service for persisting and restoring CUI conversation history.
+ * Service for persisting and restoring Claude Code conversation history.
  *
- * CUI stores conversation history in /home/bun/.claude/projects/-workspace/*.jsonl
- * This service copies history to/from the workspace's .cui/ directory so it
+ * Claude Code stores conversation history in /home/coder/.claude/projects/-workspace/*.jsonl
+ * This service copies history to/from the workspace's .claude-history/ directory so it
  * can be versioned with git.
  */
-export class CuiHistoryService {
+export class ClaudeHistoryService {
   private docker: Docker;
   private containerId: string;
   private workspacePath: string;
 
-  // CUI stores history in this directory inside the container
-  private static readonly CUI_HISTORY_PATH = '/home/bun/.claude/projects/-workspace';
+  // Claude Code stores history in this directory inside the container
+  private static readonly CLAUDE_HISTORY_PATH = '/home/coder/.claude/projects/-workspace';
   // Directory in workspace where history is persisted for git
-  private static readonly WORKSPACE_HISTORY_DIR = '.cui';
+  private static readonly WORKSPACE_HISTORY_DIR = '.claude-history';
 
   constructor(options: { docker: Docker; containerId: string; workspacePath: string }) {
     this.docker = options.docker;
@@ -24,7 +24,7 @@ export class CuiHistoryService {
   }
 
   /**
-   * Executes a shell command inside the CUI container.
+   * Executes a shell command inside the vscode container.
    */
   private async execShell(cmd: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     const container = this.docker.getContainer(this.containerId);
@@ -75,20 +75,20 @@ export class CuiHistoryService {
   }
 
   /**
-   * Saves CUI conversation history from the container to the workspace.
-   * Copies /home/bun/.claude/projects/-workspace/*.jsonl to {workspace}/.cui/
+   * Saves Claude Code conversation history from the container to the workspace.
+   * Copies /home/coder/.claude/projects/-workspace/*.jsonl to {workspace}/.claude-history/
    *
    * This should be called before git commit during suspend.
    */
-  async saveCuiHistory(): Promise<void> {
-    const destDir = `${this.workspacePath}/${CuiHistoryService.WORKSPACE_HISTORY_DIR}`;
+  async saveClaudeHistory(): Promise<void> {
+    const destDir = `${this.workspacePath}/${ClaudeHistoryService.WORKSPACE_HISTORY_DIR}`;
 
-    // Create the .cui directory in workspace if it doesn't exist
+    // Create the .claude-history directory in workspace if it doesn't exist
     await this.execShell(`mkdir -p ${destDir}`);
 
     // Check if there are any history files to copy
     const checkResult = await this.execShell(
-      `ls -1 ${CuiHistoryService.CUI_HISTORY_PATH}/*.jsonl 2>/dev/null || true`
+      `ls -1 ${ClaudeHistoryService.CLAUDE_HISTORY_PATH}/*.jsonl 2>/dev/null || true`
     );
 
     if (!checkResult.stdout.trim()) {
@@ -96,23 +96,23 @@ export class CuiHistoryService {
       return;
     }
 
-    // Copy all .jsonl files from CUI history to workspace .cui/
+    // Copy all .jsonl files from Claude history to workspace .claude-history/
     // Using cp with -f to overwrite existing files
     await this.execShell(
-      `cp -f ${CuiHistoryService.CUI_HISTORY_PATH}/*.jsonl ${destDir}/ 2>/dev/null || true`
+      `cp -f ${ClaudeHistoryService.CLAUDE_HISTORY_PATH}/*.jsonl ${destDir}/ 2>/dev/null || true`
     );
   }
 
   /**
-   * Restores CUI conversation history from the workspace to the container.
-   * Copies {workspace}/.cui/*.jsonl to /home/bun/.claude/projects/-workspace/
+   * Restores Claude Code conversation history from the workspace to the container.
+   * Copies {workspace}/.claude-history/*.jsonl to /home/coder/.claude/projects/-workspace/
    *
    * This should be called after containers start during resume.
    */
-  async restoreCuiHistory(): Promise<void> {
-    const srcDir = `${this.workspacePath}/${CuiHistoryService.WORKSPACE_HISTORY_DIR}`;
+  async restoreClaudeHistory(): Promise<void> {
+    const srcDir = `${this.workspacePath}/${ClaudeHistoryService.WORKSPACE_HISTORY_DIR}`;
 
-    // Check if .cui directory exists in workspace
+    // Check if .claude-history directory exists in workspace
     const checkResult = await this.execShell(`ls -1 ${srcDir}/*.jsonl 2>/dev/null || true`);
 
     if (!checkResult.stdout.trim()) {
@@ -120,13 +120,13 @@ export class CuiHistoryService {
       return;
     }
 
-    // Ensure CUI history directory exists
-    await this.execShell(`mkdir -p ${CuiHistoryService.CUI_HISTORY_PATH}`);
+    // Ensure Claude history directory exists
+    await this.execShell(`mkdir -p ${ClaudeHistoryService.CLAUDE_HISTORY_PATH}`);
 
-    // Copy all .jsonl files from workspace .cui/ to CUI history location
+    // Copy all .jsonl files from workspace .claude-history/ to Claude history location
     // Using cp with -f to overwrite existing files
     await this.execShell(
-      `cp -f ${srcDir}/*.jsonl ${CuiHistoryService.CUI_HISTORY_PATH}/ 2>/dev/null || true`
+      `cp -f ${srcDir}/*.jsonl ${ClaudeHistoryService.CLAUDE_HISTORY_PATH}/ 2>/dev/null || true`
     );
   }
 }

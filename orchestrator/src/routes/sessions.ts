@@ -77,7 +77,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
   const sandboxService = new SandboxService({
     projectsRepo,
     sessionsRepo,
-    db, // T048: Pass db for cui config injection
+    db, // T048: Pass db for Claude config injection
     dockerEnabled: options.dockerEnabled,
   });
 

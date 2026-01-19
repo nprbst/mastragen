@@ -64,7 +64,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'suspend-git-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/suspend-git-test-abc123',
       });
@@ -107,7 +106,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'no-commits-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/no-commits-test-def456',
       });
@@ -172,7 +170,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'git-workflow-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/git-workflow-test-xyz789',
       });
@@ -234,7 +231,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'no-changes-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/no-changes-test-abc123',
       });
@@ -296,7 +292,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'retry-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/retry-test-abc123',
       });
@@ -333,7 +328,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'resume-git-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/resume-git-test-abc123',
       });
@@ -368,7 +362,7 @@ describe('Sessions Git Routes', () => {
 
       // Verify URLs are present for active session
       expect(result.urls).toBeDefined();
-      expect(result.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+      expect(result.urls.vscode).toMatch(/^http:\/\/localhost:\d+/);
     });
 
     test('returns 409 when session is locked by another pod (T035 requirement)', async () => {
@@ -378,7 +372,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'locked-session',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/locked-session-abc123',
         container_id: 'existing-container-id', // Simulates running containers
@@ -430,7 +423,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'resume-workflow-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/resume-workflow-test-xyz789',
       });
@@ -482,7 +474,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'commit-sha-resume',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/commit-sha-resume-abc123',
       });
@@ -566,7 +557,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'cui-history-suspend-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/cui-history-suspend-test-abc123',
       });
@@ -625,7 +615,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'cui-history-resume-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/cui-history-resume-test-xyz789',
       });
@@ -687,7 +676,6 @@ describe('Sessions Git Routes', () => {
         artifact_name: 'no-history-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'testuser',
         branch_name: 'mg/testuser/no-history-test-abc123',
       });
@@ -758,7 +746,7 @@ describe('Sessions Git Routes', () => {
 
         // Verify URLs are returned
         expect(result.urls).toBeDefined();
-        expect(result.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+        expect(result.urls.vscode).toMatch(/^http:\/\/localhost:\d+/);
       });
 
       test('generates correct branch name format: {prefix}{userId}/{artifactName}-{sessionId}', async () => {

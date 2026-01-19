@@ -20,7 +20,6 @@ interface Environment {
 interface CreateSessionResponse {
   id: string;
   urls?: {
-    cui: string;
     mastra: string;
     astro: string | null;
     vscode: string;
@@ -106,9 +105,9 @@ export function NewSessionForm({ orchestratorUrl = 'http://localhost:4000' }: Ne
 
       const session: CreateSessionResponse = await res.json();
 
-      // Redirect to cui URL
-      if (session.urls?.cui) {
-        window.location.href = session.urls.cui;
+      // Redirect to VS Code URL
+      if (session.urls?.vscode) {
+        window.location.href = session.urls.vscode;
       } else {
         // Fallback to dashboard
         window.location.href = '/';

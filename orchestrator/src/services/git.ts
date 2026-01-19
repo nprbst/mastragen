@@ -401,13 +401,13 @@ export class GitService {
   }
 
   /**
-   * Ensures .gitattributes has .cui/ export-ignore entry.
-   * This excludes the .cui/ directory from git archive exports.
+   * Ensures .gitattributes has .claude-history/ export-ignore entry.
+   * This excludes the .claude-history/ directory from git archive exports.
    */
   async ensureGitAttributes(): Promise<void> {
     try {
       const gitattributesPath = `${this.workspacePath}/.gitattributes`;
-      const exportIgnoreEntry = '.cui/ export-ignore';
+      const exportIgnoreEntry = '.claude-history/ export-ignore';
 
       // Check if .gitattributes exists and read it
       const catResult = await this.execGit(['show', `HEAD:.gitattributes`]).catch(

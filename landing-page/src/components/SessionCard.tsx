@@ -1,7 +1,6 @@
 import type { Session } from '../lib/orpc-client';
 
 export interface ServiceUrls {
-  cui: string;
   mastra: string;
   astro: string | null;
   vscode: string;
@@ -70,10 +69,9 @@ export function SessionCard({ session, urls }: SessionCardProps) {
 
       {isActive && urls && (
         <div className="mt-3 flex flex-wrap gap-2">
-          <ServiceLink href={urls.cui} label="cui" icon="terminal" />
+          <ServiceLink href={urls.vscode} label="VS Code" icon="code" />
           <ServiceLink href={urls.mastra} label="Mastra" icon="api" />
           {urls.astro && <ServiceLink href={urls.astro} label="Astro" icon="web" />}
-          <ServiceLink href={urls.vscode} label="VS Code" icon="code" />
         </div>
       )}
 

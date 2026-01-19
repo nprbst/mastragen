@@ -78,7 +78,6 @@ describe('MgenClient', () => {
         createdAt: '2024-01-17T12:00:00Z',
         updatedAt: '2024-01-17T12:00:00Z',
         urls: {
-          cui: 'http://localhost:3001',
           mastra: 'http://localhost:4111',
           astro: null,
           vscode: 'http://localhost:8080',
@@ -251,7 +250,6 @@ describe('MgenClient', () => {
         createdAt: '2024-01-17T12:00:00Z',
         updatedAt: '2024-01-17T12:00:00Z',
         urls: {
-          cui: 'http://localhost:3001',
           mastra: 'http://localhost:4111',
           astro: null,
           vscode: 'http://localhost:8080',
@@ -339,7 +337,6 @@ describe('MgenClient', () => {
         createdAt: '2024-01-17T12:00:00Z',
         updatedAt: '2024-01-17T13:00:00Z',
         urls: {
-          cui: 'http://localhost:3001',
           mastra: 'http://localhost:4111',
           astro: null,
           vscode: 'http://localhost:8080',

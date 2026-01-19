@@ -1,11 +1,11 @@
 import type { Kysely } from 'kysely';
-import type { Database, ProjectCuiConfig } from '../db/types.ts';
+import type { Database, ProjectClaudeConfig } from '../db/types.ts';
 import { ProjectsRepository } from '../repositories/index.ts';
 
 /**
- * Configuration for generating cui settings.
+ * Configuration for generating Claude settings.
  */
-export interface CuiSettingsConfig {
+export interface ClaudeSettingsConfig {
   projectId: string;
   environment: string;
   sessionId: string;
@@ -41,9 +41,9 @@ export interface McpServerConfig {
 }
 
 /**
- * cui settings.json structure.
+ * Claude settings.json structure.
  */
-export interface CuiSettings {
+export interface ClaudeSettings {
   user: {
     allowedTools: string[];
   };
@@ -54,9 +54,9 @@ export interface CuiSettings {
 }
 
 /**
- * Service for generating and injecting cui configuration into sessions.
+ * Service for generating and injecting Claude configuration into sessions.
  */
-export class CuiInjectionService {
+export class ClaudeInjectionService {
   private db: Kysely<Database>;
   private projectsRepo: ProjectsRepository;
 
@@ -68,7 +68,7 @@ export class CuiInjectionService {
   /**
    * Generate settings.json content for a session.
    */
-  async generateSettings(config: CuiSettingsConfig): Promise<CuiSettings> {
+  async generateSettings(config: ClaudeSettingsConfig): Promise<ClaudeSettings> {
     // Get project
     const project = await this.projectsRepo.findById(config.projectId);
     if (!project) {
@@ -81,14 +81,14 @@ export class CuiInjectionService {
       throw new Error(`Environment not found: ${config.environment}`);
     }
 
-    // Get project cui config
-    const cuiConfig = await this.getCuiConfig(config.projectId);
+    // Get project Claude config
+    const claudeConfig = await this.getClaudeConfig(config.projectId);
 
     // Parse MCP servers from config
     let mcpServers: Record<string, McpServerConfig> = {};
-    if (cuiConfig?.mcp_servers) {
+    if (claudeConfig?.mcp_servers) {
       try {
-        mcpServers = JSON.parse(cuiConfig.mcp_servers);
+        mcpServers = JSON.parse(claudeConfig.mcp_servers);
       } catch {
         // Invalid JSON, use empty object
       }
@@ -112,15 +112,15 @@ export class CuiInjectionService {
   /**
    * Generate CLAUDE.md content for a session.
    */
-  async generateClaudeMd(config: CuiSettingsConfig): Promise<string> {
+  async generateClaudeMd(config: ClaudeSettingsConfig): Promise<string> {
     // Get project
     const project = await this.projectsRepo.findById(config.projectId);
     if (!project) {
       throw new Error(`Project not found: ${config.projectId}`);
     }
 
-    // Get cui config for custom CLAUDE.md content
-    const cuiConfig = await this.getCuiConfig(config.projectId);
+    // Get Claude config for custom CLAUDE.md content
+    const claudeConfig = await this.getClaudeConfig(config.projectId);
 
     let content = `# CLAUDE.md\n\n`;
     content += `Project: ${project.name}\n`;
@@ -128,8 +128,8 @@ export class CuiInjectionService {
     content += `Session: ${config.sessionId}\n\n`;
 
     // Add custom CLAUDE.md content if configured
-    if (cuiConfig?.claude_md) {
-      content += cuiConfig.claude_md;
+    if (claudeConfig?.claude_md) {
+      content += claudeConfig.claude_md;
     }
 
     return content;
@@ -182,11 +182,11 @@ export class CuiInjectionService {
   }
 
   /**
-   * Get cui config for a project.
+   * Get Claude config for a project.
    */
-  private async getCuiConfig(projectId: string): Promise<ProjectCuiConfig | undefined> {
+  private async getClaudeConfig(projectId: string): Promise<ProjectClaudeConfig | undefined> {
     return await this.db
-      .selectFrom('project_cui_config')
+      .selectFrom('project_claude_config')
       .selectAll()
       .where('project_id', '=', projectId)
       .executeTakeFirst();

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import OverviewTab from './admin/OverviewTab';
 import EnvironmentsTab from './admin/EnvironmentsTab';
-import CuiConfigTab from './admin/CuiConfigTab';
+import ClaudeConfigTab from './admin/ClaudeConfigTab';
 import SkillsTab from './admin/SkillsTab';
 import AccessTab from './admin/AccessTab';
 
@@ -22,12 +22,12 @@ interface ProjectTabsProps {
   orchestratorUrl: string;
 }
 
-type TabId = 'overview' | 'environments' | 'cui-config' | 'skills' | 'access';
+type TabId = 'overview' | 'environments' | 'claude-config' | 'skills' | 'access';
 
 const tabs: { id: TabId; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'environments', label: 'Environments' },
-  { id: 'cui-config', label: 'cui Config' },
+  { id: 'claude-config', label: 'Claude Config' },
   { id: 'skills', label: 'Skills' },
   { id: 'access', label: 'Access' },
 ];
@@ -141,8 +141,8 @@ export default function ProjectTabs({ projectId, orchestratorUrl }: ProjectTabsP
             orchestratorUrl={orchestratorUrl}
           />
         )}
-        {activeTab === 'cui-config' && (
-          <CuiConfigTab
+        {activeTab === 'claude-config' && (
+          <ClaudeConfigTab
             projectId={projectId}
             orchestratorUrl={orchestratorUrl}
           />

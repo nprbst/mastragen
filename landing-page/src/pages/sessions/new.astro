@@ -20,7 +20,7 @@ const orchestratorUrl = import.meta.env.PUBLIC_ORCHESTRATOR_URL || 'http://local
       <h1 class="text-xl font-semibold text-gray-900 mb-6">Create New Session</h1>
       <p class="text-sm text-gray-500 mb-6">
         Start a new development session by selecting a project and environment.
-        Your session will be provisioned with the project's cui configuration.
+        Your session will be provisioned with the project's Claude configuration.
       </p>
 
       <NewSessionForm client:load orchestratorUrl={orchestratorUrl} />

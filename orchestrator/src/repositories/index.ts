@@ -8,8 +8,8 @@ export type { CreateSessionInput, SessionFilters } from './sessions.ts';
 export { GithubAppInstallationsRepository } from './github-app-installations.ts';
 export { UsersRepository } from './users.ts';
 export { SessionSharesRepository } from './session-shares.ts';
-export { ProjectCuiConfigRepository } from './project-cui-config.ts';
-export type { CreateCuiConfigInput, UpdateCuiConfigInput } from './project-cui-config.ts';
+export { ProjectClaudeConfigRepository } from './project-claude-config.ts';
+export type { CreateClaudeConfigInput, UpdateClaudeConfigInput } from './project-claude-config.ts';
 
 export { ProjectCommandsRepository } from './project-commands.ts';
 export type { CreateCommandInput, UpdateCommandInput } from './project-commands.ts';

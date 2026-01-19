@@ -21,6 +21,11 @@ ENV PATH="/home/coder/.bun/bin:${PATH}"
 # Copy default settings (dark mode, minimal UI)
 COPY --chown=coder:coder settings.json /home/coder/.local/share/code-server/User/settings.json
 
+# Create .claude directory structure for Claude Code configuration injection
+RUN mkdir -p /home/coder/.claude/commands \
+    && mkdir -p /home/coder/.claude/projects/-workspace \
+    && chown -R coder:coder /home/coder/.claude
+
 # Copy entrypoint script (installs extensions at startup for latest versions)
 COPY --chown=coder:coder entrypoint.sh /home/coder/entrypoint.sh
 RUN chmod +x /home/coder/entrypoint.sh

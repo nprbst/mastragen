@@ -27,7 +27,7 @@ export interface UpdateSkillInput {
 
 /**
  * Repository for managing project skills.
- * Skills are domain knowledge files available in cui sessions.
+ * Skills are domain knowledge files available in Claude sessions.
  */
 export class ProjectSkillsRepository {
   constructor(private db: Kysely<Database>) {}
