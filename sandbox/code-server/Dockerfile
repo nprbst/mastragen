@@ -24,4 +24,4 @@ USER coder
 
 EXPOSE 8080
 
-CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", "/workspace"]
+CMD ["code-server", "--bind-addr", "0.0.0.0:8080", "--auth", "none", "--log", "warn", "/workspace"]
