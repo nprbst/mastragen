@@ -1,7 +1,9 @@
 #!/bin/bash
 set -e
 
-# Install/update Claude Code extension (always get latest)
+# Install/update extensions (always get latest)
+code-server --install-extension oven.bun-vscode --force 2>/dev/null || true
+code-server --install-extension astro-build.astro-vscode --force 2>/dev/null || true
 code-server --install-extension Anthropic.claude-code --force 2>/dev/null || true
 
 # Start code-server
