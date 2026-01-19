@@ -1,8 +1,7 @@
 /**
  * Browser utilities for opening URLs in Chrome incognito mode.
  */
-import { exec, execSync } from 'child_process';
-import { existsSync } from 'fs';
+import { existsSync } from 'node:fs';
 
 export type ServiceName = 'cui' | 'mastra' | 'astro' | 'vscode';
 
@@ -26,10 +25,8 @@ function findChromePath(): string | null {
 
   // Fall back to mdfind (Spotlight) to locate Chrome
   try {
-    const result = execSync('mdfind "kMDItemCFBundleIdentifier == com.google.Chrome"', {
-      encoding: 'utf-8',
-      timeout: 5000,
-    }).trim();
+    const proc = Bun.spawnSync(['mdfind', 'kMDItemCFBundleIdentifier == com.google.Chrome']);
+    const result = proc.stdout.toString().trim();
     if (result) {
       const appPath = result.split('\n')[0];
       const binaryPath = `${appPath}/Contents/MacOS/Google Chrome`;
@@ -58,8 +55,12 @@ export function openInChrome(urls: string[]): void {
   }
 
   // Call Chrome binary directly (open --args doesn't work when Chrome is already running)
-  const args = ['--incognito', ...urls].map((arg) => `"${arg}"`).join(' ');
-  exec(`"${chromePath}" ${args}`);
+  // Use Bun.spawn with unref so CLI exits immediately without waiting for Chrome
+  const proc = Bun.spawn([chromePath, '--incognito', ...urls], {
+    stdout: 'ignore',
+    stderr: 'ignore',
+  });
+  proc.unref();
 }
 
 /**

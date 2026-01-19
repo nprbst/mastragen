@@ -5,6 +5,7 @@ set -e
 code-server --install-extension oven.bun-vscode --force 2>/dev/null || true
 code-server --install-extension astro-build.astro-vscode --force 2>/dev/null || true
 code-server --install-extension Anthropic.claude-code --force 2>/dev/null || true
+code-server --install-extension synedra.auto-run-command --force 2>/dev/null || true
 
 # Start code-server
 exec code-server --bind-addr 0.0.0.0:8080 --auth none --log warn /workspace
