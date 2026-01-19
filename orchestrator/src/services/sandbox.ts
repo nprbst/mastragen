@@ -220,11 +220,11 @@ export class SandboxService {
 
   // Container image names (built from sandbox/ Dockerfiles)
   private static readonly IMAGES = {
-    init: 'mastragen-001-core-platform-foundation-init',
-    cui: 'mastragen-001-core-platform-foundation-cui',
-    mastra: 'mastragen-001-core-platform-foundation-mastra',
-    astro: 'mastragen-001-core-platform-foundation-astro',
-    vscode: 'mastragen-001-core-platform-foundation-code-server',
+    init: 'mastragen-init',
+    cui: 'mastragen-cui',
+    mastra: 'mastragen-mastra',
+    astro: 'mastragen-astro',
+    vscode: 'mastragen-code-server',
   };
 
   // Cache for session -> project mapping (for URL generation)
@@ -1002,33 +1002,33 @@ export class SandboxService {
       env: string[];
       workingDir?: string;
     }> = [
-      {
-        name: `${session.id}-cui`,
-        image: SandboxService.IMAGES.cui,
-        port: SandboxService.PORTS.cui,
-        env: [
-          ...baseEnv,
-          `CUI_AUTH_TOKEN=${session.cui_auth_token || ''}`,
-          ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
-        ],
-      },
-      {
-        name: `${session.id}-mastra`,
-        image: SandboxService.IMAGES.mastra,
-        port: SandboxService.PORTS.mastra,
-        env: baseEnv,
-        workingDir: mastraWorkDir,
-      },
-      {
-        name: `${session.id}-vscode`,
-        image: SandboxService.IMAGES.vscode,
-        port: SandboxService.PORTS.vscode,
-        env: [
-          ...baseEnv,
-          ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
-        ],
-      },
-    ];
+        {
+          name: `${session.id}-cui`,
+          image: SandboxService.IMAGES.cui,
+          port: SandboxService.PORTS.cui,
+          env: [
+            ...baseEnv,
+            `CUI_AUTH_TOKEN=${session.cui_auth_token || ''}`,
+            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
+          ],
+        },
+        {
+          name: `${session.id}-mastra`,
+          image: SandboxService.IMAGES.mastra,
+          port: SandboxService.PORTS.mastra,
+          env: baseEnv,
+          workingDir: mastraWorkDir,
+        },
+        {
+          name: `${session.id}-vscode`,
+          image: SandboxService.IMAGES.vscode,
+          port: SandboxService.PORTS.vscode,
+          env: [
+            ...baseEnv,
+            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
+          ],
+        },
+      ];
 
     // T047: Add astro container only if project has UI sandbox path
     if (project.ui_sandbox_path) {
