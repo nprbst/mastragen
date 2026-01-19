@@ -3,6 +3,7 @@ import type { Kysely } from 'kysely';
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
 import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
+import { createTestJwt } from '../helpers/jwt.ts';
 import { createAuthRoutes } from '../../src/routes/auth.ts';
 import { AuthService } from '../../src/services/auth.ts';
 import type { Database } from '../../src/db/types.ts';
@@ -10,35 +11,6 @@ import type { Database } from '../../src/db/types.ts';
 // Test T011: Integration test for auth routes (login, callback, logout, me, refresh)
 
 const TEST_DB_PATH = './data/test-auth-integration.db';
-
-/**
- * Helper to create a test JWT token.
- */
-function createTestJwt(payload: {
-  sub: string;
-  email: string;
-  name?: string | null;
-  type?: string;
-}, expiresIn: number = 3600): string {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-
-  const fullPayload = {
-    ...payload,
-    iat: now,
-    exp: now + expiresIn,
-  };
-
-  const base64urlEncode = (str: string): string => {
-    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  };
-
-  const headerBase64 = base64urlEncode(JSON.stringify(header));
-  const payloadBase64 = base64urlEncode(JSON.stringify(fullPayload));
-  const signature = base64urlEncode(`${headerBase64}.${payloadBase64}.test-secret`);
-
-  return `${headerBase64}.${payloadBase64}.${signature}`;
-}
 
 describe('Auth routes integration', () => {
   let db: Kysely<Database>;
@@ -161,7 +133,7 @@ describe('Auth routes integration', () => {
     });
 
     test('should clear auth session when authenticated', async () => {
-      const validToken = createTestJwt({
+      const validToken = await createTestJwt({
         sub: testUser.id,
         email: testUser.email,
         name: testUser.name,
@@ -191,7 +163,7 @@ describe('Auth routes integration', () => {
     });
 
     test('should return user info when authenticated', async () => {
-      const validToken = createTestJwt({
+      const validToken = await createTestJwt({
         sub: testUser.id,
         email: testUser.email,
         name: testUser.name,
@@ -209,7 +181,7 @@ describe('Auth routes integration', () => {
     });
 
     test('should not expose sensitive fields', async () => {
-      const validToken = createTestJwt({
+      const validToken = await createTestJwt({
         sub: testUser.id,
         email: testUser.email,
         name: testUser.name,
@@ -235,11 +207,12 @@ describe('Auth routes integration', () => {
 
     test('should return 401 when refresh token is expired', async () => {
       // Create an expired refresh token (expired 1 hour ago)
-      const expiredRefreshToken = createTestJwt({
+      const now = Math.floor(Date.now() / 1000);
+      const expiredRefreshToken = await createTestJwt({
         sub: testUser.id,
         email: testUser.email,
-        type: 'refresh',
-      }, -3600);
+        exp: now - 3600, // Expired 1 hour ago
+      });
 
       const res = await app.request('/auth/refresh', {
         method: 'POST',
@@ -253,7 +226,7 @@ describe('Auth routes integration', () => {
 
     test('should return new access token with valid refresh token', async () => {
       // Use authService to generate a proper refresh token
-      const validRefreshToken = authService.generateRefreshToken(testUser.id);
+      const validRefreshToken = await authService.generateRefreshToken(testUser.id);
 
       const res = await app.request('/auth/refresh', {
         method: 'POST',
@@ -269,7 +242,7 @@ describe('Auth routes integration', () => {
     });
 
     test('should rotate refresh token on use', async () => {
-      const validRefreshToken = authService.generateRefreshToken(testUser.id);
+      const validRefreshToken = await authService.generateRefreshToken(testUser.id);
 
       const res = await app.request('/auth/refresh', {
         method: 'POST',

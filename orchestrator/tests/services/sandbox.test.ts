@@ -122,7 +122,6 @@ describe('SandboxService', () => {
 
       const urls = sandboxService.getServiceUrls(result.session.id);
 
-      expect(urls.mastra).toBe('http://localhost:3001');
       expect(urls.mastra).toBe('http://localhost:4111');
       expect(urls.vscode).toBe('http://localhost:8080');
     });

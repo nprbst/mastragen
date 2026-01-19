@@ -1,9 +1,8 @@
 import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
-import type { Database } from '../types.ts';
 
 /**
- * Migration 004: Rename CUI to Claude
+ * Migration 005: Rename CUI to Claude
  *
  * This migration renames cui-related tables and columns as part of
  * consolidating Claude Code functionality into the VS Code container.
@@ -12,7 +11,8 @@ import type { Database } from '../types.ts';
  * - Renames table `project_cui_config` → `project_claude_config`
  * - Drops column `sessions.cui_auth_token` (no longer needed)
  */
-export async function runMigrations(db: Kysely<Database>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: Schema operations don't require typed database
+export async function up(db: Kysely<any>): Promise<void> {
   // Rename project_cui_config table to project_claude_config
   await sql`ALTER TABLE project_cui_config RENAME TO project_claude_config`.execute(db);
 
@@ -23,9 +23,10 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
 }
 
 /**
- * Rollback migration 004
+ * Rollback migration 005
  */
-export async function rollbackMigrations(db: Kysely<Database>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: Schema operations don't require typed database
+export async function down(db: Kysely<any>): Promise<void> {
   // Rename back to project_cui_config
   await sql`ALTER TABLE project_claude_config RENAME TO project_cui_config`.execute(db);
 

@@ -3,39 +3,12 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database as DatabaseSchema } from '../../src/db/types.ts';
 import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
+import { createTestJwt } from '../helpers/jwt.ts';
 import { claudeConfigRoutes } from '../../src/routes/claude-config.ts';
 import { commandsRoutes } from '../../src/routes/commands.ts';
 import { skillsRoutes } from '../../src/routes/skills.ts';
 
 const TEST_DB_PATH = './data/test-project-admin-integration.db';
-
-/**
- * Helper to create a test JWT token.
- */
-function createTestJwt(payload: {
-  sub: string;
-  email: string;
-  name?: string | null;
-}, expiresIn: number = 3600): string {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const now = Math.floor(Date.now() / 1000);
-
-  const fullPayload = {
-    ...payload,
-    iat: now,
-    exp: now + expiresIn,
-  };
-
-  const base64urlEncode = (str: string): string => {
-    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  };
-
-  const headerBase64 = base64urlEncode(JSON.stringify(header));
-  const payloadBase64 = base64urlEncode(JSON.stringify(fullPayload));
-  const signature = base64urlEncode(`${headerBase64}.${payloadBase64}.test-secret`);
-
-  return `${headerBase64}.${payloadBase64}.${signature}`;
-}
 
 /**
  * T066: Integration test for full project admin workflow
@@ -130,7 +103,7 @@ describe('Project admin workflow', () => {
       .execute();
 
     // Create auth token
-    authToken = createTestJwt({ sub: testUserId, email: 'admin@test.com', name: 'Test Admin' });
+    authToken = await createTestJwt({ sub: testUserId, email: 'admin@test.com', name: 'Test Admin' });
     authHeaders = {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${authToken}`,

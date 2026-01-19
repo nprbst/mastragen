@@ -1,27 +1,13 @@
 import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
-import type { Database } from '../types.ts';
 
 /**
- * Checks if a column exists in a table using PRAGMA table_info.
- * SQLite doesn't support IF NOT EXISTS for ALTER TABLE ADD COLUMN.
- */
-async function columnExists(
-  db: Kysely<Database>,
-  tableName: string,
-  columnName: string
-): Promise<boolean> {
-  const result = await sql<{ name: string }>`PRAGMA table_info(${sql.raw(tableName)})`.execute(db);
-  return result.rows.some((row) => row.name === columnName);
-}
-
-/**
- * Migration 003: cui Configuration & Landing Page (Phase 3)
+ * Migration 003: CUI Configuration & Landing Page (Phase 3)
  *
  * Creates tables for:
  * - github_app_installations (GitHub App installation records)
  * - users (authenticated users from GitHub OAuth)
- * - project_cui_config (cui configuration per project)
+ * - project_cui_config (CUI configuration per project)
  * - project_commands (custom slash commands per project)
  * - project_skills (custom skills per project)
  * - session_shares (session sharing records)
@@ -32,11 +18,11 @@ async function columnExists(
  *
  * Access control is derived from GitHub App installations - no manual membership table.
  */
-export async function runMigrations(db: Kysely<Database>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: Schema operations don't require typed database
+export async function up(db: Kysely<any>): Promise<void> {
   // Create github_app_installations table (must be created before projects references it)
   await db.schema
     .createTable('github_app_installations')
-    .ifNotExists()
     .addColumn('id', 'text', (col) => col.primaryKey())
     .addColumn('installation_id', 'integer', (col) => col.notNull().unique())
     .addColumn('account_type', 'text', (col) => col.notNull())
@@ -52,14 +38,12 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
   // Create indexes for github_app_installations
   await db.schema
     .createIndex('github_app_installations_installation_id_idx')
-    .ifNotExists()
     .on('github_app_installations')
     .column('installation_id')
     .execute();
 
   await db.schema
     .createIndex('github_app_installations_account_idx')
-    .ifNotExists()
     .on('github_app_installations')
     .column('account_login')
     .execute();
@@ -67,7 +51,6 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
   // Create users table (GitHub-specific fields)
   await db.schema
     .createTable('users')
-    .ifNotExists()
     .addColumn('id', 'text', (col) => col.primaryKey())
     .addColumn('email', 'text', (col) => col.notNull().unique())
     .addColumn('name', 'text')
@@ -80,38 +63,20 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
     .execute();
 
   // Create indexes for users
-  await db.schema
-    .createIndex('users_email_idx')
-    .ifNotExists()
-    .on('users')
-    .column('email')
-    .execute();
+  await db.schema.createIndex('users_email_idx').on('users').column('email').execute();
 
-  await db.schema
-    .createIndex('users_github_id_idx')
-    .ifNotExists()
-    .on('users')
-    .column('github_id')
-    .execute();
+  await db.schema.createIndex('users_github_id_idx').on('users').column('github_id').execute();
 
-  await db.schema
-    .createIndex('users_github_login_idx')
-    .ifNotExists()
-    .on('users')
-    .column('github_login')
-    .execute();
+  await db.schema.createIndex('users_github_login_idx').on('users').column('github_login').execute();
 
-  // Extend projects table with installation_id FK (if not already added)
-  if (!(await columnExists(db, 'projects', 'installation_id'))) {
-    await sql`ALTER TABLE projects ADD COLUMN installation_id TEXT REFERENCES github_app_installations(id)`.execute(
-      db
-    );
-  }
+  // Extend projects table with installation_id FK
+  await sql`ALTER TABLE projects ADD COLUMN installation_id TEXT REFERENCES github_app_installations(id)`.execute(
+    db
+  );
 
   // Create project_cui_config table
   await db.schema
     .createTable('project_cui_config')
-    .ifNotExists()
     .addColumn('id', 'text', (col) => col.primaryKey())
     .addColumn('project_id', 'text', (col) =>
       col.notNull().unique().references('projects.id').onDelete('cascade')
@@ -128,7 +93,6 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
   // Create project_commands table
   await db.schema
     .createTable('project_commands')
-    .ifNotExists()
     .addColumn('id', 'text', (col) => col.primaryKey())
     .addColumn('project_id', 'text', (col) =>
       col.notNull().references('projects.id').onDelete('cascade')
@@ -144,7 +108,6 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
   // Create index for project_commands
   await db.schema
     .createIndex('project_commands_project_idx')
-    .ifNotExists()
     .on('project_commands')
     .column('project_id')
     .execute();
@@ -152,7 +115,6 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
   // Create project_skills table
   await db.schema
     .createTable('project_skills')
-    .ifNotExists()
     .addColumn('id', 'text', (col) => col.primaryKey())
     .addColumn('project_id', 'text', (col) =>
       col.notNull().references('projects.id').onDelete('cascade')
@@ -168,7 +130,6 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
   // Create index for project_skills
   await db.schema
     .createIndex('project_skills_project_idx')
-    .ifNotExists()
     .on('project_skills')
     .column('project_id')
     .execute();
@@ -176,7 +137,6 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
   // Create session_shares table
   await db.schema
     .createTable('session_shares')
-    .ifNotExists()
     .addColumn('id', 'text', (col) => col.primaryKey())
     .addColumn('session_id', 'text', (col) =>
       col.notNull().references('sessions.id').onDelete('cascade')
@@ -190,41 +150,35 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
   // Create indexes for session_shares
   await db.schema
     .createIndex('session_shares_session_idx')
-    .ifNotExists()
     .on('session_shares')
     .column('session_id')
     .execute();
 
   await db.schema
     .createIndex('session_shares_shared_with_idx')
-    .ifNotExists()
     .on('session_shares')
     .column('shared_with_user_id')
     .execute();
 
-  // Extend sessions table with last_activity_at column (if not already added)
+  // Extend sessions table with last_activity_at column
   // SQLite ALTER TABLE ADD COLUMN doesn't support non-constant defaults like datetime('now')
   // Add as nullable, backfill existing rows, then handle defaults in application layer
-  if (!(await columnExists(db, 'sessions', 'last_activity_at'))) {
-    await sql`ALTER TABLE sessions ADD COLUMN last_activity_at TEXT`.execute(db);
+  await sql`ALTER TABLE sessions ADD COLUMN last_activity_at TEXT`.execute(db);
 
-    // Backfill existing sessions with current timestamp
-    await sql`UPDATE sessions SET last_activity_at = datetime('now') WHERE last_activity_at IS NULL`.execute(
-      db
-    );
-  }
+  // Backfill existing sessions with current timestamp
+  await sql`UPDATE sessions SET last_activity_at = datetime('now') WHERE last_activity_at IS NULL`.execute(
+    db
+  );
 
   // Create indexes for sessions (for dashboard queries)
   await db.schema
     .createIndex('sessions_user_state_idx')
-    .ifNotExists()
     .on('sessions')
     .columns(['user_id', 'state', 'updated_at'])
     .execute();
 
   await db.schema
     .createIndex('sessions_activity_idx')
-    .ifNotExists()
     .on('sessions')
     .columns(['state', 'last_activity_at'])
     .execute();
@@ -233,7 +187,8 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
 /**
  * Rollback migration 003
  */
-export async function rollbackMigrations(db: Kysely<Database>): Promise<void> {
+// biome-ignore lint/suspicious/noExplicitAny: Schema operations don't require typed database
+export async function down(db: Kysely<any>): Promise<void> {
   // Drop indexes
   await db.schema.dropIndex('sessions_activity_idx').ifExists().execute();
   await db.schema.dropIndex('sessions_user_state_idx').ifExists().execute();

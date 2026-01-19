@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database as DatabaseSchema, Project } from '../../src/db/types.ts';
 import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
+import { createTestJwt } from '../helpers/jwt.ts';
 import { requireAuth, requireProjectAccess, requireProjectAdmin } from '../../src/middleware/auth.ts';
 
 // Type for our app's context variables
@@ -66,15 +67,6 @@ describe('Protected routes with GitHub installation access', () => {
     updated_at: new Date().toISOString(),
   };
 
-  // Create a valid JWT payload for testing
-  function createTestJwt(payload: { sub: string; email: string; name?: string; exp?: number }): string {
-    const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
-    const exp = payload.exp ?? Math.floor(Date.now() / 1000) + 3600;
-    const payloadStr = btoa(JSON.stringify({ ...payload, exp, iat: Math.floor(Date.now() / 1000) }));
-    const signature = btoa('test-signature');
-    return `${header}.${payloadStr}.${signature}`;
-  }
-
   beforeAll(async () => {
     db = await createTestDb(TEST_DB_PATH);
   });
@@ -135,7 +127,7 @@ describe('Protected routes with GitHub installation access', () => {
     });
 
     test('should reject requests with expired JWT', async () => {
-      const expiredToken = createTestJwt({
+      const expiredToken = await createTestJwt({
         sub: testUser.id,
         email: testUser.email,
         exp: Math.floor(Date.now() / 1000) - 3600, // 1 hour ago
@@ -153,7 +145,7 @@ describe('Protected routes with GitHub installation access', () => {
 
   describe('Project access control', () => {
     test('should return 404 for non-existent project', async () => {
-      const token = createTestJwt({ sub: testUser.id, email: testUser.email });
+      const token = await createTestJwt({ sub: testUser.id, email: testUser.email });
 
       const res = await app.request('/projects/non-existent-id/details', {
         headers: { Authorization: `Bearer ${token}` },
@@ -194,7 +186,7 @@ describe('Protected routes with GitHub installation access', () => {
       await db.insertInto('github_app_installations').values(suspendedInstallation).execute();
       await db.insertInto('projects').values(suspendedProject).execute();
 
-      const token = createTestJwt({ sub: testUser.id, email: testUser.email });
+      const token = await createTestJwt({ sub: testUser.id, email: testUser.email });
 
       const res = await app.request(`/projects/${suspendedProject.id}/details`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -221,7 +213,7 @@ describe('Protected routes with GitHub installation access', () => {
       };
       await db.insertInto('projects').values(noInstallProject).execute();
 
-      const token = createTestJwt({ sub: testUser.id, email: testUser.email });
+      const token = await createTestJwt({ sub: testUser.id, email: testUser.email });
 
       const res = await app.request(`/projects/${noInstallProject.id}/details`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -247,7 +239,7 @@ describe('Protected routes with GitHub installation access', () => {
       };
       await db.insertInto('users').values(noTokenUser).execute();
 
-      const token = createTestJwt({ sub: noTokenUser.id, email: noTokenUser.email });
+      const token = await createTestJwt({ sub: noTokenUser.id, email: noTokenUser.email });
 
       const res = await app.request(`/projects/${testProject.id}/details`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -261,7 +253,7 @@ describe('Protected routes with GitHub installation access', () => {
 
   describe('Installation access verification', () => {
     test('should verify user has access to installation via GitHub API', async () => {
-      const token = createTestJwt({ sub: testUser.id, email: testUser.email });
+      const token = await createTestJwt({ sub: testUser.id, email: testUser.email });
 
       // Mock GitHub API
       const originalFetch = globalThis.fetch;
@@ -290,7 +282,7 @@ describe('Protected routes with GitHub installation access', () => {
     });
 
     test('should deny access when user is not in installation', async () => {
-      const token = createTestJwt({ sub: testUser.id, email: testUser.email });
+      const token = await createTestJwt({ sub: testUser.id, email: testUser.email });
 
       // Mock GitHub API to return different installations
       const originalFetch = globalThis.fetch;
@@ -320,7 +312,7 @@ describe('Protected routes with GitHub installation access', () => {
 
   describe('Admin access control', () => {
     test('should deny admin access to non-admin users', async () => {
-      const token = createTestJwt({ sub: testUser.id, email: testUser.email });
+      const token = await createTestJwt({ sub: testUser.id, email: testUser.email });
 
       // Mock GitHub API for both installation access and repo permissions
       const originalFetch = globalThis.fetch;
@@ -361,7 +353,7 @@ describe('Protected routes with GitHub installation access', () => {
     });
 
     test('should allow admin access to repository admins', async () => {
-      const token = createTestJwt({ sub: testUser.id, email: testUser.email });
+      const token = await createTestJwt({ sub: testUser.id, email: testUser.email });
 
       // Mock GitHub API for both installation access and repo permissions
       const originalFetch = globalThis.fetch;
