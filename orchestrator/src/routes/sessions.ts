@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database, Session } from '../db/types.ts';
-import { ProjectsRepository, SessionsRepository } from '../repositories/index.ts';
+import { ProjectsRepository, SessionsRepository, SessionSharesRepository, UsersRepository } from '../repositories/index.ts';
 import {
   CreateSessionRequestSchema,
   ListSessionsFilterSchema,
@@ -21,6 +21,9 @@ import {
   SessionNotActiveError,
   SessionNotFoundError,
 } from '../services/sandbox.ts';
+import { getTailscaleService } from '../services/tailscale.ts';
+import { getAuthUser, requireAuth } from '../middleware/auth.ts';
+import { getAuditLogger } from '../services/audit-logger.ts';
 
 /**
  * Transforms a database session to API response format.
@@ -53,16 +56,29 @@ function toSessionWithGitResponse(session: Session): SessionWithGitResponse {
 }
 
 /**
+ * Options for sessions routes.
+ */
+export interface SessionsRoutesOptions {
+  dockerEnabled?: boolean;
+}
+
+/**
  * Creates session management routes.
  */
-export function sessionsRoutes(db: Kysely<Database>): Hono {
+export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOptions = {}): Hono {
   const app = new Hono();
 
   const projectsRepo = new ProjectsRepository(db);
   const sessionsRepo = new SessionsRepository(db);
+  const sessionSharesRepo = new SessionSharesRepository(db);
+  const usersRepo = new UsersRepository(db);
+  const tailscaleService = getTailscaleService();
+  const auditLogger = getAuditLogger();
   const sandboxService = new SandboxService({
     projectsRepo,
     sessionsRepo,
+    db, // T048: Pass db for cui config injection
+    dockerEnabled: options.dockerEnabled,
   });
 
   // POST /sessions - Create a new session
@@ -185,11 +201,16 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
     }
   });
 
-  // GET /sessions - List all sessions with optional filters
+  // GET /sessions - List all sessions with optional filters and pagination
   app.get('/', async (c) => {
     const rawFilter = {
       state: c.req.query('state'),
       projectId: c.req.query('projectId'),
+      userId: c.req.query('userId'),
+      sharedWithMe: c.req.query('sharedWithMe'),
+      includeProject: c.req.query('includeProject'),
+      limit: c.req.query('limit'),
+      offset: c.req.query('offset'),
     };
 
     // Validate query parameters with Valibot
@@ -207,6 +228,9 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
     const sessions = await sessionsRepo.findAll({
       state: filter.state,
       projectId: filter.projectId,
+      userId: filter.userId,
+      limit: filter.limit,
+      offset: filter.offset,
     });
 
     return c.json(sessions.map(toSessionResponse), 200);
@@ -253,6 +277,240 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
       console.error('Error cleaning up session:', error);
       return c.json({ error: 'Internal server error' }, 500);
     }
+  });
+
+  // POST /sessions/:id/pr - Create a pull request (T095)
+  app.post('/:id/pr', async (c) => {
+    const id = c.req.param('id');
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    if (session.state !== 'active') {
+      return c.json({ error: 'Session must be active to create PR' }, 400);
+    }
+
+    let body: { title?: string; body?: string; base?: string };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON body' }, 400);
+    }
+
+    if (!body.title) {
+      return c.json({ error: 'Title is required' }, 400);
+    }
+
+    // Get project for repo info
+    const project = await projectsRepo.findById(session.project_id);
+    if (!project || !project.github_repo) {
+      return c.json({ error: 'Project not found or has no GitHub repo' }, 400);
+    }
+
+    // TODO: Get user's GitHub access token from auth context
+    // For now, return a placeholder response
+    return c.json({
+      url: `https://github.com/${project.github_repo}/pull/new/${session.branch_name}`,
+      branch: session.branch_name,
+      status: 'pending_implementation',
+    }, 200);
+  });
+
+  // POST /sessions/:id/share - Share a session (T097, T062)
+  // Requires authentication to share sessions
+  app.post('/:id/share', requireAuth(), async (c) => {
+    const id = c.req.param('id');
+    const authUser = getAuthUser(c);
+
+    if (!authUser) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    // Only active sessions can be shared
+    if (session.state !== 'active') {
+      return c.json({ error: 'Only active sessions can be shared' }, 400);
+    }
+
+    let body: { email?: string };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON body' }, 400);
+    }
+
+    if (!body.email) {
+      return c.json({ error: 'Email is required' }, 400);
+    }
+
+    // Cannot share with self
+    if (body.email === authUser.email) {
+      return c.json({ error: 'Cannot share session with yourself' }, 400);
+    }
+
+    // Look up the target user by email
+    const targetUser = await usersRepo.findByEmail(body.email);
+    if (!targetUser) {
+      return c.json({ error: 'User not found with that email' }, 404);
+    }
+
+    // Check if already shared with this user
+    const existingShare = await sessionSharesRepo.findActiveShare(id, targetUser.id);
+    if (existingShare) {
+      return c.json({ error: 'Session already shared with this user' }, 409);
+    }
+
+    // Create the share record in the database
+    const share = await sessionSharesRepo.create({
+      sessionId: id,
+      sharedByUserId: authUser.id,
+      sharedWithUserId: targetUser.id,
+    });
+
+    // T062: Grant Tailscale access for the sandbox
+    // Sandbox device name follows convention: session-{sessionId}
+    const sandboxDeviceName = `session-${id}`;
+    await tailscaleService.grantSessionAccess({
+      sessionId: id,
+      sandboxDeviceName,
+      targetUserEmail: body.email,
+      sharedByUserId: authUser.id,
+    });
+
+    // Log the share event
+    auditLogger.logShareEvent({
+      action: 'grant',
+      sessionId: id,
+      sharedByUserId: authUser.id,
+      sharedWithUserId: targetUser.id,
+      sharedWithEmail: body.email,
+      shareId: share.id,
+    });
+
+    return c.json({
+      shareId: share.id,
+      sharedWithEmail: body.email,
+      sharedWithUserId: targetUser.id,
+      accessUrl: `https://${sandboxDeviceName}.ts.net`,
+      createdAt: share.granted_at,
+    }, 201);
+  });
+
+  // GET /sessions/:id/shares - List session shares (T100)
+  app.get('/:id/shares', async (c) => {
+    const id = c.req.param('id');
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    // Get all active shares for this session
+    const shares = await sessionSharesRepo.getSessionShares(id);
+
+    return c.json(shares.map(share => ({
+      id: share.id,
+      sessionId: share.session_id,
+      sharedByUserId: share.shared_by_user_id,
+      sharedWithUserId: share.shared_with_user_id,
+      sharedWithEmail: share.shared_with_email,
+      sharedWithName: share.shared_with_name,
+      grantedAt: share.granted_at,
+    })), 200);
+  });
+
+  // DELETE /sessions/:id/shares/:shareId - Revoke a share (T099, T062)
+  // Requires authentication to revoke shares
+  app.delete('/:id/shares/:shareId', requireAuth(), async (c) => {
+    const id = c.req.param('id');
+    const shareId = c.req.param('shareId');
+    const authUser = getAuthUser(c);
+
+    if (!authUser) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    // Find the share
+    const share = await sessionSharesRepo.findById(shareId);
+    if (!share) {
+      return c.json({ error: `Share not found: ${shareId}` }, 404);
+    }
+
+    // Verify the share belongs to this session
+    if (share.session_id !== id) {
+      return c.json({ error: 'Share does not belong to this session' }, 400);
+    }
+
+    // Check if already revoked
+    if (share.revoked_at) {
+      return c.json({ error: 'Share already revoked' }, 400);
+    }
+
+    // Get the shared user's email for Tailscale revocation
+    const sharedWithUser = await usersRepo.findById(share.shared_with_user_id);
+    const sharedWithEmail = sharedWithUser?.email || '';
+
+    // Revoke the share in the database
+    await sessionSharesRepo.revoke(shareId);
+
+    // T062: Revoke Tailscale access for the sandbox
+    const sandboxDeviceName = `session-${id}`;
+    await tailscaleService.revokeSessionAccess({
+      sessionId: id,
+      sandboxDeviceName,
+      targetUserEmail: sharedWithEmail,
+      revokedByUserId: authUser.id,
+    });
+
+    // Log the revoke event
+    auditLogger.logShareEvent({
+      action: 'revoke',
+      sessionId: id,
+      sharedByUserId: authUser.id,
+      sharedWithUserId: share.shared_with_user_id,
+      sharedWithEmail,
+      shareId,
+    });
+
+    return c.json({ success: true, shareId, revokedAt: new Date().toISOString() }, 200);
+  });
+
+  // POST /sessions/:id/activity - Record session activity (T102)
+  app.post('/:id/activity', async (c) => {
+    const id = c.req.param('id');
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    let body: { type?: string; data?: unknown };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON body' }, 400);
+    }
+
+    // Update session's updated_at timestamp
+    await sessionsRepo.update(id, { updated_at: new Date().toISOString() });
+
+    // TODO: Implement activity logging/audit service
+    return c.json({
+      sessionId: id,
+      activityType: body.type || 'heartbeat',
+      recordedAt: new Date().toISOString(),
+    }, 200);
   });
 
   return app;

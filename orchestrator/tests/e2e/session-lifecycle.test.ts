@@ -43,7 +43,7 @@ describe('Session Lifecycle E2E', () => {
     // Setup app with all routes
     app = new Hono();
     app.route('/health', healthRoutes(db));
-    app.route('/sessions', sessionsRoutes(db));
+    app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
   });
 
   afterAll(async () => {

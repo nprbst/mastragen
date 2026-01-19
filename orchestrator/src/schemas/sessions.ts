@@ -109,11 +109,16 @@ export const SessionWithUrlsAndGitResponseSchema = v.object({
 export type SessionWithUrlsAndGitResponse = v.InferOutput<typeof SessionWithUrlsAndGitResponseSchema>;
 
 /**
- * List sessions query filter.
+ * List sessions query filter with pagination.
  */
 export const ListSessionsFilterSchema = v.object({
   state: v.optional(SessionStateSchema),
   projectId: v.optional(v.string()),
+  userId: v.optional(v.string()),
+  sharedWithMe: v.optional(v.picklist(['true', 'false'])),
+  includeProject: v.optional(v.picklist(['true', 'false'])),
+  limit: v.optional(v.pipe(v.string(), v.transform((s) => Number.parseInt(s, 10)))),
+  offset: v.optional(v.pipe(v.string(), v.transform((s) => Number.parseInt(s, 10)))),
 });
 export type ListSessionsFilter = v.InferOutput<typeof ListSessionsFilterSchema>;
 

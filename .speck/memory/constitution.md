@@ -1,17 +1,10 @@
 <!--
 Sync Impact Report
 ==================
-Version change: N/A → 1.0.0 (Initial)
-Added principles:
-  - I. Git-Native Persistence
-  - II. Session Isolation
-  - III. Multi-Service Architecture
-  - IV. Project-First Configuration
-  - V. Simplicity First
-Added sections:
-  - Technology Stack
-  - Development Workflow
-  - Governance
+Version change: 1.0.0 → 1.1.0
+Changed sections:
+  - Technology Stack: Frontend changed from "Next.js landing page" to "Astro with React islands (Next.js is FORBIDDEN)"
+Rationale: Next.js RSC/hydration complexity violates Simplicity First principle. Astro provides equivalent functionality with less complexity.
 Templates status:
   - plan-template.md: ✅ Compatible (Constitution Check section exists)
   - spec-template.md: ✅ Compatible (Requirements section exists)
@@ -104,7 +97,7 @@ easier to debug, operate, and extend. Mastragen should feel lightweight to opera
 **Database**: SQLite (default), PostgreSQL (production scale)
 **Containers**: Kubernetes pods with Tailscale sidecar
 **Networking**: Tailscale for secure access, port-based service routing
-**Frontend**: Next.js landing page
+**Frontend**: Astro with React islands (Next.js is FORBIDDEN)
 **Sandbox Services**: cui, Mastra, Astro (Vite), code-server
 
 ## Development Workflow
@@ -143,4 +136,4 @@ justification in the PR description with reasoning for the exception.
 - MINOR: New principle or materially expanded guidance
 - PATCH: Clarifications, wording fixes, non-semantic refinements
 
-**Version**: 1.0.0 | **Ratified**: 2026-01-17 | **Last Amended**: 2026-01-17
+**Version**: 1.1.0 | **Ratified**: 2026-01-17 | **Last Amended**: 2026-01-18

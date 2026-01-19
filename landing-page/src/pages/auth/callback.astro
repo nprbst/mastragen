@@ -1,0 +1,97 @@
+---
+/**
+ * Auth callback page.
+ *
+ * Handles the OAuth callback from the backend:
+ * 1. Extracts access_token from query params (set by backend callback)
+ * 2. Stores token in client-side auth state
+ * 3. Fetches user info
+ * 4. Redirects to dashboard or original destination
+ */
+import Layout from '../../layouts/Layout.astro';
+---
+
+<Layout title="Authenticating...">
+  <div class="flex flex-col items-center justify-center min-h-[60vh]">
+    <div id="loading" class="text-center">
+      <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto mb-4"></div>
+      <p class="text-lg text-gray-600">Completing authentication...</p>
+    </div>
+    <div id="error" class="hidden text-center">
+      <div class="text-red-500 mb-4">
+        <svg class="h-12 w-12 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+      </div>
+      <h2 class="text-xl font-semibold text-gray-900 mb-2">Authentication Failed</h2>
+      <p id="error-message" class="text-gray-600 mb-4"></p>
+      <a
+        href="/auth/login"
+        class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
+      >
+        Try Again
+      </a>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { setAccessToken, fetchCurrentUser } from '../../lib/auth';
+
+  async function handleCallback() {
+    const loadingEl = document.getElementById('loading');
+    const errorEl = document.getElementById('error');
+    const errorMessageEl = document.getElementById('error-message');
+
+    try {
+      // Get query parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const accessToken = urlParams.get('access_token');
+      const redirect = urlParams.get('redirect');
+      const error = urlParams.get('error');
+      const errorDescription = urlParams.get('error_description');
+
+      // Handle OAuth errors
+      if (error) {
+        throw new Error(errorDescription || error);
+      }
+
+      // Validate access token
+      if (!accessToken) {
+        throw new Error('No access token received');
+      }
+
+      // Store the access token
+      setAccessToken(accessToken);
+
+      // Fetch and cache user info
+      const user = await fetchCurrentUser();
+      if (!user) {
+        throw new Error('Failed to fetch user information');
+      }
+
+      // Clear sensitive data from URL
+      window.history.replaceState({}, document.title, '/auth/callback');
+
+      // Redirect to dashboard or original destination
+      const destination = redirect || '/';
+      window.location.href = destination;
+    } catch (err) {
+      console.error('Auth callback error:', err);
+
+      // Show error UI
+      if (loadingEl) loadingEl.classList.add('hidden');
+      if (errorEl) errorEl.classList.remove('hidden');
+      if (errorMessageEl) {
+        errorMessageEl.textContent = err instanceof Error ? err.message : 'An unknown error occurred';
+      }
+    }
+  }
+
+  // Run callback handler when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', handleCallback);
+  } else {
+    handleCallback();
+  }
+</script>

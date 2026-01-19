@@ -1,0 +1,41 @@
+---
+/**
+ * T067: Project admin page
+ *
+ * Displays project configuration tabs for admins:
+ * - Overview (project details, git settings)
+ * - Environments (env vars per environment)
+ * - cui Config (MCP servers, CLAUDE.md, auto-approve patterns)
+ * - Skills (domain knowledge files)
+ * - Access (who can access this project)
+ */
+import Layout from '../../layouts/Layout.astro';
+import ProjectTabs from '../../components/ProjectTabs';
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect('/');
+}
+
+const orchestratorUrl = import.meta.env.PUBLIC_ORCHESTRATOR_URL || 'http://localhost:4000';
+---
+
+<Layout title="Project Settings">
+  <div class="space-y-6">
+    <div class="flex items-center justify-between">
+      <div>
+        <a href="/" class="text-sm text-gray-500 hover:text-gray-700 mb-2 block">
+          &larr; Back to Dashboard
+        </a>
+        <h1 class="text-2xl font-bold text-gray-900">Project Settings</h1>
+      </div>
+    </div>
+
+    <ProjectTabs
+      client:load
+      projectId={id}
+      orchestratorUrl={orchestratorUrl}
+    />
+  </div>
+</Layout>

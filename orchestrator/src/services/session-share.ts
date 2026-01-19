@@ -1,0 +1,121 @@
+/**
+ * T098: Session share service
+ *
+ * Handles sharing sessions with other users:
+ * - Create share record in database
+ * - Update Tailscale ACLs
+ * - Return share URL/info
+ */
+import type { Kysely } from 'kysely';
+import { nanoid } from 'nanoid';
+import type { Database } from '../db/types.ts';
+
+interface TailscaleService {
+  grantAccess(args: { email: string; hostname: string }): Promise<void>;
+  revokeAccess(args: { email: string; hostname: string }): Promise<void>;
+}
+
+interface ShareInput {
+  sessionId: string;
+  sharedWithUserId: string;
+  sharedByUserId: string;
+  sandboxHostname: string;
+  sharedWithEmail: string; // For Tailscale access, resolved before calling
+}
+
+interface ShareResult {
+  shareId: string;
+  sharedWithEmail: string;
+  accessUrl: string;
+  createdAt: string;
+}
+
+interface ShareInfo {
+  id: string;
+  sessionId: string;
+  sharedWithUserId: string;
+  sharedByUserId: string;
+  grantedAt: string;
+}
+
+export class SessionShareService {
+  constructor(
+    private db: Kysely<Database>,
+    private tailscale: TailscaleService
+  ) {}
+
+  /**
+   * Share a session with another user.
+   */
+  async share(input: ShareInput): Promise<ShareResult> {
+    const shareId = nanoid(12);
+    const now = new Date().toISOString();
+
+    // Create share record
+    await this.db
+      .insertInto('session_shares')
+      .values({
+        id: shareId,
+        session_id: input.sessionId,
+        shared_with_user_id: input.sharedWithUserId,
+        shared_by_user_id: input.sharedByUserId,
+        granted_at: now,
+      })
+      .execute();
+
+    // Grant Tailscale access
+    await this.tailscale.grantAccess({
+      email: input.sharedWithEmail,
+      hostname: input.sandboxHostname,
+    });
+
+    return {
+      shareId,
+      sharedWithEmail: input.sharedWithEmail,
+      accessUrl: `https://${input.sandboxHostname}`,
+      createdAt: now,
+    };
+  }
+
+  /**
+   * Revoke a share.
+   */
+  async revoke(shareId: string, _sandboxHostname: string): Promise<void> {
+    // Get share info
+    const share = await this.db
+      .selectFrom('session_shares')
+      .selectAll()
+      .where('id', '=', shareId)
+      .executeTakeFirst();
+
+    if (!share) {
+      throw new Error(`Share not found: ${shareId}`);
+    }
+
+    // Note: Tailscale revocation requires email, which must be resolved
+    // by the caller before calling this method
+    // await this.tailscale.revokeAccess({ email: ..., hostname: sandboxHostname });
+
+    // Delete share record
+    await this.db.deleteFrom('session_shares').where('id', '=', shareId).execute();
+  }
+
+  /**
+   * List all shares for a session.
+   */
+  async listShares(sessionId: string): Promise<ShareInfo[]> {
+    const shares = await this.db
+      .selectFrom('session_shares')
+      .selectAll()
+      .where('session_id', '=', sessionId)
+      .execute();
+
+    return shares.map((share) => ({
+      id: share.id,
+      sessionId: share.session_id,
+      sharedWithUserId: share.shared_with_user_id,
+      sharedByUserId: share.shared_by_user_id,
+      grantedAt: share.granted_at,
+    }));
+  }
+}

@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import Docker from 'dockerode';
-import type { Project, Session } from '../db/types.ts';
+import type { Kysely } from 'kysely';
+import type { Database, Project, Session } from '../db/types.ts';
 import type { ProjectsRepository } from '../repositories/projects.ts';
 import type { SessionsRepository } from '../repositories/sessions.ts';
 import type { GitStatus, CommitResult } from './git.ts';
 import { InsufficientPermissionsError, GitHubService, type PRResult, type PRCreateInput } from './github.ts';
+import { CuiInjectionService } from './cui-injection.ts';
 
 export { InsufficientPermissionsError };
 
@@ -120,6 +122,7 @@ export interface SandboxServiceOptions {
   projectsRepo: ProjectsRepository;
   sessionsRepo: SessionsRepository;
   dockerEnabled?: boolean;
+  db?: Kysely<Database>;
 }
 
 export class SessionAlreadyExistsError extends Error {
@@ -209,6 +212,7 @@ export class SandboxService {
   private sessionsRepo: SessionsRepository;
   private dockerEnabled: boolean;
   private docker: Docker;
+  private cuiInjectionService: CuiInjectionService | null = null;
 
   // Default ports for services
   private static readonly PORTS = {
@@ -235,6 +239,9 @@ export class SandboxService {
     this.sessionsRepo = options.sessionsRepo;
     this.dockerEnabled = options.dockerEnabled ?? true;
     this.docker = new Docker();
+    if (options.db) {
+      this.cuiInjectionService = new CuiInjectionService(options.db);
+    }
   }
 
   /**
@@ -398,7 +405,7 @@ export class SandboxService {
     if (this.dockerEnabled) {
       console.log('[SandboxService] createWithGit() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars, claudeToken);
+        await this.startContainers(session, project, env.env_vars, claudeToken, userId);
         console.log('[SandboxService] createWithGit() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] createWithGit() - startContainers failed:', err);
@@ -946,7 +953,8 @@ export class SandboxService {
     session: Session,
     project: Project,
     envVars: string,
-    claudeToken?: string
+    claudeToken?: string,
+    userId?: string
   ): Promise<void> {
     console.log(`[SandboxService] startContainers called for session ${session.id}`);
     console.log(`[SandboxService] dockerEnabled: ${this.dockerEnabled}`);
@@ -1083,6 +1091,14 @@ export class SandboxService {
       container_id: containerIds.join(','),
     });
     console.log('[SandboxService] Session updated with container IDs');
+
+    // T048: Inject cui configuration into the CUI container
+    const cuiContainerName = `${session.id}-cui`;
+    await this.injectCuiConfig(session.id, cuiContainerName, {
+      projectId: project.id,
+      environment: session.environment,
+      userId: userId ?? session.user_id ?? undefined,
+    });
   }
 
   /**
@@ -1113,5 +1129,135 @@ export class SandboxService {
         }
       })
     );
+  }
+
+  /**
+   * Injects cui configuration files into the CUI container.
+   * Writes settings.json, CLAUDE.md, and custom commands to the container.
+   *
+   * @param sessionId - The session ID
+   * @param cuiContainerName - Name of the CUI container (e.g., "{sessionId}-cui")
+   * @param config - Configuration for cui settings generation
+   */
+  private async injectCuiConfig(
+    sessionId: string,
+    cuiContainerName: string,
+    config: { projectId: string; environment: string; userId?: string }
+  ): Promise<void> {
+    if (!this.cuiInjectionService) {
+      console.log('[SandboxService] cui injection service not available, skipping config injection');
+      return;
+    }
+
+    console.log(`[SandboxService] Injecting cui config into container ${cuiContainerName}...`);
+
+    const container = this.docker.getContainer(cuiContainerName);
+
+    try {
+      // Generate settings.json
+      const settings = await this.cuiInjectionService.generateSettings({
+        projectId: config.projectId,
+        environment: config.environment,
+        sessionId,
+      });
+      const settingsJson = JSON.stringify(settings, null, 2);
+
+      // Generate CLAUDE.md
+      const claudeMd = await this.cuiInjectionService.generateClaudeMd({
+        projectId: config.projectId,
+        environment: config.environment,
+        sessionId,
+      });
+
+      // Get custom commands
+      const commands = await this.cuiInjectionService.getCommands({
+        projectId: config.projectId,
+        environment: config.environment,
+      });
+
+      // Create ~/.claude directory in the container
+      await this.execInContainer(container, ['mkdir', '-p', '/home/user/.claude/commands']);
+
+      // Write settings.json
+      await this.writeFileToContainer(container, '/home/user/.claude/settings.json', settingsJson);
+      console.log('[SandboxService] Wrote settings.json to container');
+
+      // Write CLAUDE.md to workspace (shared volume)
+      await this.writeFileToContainer(container, '/workspace/CLAUDE.md', claudeMd);
+      console.log('[SandboxService] Wrote CLAUDE.md to workspace');
+
+      // Write custom commands
+      for (const command of commands) {
+        const commandPath = `/home/user/.claude/commands/${command.name}.md`;
+        await this.writeFileToContainer(container, commandPath, command.content);
+        console.log(`[SandboxService] Wrote command ${command.name}.md`);
+      }
+
+      // Get and set session-specific environment variables
+      const envVars = await this.cuiInjectionService.getSessionEnvVars({
+        projectId: config.projectId,
+        environment: config.environment,
+        sessionId,
+        userId: config.userId ?? '',
+      });
+
+      // Write environment variables to a file that can be sourced
+      const envContent = Object.entries(envVars)
+        .map(([k, v]) => `export ${k}="${v}"`)
+        .join('\n');
+      await this.writeFileToContainer(container, '/home/user/.claude/env.sh', envContent);
+      console.log('[SandboxService] Wrote env.sh with session variables');
+
+      console.log('[SandboxService] cui config injection complete');
+    } catch (err) {
+      console.error('[SandboxService] Failed to inject cui config:', err);
+      // Don't throw - cui config injection failure shouldn't prevent session creation
+    }
+  }
+
+  /**
+   * Executes a command in a container.
+   */
+  private async execInContainer(container: Docker.Container, cmd: string[]): Promise<void> {
+    const exec = await container.exec({
+      Cmd: cmd,
+      AttachStdout: true,
+      AttachStderr: true,
+    });
+    await exec.start({ hijack: true, stdin: false });
+  }
+
+  /**
+   * Writes content to a file in a container using shell redirection.
+   */
+  private async writeFileToContainer(
+    container: Docker.Container,
+    filePath: string,
+    content: string
+  ): Promise<void> {
+    // Escape content for shell
+    const escapedContent = content.replace(/'/g, "'\\''");
+    const cmd = ['sh', '-c', `cat > '${filePath}' << 'EOFMARKER'\n${escapedContent}\nEOFMARKER`];
+
+    const exec = await container.exec({
+      Cmd: cmd,
+      AttachStdout: true,
+      AttachStderr: true,
+    });
+
+    await new Promise<void>((resolve, reject) => {
+      exec.start({ hijack: true, stdin: false }, (err, stream) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        if (stream) {
+          stream.on('end', resolve);
+          stream.on('error', reject);
+        } else {
+          resolve();
+        }
+      });
+    });
   }
 }

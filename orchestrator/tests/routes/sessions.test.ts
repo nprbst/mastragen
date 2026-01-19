@@ -41,7 +41,7 @@ describe('Sessions Routes', () => {
     });
 
     app = new Hono();
-    app.route('/sessions', sessionsRoutes(db));
+    app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
   });
 
   afterEach(async () => {
