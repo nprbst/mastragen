@@ -48,27 +48,27 @@ Based on plan.md project structure:
 
 - [X] T009 [P] Unit test for JWT validation middleware in orchestrator/tests/unit/middleware/auth.test.ts
 - [X] T010 [P] Unit test for audit logger service in orchestrator/tests/unit/services/audit-logger.test.ts
-- [ ] T011 [P] Integration test for auth routes (login, callback, logout, me, refresh) in orchestrator/tests/integration/auth.test.ts
-- [ ] T011.1 [P] Unit test for GitHub webhook handler (installation events) in orchestrator/tests/unit/routes/webhooks.test.ts
+- [X] T011 [P] Integration test for auth routes (login, callback, logout, me, refresh) in orchestrator/tests/integration/auth.test.ts
+- [X] T011.1 [P] Unit test for GitHub webhook handler (installation events) in orchestrator/tests/unit/routes/webhooks.test.ts
 
 ### Implementation for Foundational
 
 - [X] T012 Create database migration 003_cui_config in orchestrator/src/db/migrations/003_cui_config.ts
-- [ ] T013 Update database types in orchestrator/src/db/types.ts with new tables (users, github_app_installations, project_cui_config, project_commands, project_skills, session_shares)
+- [X] T013 Update database types in orchestrator/src/db/types.ts with new tables (users, github_app_installations, project_cui_config, project_commands, project_skills, session_shares)
 - [X] T014 [P] Create users repository in orchestrator/src/repositories/users.ts
-- [ ] T015 [P] Create github_app_installations repository in orchestrator/src/repositories/github-app-installations.ts
+- [X] T015 [P] Create github_app_installations repository in orchestrator/src/repositories/github-app-installations.ts
 - [X] T016 [P] Create session_shares repository in orchestrator/src/repositories/session-shares.ts
-- [ ] T017 Configure better-auth with GitHub App OAuth in orchestrator/src/services/auth.ts
+- [X] T017 Configure GitHub App OAuth in orchestrator/src/services/auth.ts (custom AuthService implementation)
 - [X] T018 Create JWT validation middleware in orchestrator/src/middleware/auth.ts
 - [X] T019 Create audit logger service in orchestrator/src/services/audit-logger.ts
 - [X] T020 [P] Create Valibot schemas for auth in orchestrator/src/schemas/auth.ts
 - [X] T021 [P] Create Valibot schemas for cui-config in orchestrator/src/schemas/cui-config.ts
 - [X] T022 [P] Create Valibot schemas for commands in orchestrator/src/schemas/commands.ts
 - [X] T023 [P] Create Valibot schemas for skills in orchestrator/src/schemas/skills.ts
-- [ ] T024 Setup oRPC router base in orchestrator/src/orpc/router.ts
-- [ ] T025 Register auth routes in orchestrator (GET /auth/login, GET /auth/callback, POST /auth/logout, GET /auth/me, POST /auth/refresh)
-- [ ] T025.1 [P] Create GitHub App installation routes (GET /auth/installations, GET /auth/installations/:id/repos) in orchestrator/src/routes/auth.ts
-- [ ] T025.2 Create GitHub webhook handler (POST /webhooks/github) for installation events in orchestrator/src/routes/webhooks.ts
+- [X] T024 Setup oRPC router base in orchestrator/src/orpc/router.ts (stubs - handlers connect to routes)
+- [X] T025 Register auth routes in orchestrator (GET /auth/login, GET /auth/callback, POST /auth/logout, GET /auth/me, POST /auth/refresh)
+- [X] T025.1 [P] Create GitHub App installation routes (GET /auth/installations, GET /auth/installations/:id/repos) in orchestrator/src/routes/auth.ts
+- [X] T025.2 Create GitHub webhook handler (POST /webhooks/github) for installation events in orchestrator/src/routes/webhooks.ts
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
@@ -84,21 +84,21 @@ Based on plan.md project structure:
 
 > **TDD**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T026 [P] [US1] Unit test for sessions list filtering in orchestrator/tests/unit/routes/sessions.test.ts
-- [ ] T027 [P] [US1] Integration test for GET /sessions with query params in orchestrator/tests/integration/sessions.test.ts
+- [X] T026 [P] [US1] Unit test for sessions list filtering in orchestrator/tests/unit/routes/sessions.test.ts
+- [X] T027 [P] [US1] Integration test for GET /sessions with query params in orchestrator/tests/integration/sessions.test.ts
 
 ### Implementation for User Story 1
 
-- [ ] T028 [US1] Create dashboard page in landing-page/src/pages/index.astro
-- [ ] T029 [US1] Extend GET /sessions endpoint with dashboard query params (state, projectId, sharedWithMe, pagination) in orchestrator/src/routes/sessions.ts
-- [ ] T030 [P] [US1] Create SessionCard React component in landing-page/src/components/SessionCard.tsx
-- [ ] T031 [P] [US1] Create SessionList React component (interactive island) in landing-page/src/components/SessionList.tsx
-- [ ] T032 [P] [US1] Create ServiceLinks Astro component in landing-page/src/components/ServiceLinks.astro
-- [ ] T033 [US1] Add session grouping logic by project in SessionList component
-- [ ] T034 [US1] Add status indicators (Active, Suspended, PR Open) styling in SessionCard
-- [ ] T035 [US1] Implement "Shared with me" section in dashboard showing sessions shared by other users
-- [ ] T036 [US1] Create empty state with onboarding guidance and "Create your first session" CTA when user has no sessions (supports SC-005: 95% first-time success)
-- [ ] T037 [US1] Add session URLs for cui (:3001), Mastra (:4111), Astro (:4321), VS Code (:8080) in SessionCard
+- [X] T028 [US1] Create dashboard page in landing-page/src/pages/index.astro
+- [X] T029 [US1] Extend GET /sessions endpoint with dashboard query params (state, projectId, sharedWithMe, pagination) in orchestrator/src/routes/sessions.ts
+- [X] T030 [P] [US1] Create SessionCard React component in landing-page/src/components/SessionCard.tsx
+- [X] T031 [P] [US1] Create SessionList React component (interactive island) in landing-page/src/components/SessionList.tsx
+- [X] T032 [P] [US1] Service links embedded in SessionCard.tsx (no separate ServiceLinks.astro needed)
+- [X] T033 [US1] Add session grouping logic by project in SessionList component
+- [X] T034 [US1] Add status indicators (Active, Suspended, PR Open) styling in SessionCard
+- [X] T035 [US1] Implement "Shared with me" section in dashboard showing sessions shared by other users
+- [X] T036 [US1] Create empty state with onboarding guidance and "Create your first session" CTA when user has no sessions (supports SC-005: 95% first-time success)
+- [X] T037 [US1] Add session URLs for cui (:3001), Mastra (:4111), Astro (:4321), VS Code (:8080) in SessionCard
 
 **Checkpoint**: Dashboard displays sessions grouped by project with service links - User Story 1 complete
 
@@ -114,24 +114,24 @@ Based on plan.md project structure:
 
 > **TDD**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T038 [P] [US2] Unit test for cui-injection service config generation in orchestrator/tests/unit/services/cui-injection.test.ts
-- [ ] T039 [P] [US2] Integration test for POST /sessions with cui config injection in orchestrator/tests/integration/sessions-create.test.ts
+- [X] T038 [P] [US2] Unit test for cui-injection service config generation in orchestrator/tests/unit/services/cui-injection.test.ts
+- [~] T039 [P] [US2] Integration test for POST /sessions with cui config injection in orchestrator/tests/integration/sessions-create.test.ts (requires Docker environment for full test)
 
 ### Implementation for User Story 2
 
-- [ ] T040 [US2] Create new session page in landing-page/src/pages/sessions/new.astro
-- [ ] T041 [P] [US2] Create ProjectSelector React component in landing-page/src/components/ProjectSelector.tsx
-- [ ] T042 [P] [US2] Create EnvironmentSelector React component in landing-page/src/components/EnvironmentSelector.tsx
-- [ ] T043 [US2] Create NewSessionForm React component in landing-page/src/components/NewSessionForm.tsx
-- [ ] T044 [US2] Add GET /projects endpoint for user's accessible projects in orchestrator/src/routes/projects.ts
+- [X] T040 [US2] Create new session page in landing-page/src/pages/sessions/new.astro
+- [X] T041 [P] [US2] Create ProjectSelector React component in landing-page/src/components/ProjectSelector.tsx
+- [X] T042 [P] [US2] Create EnvironmentSelector React component in landing-page/src/components/EnvironmentSelector.tsx
+- [X] T043 [US2] Create NewSessionForm React component in landing-page/src/components/NewSessionForm.tsx
+- [X] T044 [US2] Add GET /projects endpoint for user's accessible projects in orchestrator/src/routes/projects.ts
 - [ ] T045 [US2] Create project_cui_config repository in orchestrator/src/repositories/project-cui-config.ts (also used by US3)
-- [ ] T046 [US2] Create cui-injection service in orchestrator/src/services/cui-injection.ts
-- [ ] T047 [US2] Implement config file generation (settings.json at ~/.claude/settings.json, CLAUDE.md, commands) with env var interpolation (${VAR_NAME}) in cui-injection service
-- [ ] T048 [US2] Extend POST /sessions to inject cui config during sandbox provisioning in orchestrator/src/routes/sessions.ts (requires T058 for access checks)
-- [ ] T049 [US2] Implement redirect to cui URL after successful session creation in NewSessionForm
-- [ ] T050 [US2] Add session-specific env vars injection (MASTRAGEN_SESSION_ID, MASTRAGEN_API_URL, MASTRAGEN_USER_TOKEN)
-- [ ] T051 [US2] Handle uiSandboxPath configuration - start Astro service only if configured
-- [ ] T051.1 [US2] Display error when project has no environments configured on new session form
+- [X] T046 [US2] Create cui-injection service in orchestrator/src/services/cui-injection.ts
+- [X] T047 [US2] Implement config file generation (settings.json at ~/.claude/settings.json, CLAUDE.md, commands) with env var interpolation (${VAR_NAME}) in cui-injection service
+- [ ] T048 [US2] Extend POST /sessions to inject cui config during sandbox provisioning in orchestrator/src/routes/sessions.ts (deferred - requires sandbox integration)
+- [X] T049 [US2] Implement redirect to cui URL after successful session creation in NewSessionForm
+- [X] T050 [US2] Add session-specific env vars injection (MASTRAGEN_SESSION_ID, MASTRAGEN_API_URL, MASTRAGEN_USER_TOKEN)
+- [ ] T051 [US2] Handle uiSandboxPath configuration - start Astro service only if configured (deferred - sandbox feature)
+- [X] T051.1 [US2] Display error when project has no environments configured on new session form
 
 **Checkpoint**: New sessions can be created with full cui config injection - User Story 2 complete
 

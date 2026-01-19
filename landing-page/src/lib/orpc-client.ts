@@ -1,5 +1,3 @@
-import { createORPCClient } from '@orpc/client';
-
 const ORCHESTRATOR_URL = import.meta.env.PUBLIC_ORCHESTRATOR_URL || 'http://localhost:4000';
 
 export interface Session {
@@ -54,13 +52,7 @@ export interface CreateSessionParams {
   environmentId?: string;
 }
 
-// oRPC client for orchestrator API
-// This will be extended with type-safe procedures as the API evolves
-export const client = createORPCClient({
-  baseURL: ORCHESTRATOR_URL,
-});
-
-// Helper functions for API calls (to be replaced with oRPC procedures)
+// Helper functions for API calls (to be replaced with oRPC procedures when contract is finalized)
 export async function fetchSessions(params?: SessionListParams): Promise<Session[]> {
   const searchParams = new URLSearchParams();
   if (params?.state) searchParams.set('state', params.state);

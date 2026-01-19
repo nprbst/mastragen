@@ -1,19 +1,54 @@
-import { describe, expect, test, beforeEach, afterEach, beforeAll, afterAll } from 'bun:test';
+import { describe, expect, test, beforeEach, beforeAll, afterAll } from 'bun:test';
 import { existsSync, unlinkSync } from 'node:fs';
 import type { Kysely } from 'kysely';
 import { Hono } from 'hono';
+import { nanoid } from 'nanoid';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations as runMigrations001 } from '../../src/db/migrations/001_initial.ts';
 import { runMigrations as runMigrations002 } from '../../src/db/migrations/002_git_fields.ts';
+import { runMigrations as runMigrations003 } from '../../src/db/migrations/003_cui_config.ts';
+import { createAuthRoutes } from '../../src/routes/auth.ts';
+import { AuthService } from '../../src/services/auth.ts';
 import type { Database } from '../../src/db/types.ts';
 
 // Test T011: Integration test for auth routes (login, callback, logout, me, refresh)
 
 const TEST_DB_PATH = './data/test-auth-integration.db';
 
+/**
+ * Helper to create a test JWT token.
+ */
+function createTestJwt(payload: {
+  sub: string;
+  email: string;
+  name?: string | null;
+  type?: string;
+}, expiresIn: number = 3600): string {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+
+  const fullPayload = {
+    ...payload,
+    iat: now,
+    exp: now + expiresIn,
+  };
+
+  const base64urlEncode = (str: string): string => {
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  };
+
+  const headerBase64 = base64urlEncode(JSON.stringify(header));
+  const payloadBase64 = base64urlEncode(JSON.stringify(fullPayload));
+  const signature = base64urlEncode(`${headerBase64}.${payloadBase64}.test-secret`);
+
+  return `${headerBase64}.${payloadBase64}.${signature}`;
+}
+
 describe('Auth routes integration', () => {
   let db: Kysely<Database>;
   let app: Hono;
+  let authService: AuthService;
+  let testUser: { id: string; email: string; name: string; github_id: number; github_login: string };
 
   beforeAll(async () => {
     if (existsSync(TEST_DB_PATH)) {
@@ -22,8 +57,26 @@ describe('Auth routes integration', () => {
     db = createDatabase(TEST_DB_PATH);
     await runMigrations001(db);
     await runMigrations002(db);
-    // Phase 3 migration will be added once created
-    // await runMigrations003(db);
+    await runMigrations003(db);
+
+    // Create a test user
+    testUser = {
+      id: nanoid(12),
+      email: 'test@example.com',
+      name: 'Test User',
+      github_id: 12345,
+      github_login: 'testuser',
+    };
+
+    await db.insertInto('users').values({
+      id: testUser.id,
+      email: testUser.email,
+      name: testUser.name,
+      github_id: testUser.github_id,
+      github_login: testUser.github_login,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).execute();
   });
 
   afterAll(async () => {
@@ -35,42 +88,38 @@ describe('Auth routes integration', () => {
 
   beforeEach(async () => {
     app = new Hono();
-    // Import and register auth routes
-    // This will fail until implementation exists - expected for TDD
-    try {
-      const { authRoutes } = await import('../../src/routes/auth.ts');
-      app.route('/auth', authRoutes);
-    } catch {
-      // Expected to fail until implementation
-    }
+    authService = new AuthService(db);
+    app.route('/auth', createAuthRoutes(db));
   });
 
   describe('GET /auth/login', () => {
-    test('should redirect to OIDC provider', async () => {
+    test('should redirect to GitHub OAuth', async () => {
       const res = await app.request('/auth/login');
 
-      // Should redirect (302 or 303)
-      expect([302, 303, 307]).toContain(res.status);
+      // Should redirect (302)
+      expect(res.status).toBe(302);
 
-      // Should have Location header pointing to OIDC provider
+      // Should have Location header pointing to GitHub OAuth
       const location = res.headers.get('Location');
       expect(location).toBeDefined();
-      // The URL should contain OIDC parameters
-      expect(location).toMatch(/response_type=code/);
+      // GitHub OAuth uses client_id param
+      expect(location).toMatch(/github\.com\/login\/oauth\/authorize/);
+      expect(location).toMatch(/client_id=/);
     });
 
     test('should include state parameter for CSRF protection', async () => {
       const res = await app.request('/auth/login');
 
       const location = res.headers.get('Location');
+      expect(location).toBeDefined();
       expect(location).toMatch(/state=/);
     });
 
     test('should support redirect_uri query parameter', async () => {
       const res = await app.request('/auth/login?redirect_uri=/dashboard');
 
-      expect([302, 303, 307]).toContain(res.status);
-      // The state should encode the redirect_uri
+      expect(res.status).toBe(302);
+      // The state should encode the redirect_uri (tested via callback flow)
     });
   });
 
@@ -92,19 +141,28 @@ describe('Auth routes integration', () => {
     });
 
     test('should exchange code for tokens and create session', async () => {
-      // This test requires mocking the OIDC provider
-      // In a real test, we'd set up a mock OIDC server
-      const validCode = 'valid-auth-code';
-      const validState = 'valid-state'; // Would need to be generated from a real login flow
+      // First, initiate login to get a valid state
+      const loginRes = await app.request('/auth/login');
+      const location = loginRes.headers.get('Location');
+      expect(location).toBeDefined();
+
+      // Extract state from the redirect URL
+      const url = new URL(location!);
+      const validState = url.searchParams.get('state');
+      expect(validState).toBeDefined();
+
+      // In development mode (no GITHUB_APP_CLIENT_ID), the AuthService uses mock data
+      const validCode = 'dev-auth-code';
 
       const res = await app.request(`/auth/callback?code=${validCode}&state=${validState}`);
 
-      // Should redirect to the original redirect_uri or default to dashboard
-      expect([302, 303, 307]).toContain(res.status);
+      // Should redirect to the original redirect_uri with access token
+      expect(res.status).toBe(302);
 
-      // Should set auth cookies or return JWT
+      // Should set refresh token cookie
       const setCookie = res.headers.get('Set-Cookie');
       expect(setCookie).toBeDefined();
+      expect(setCookie).toMatch(/refresh_token=/);
     });
   });
 
@@ -116,7 +174,11 @@ describe('Auth routes integration', () => {
     });
 
     test('should clear auth session when authenticated', async () => {
-      const validToken = 'valid.jwt.token';
+      const validToken = createTestJwt({
+        sub: testUser.id,
+        email: testUser.email,
+        name: testUser.name,
+      });
 
       const res = await app.request('/auth/logout', {
         method: 'POST',
@@ -124,12 +186,12 @@ describe('Auth routes integration', () => {
       });
 
       // Should succeed
-      expect([200, 204]).toContain(res.status);
+      expect(res.status).toBe(200);
 
       // Should clear cookies
       const setCookie = res.headers.get('Set-Cookie');
       if (setCookie) {
-        expect(setCookie).toMatch(/Max-Age=0|Expires=.*1970/i);
+        expect(setCookie).toMatch(/Max-Age=0|expires=.*1970/i);
       }
     });
   });
@@ -142,7 +204,11 @@ describe('Auth routes integration', () => {
     });
 
     test('should return user info when authenticated', async () => {
-      const validToken = 'valid.jwt.token';
+      const validToken = createTestJwt({
+        sub: testUser.id,
+        email: testUser.email,
+        name: testUser.name,
+      });
 
       const res = await app.request('/auth/me', {
         headers: { Authorization: `Bearer ${validToken}` },
@@ -156,7 +222,11 @@ describe('Auth routes integration', () => {
     });
 
     test('should not expose sensitive fields', async () => {
-      const validToken = 'valid.jwt.token';
+      const validToken = createTestJwt({
+        sub: testUser.id,
+        email: testUser.email,
+        name: testUser.name,
+      });
 
       const res = await app.request('/auth/me', {
         headers: { Authorization: `Bearer ${validToken}` },
@@ -164,8 +234,8 @@ describe('Auth routes integration', () => {
 
       expect(res.status).toBe(200);
       const body = await res.json();
-      // Should not expose internal fields
-      expect(body).not.toHaveProperty('provider_id');
+      // Should not expose internal fields like github_access_token
+      expect(body).not.toHaveProperty('github_access_token');
     });
   });
 
@@ -177,7 +247,12 @@ describe('Auth routes integration', () => {
     });
 
     test('should return 401 when refresh token is expired', async () => {
-      const expiredRefreshToken = 'expired.refresh.token';
+      // Create an expired refresh token (expired 1 hour ago)
+      const expiredRefreshToken = createTestJwt({
+        sub: testUser.id,
+        email: testUser.email,
+        type: 'refresh',
+      }, -3600);
 
       const res = await app.request('/auth/refresh', {
         method: 'POST',
@@ -190,7 +265,8 @@ describe('Auth routes integration', () => {
     });
 
     test('should return new access token with valid refresh token', async () => {
-      const validRefreshToken = 'valid.refresh.token';
+      // Use authService to generate a proper refresh token
+      const validRefreshToken = authService.generateRefreshToken(testUser.id);
 
       const res = await app.request('/auth/refresh', {
         method: 'POST',
@@ -206,7 +282,7 @@ describe('Auth routes integration', () => {
     });
 
     test('should rotate refresh token on use', async () => {
-      const validRefreshToken = 'valid.refresh.token';
+      const validRefreshToken = authService.generateRefreshToken(testUser.id);
 
       const res = await app.request('/auth/refresh', {
         method: 'POST',
