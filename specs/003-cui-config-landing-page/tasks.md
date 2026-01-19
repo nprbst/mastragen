@@ -124,13 +124,13 @@ Based on plan.md project structure:
 - [X] T042 [P] [US2] Create EnvironmentSelector React component in landing-page/src/components/EnvironmentSelector.tsx
 - [X] T043 [US2] Create NewSessionForm React component in landing-page/src/components/NewSessionForm.tsx
 - [X] T044 [US2] Add GET /projects endpoint for user's accessible projects in orchestrator/src/routes/projects.ts
-- [ ] T045 [US2] Create project_cui_config repository in orchestrator/src/repositories/project-cui-config.ts (also used by US3)
+- [X] T045 [US2] Create project_cui_config repository in orchestrator/src/repositories/project-cui-config.ts (also used by US3)
 - [X] T046 [US2] Create cui-injection service in orchestrator/src/services/cui-injection.ts
 - [X] T047 [US2] Implement config file generation (settings.json at ~/.claude/settings.json, CLAUDE.md, commands) with env var interpolation (${VAR_NAME}) in cui-injection service
-- [ ] T048 [US2] Extend POST /sessions to inject cui config during sandbox provisioning in orchestrator/src/routes/sessions.ts (deferred - requires sandbox integration)
+- [X] T048 [US2] Extend POST /sessions to inject cui config during sandbox provisioning in orchestrator/src/routes/sessions.ts
 - [X] T049 [US2] Implement redirect to cui URL after successful session creation in NewSessionForm
 - [X] T050 [US2] Add session-specific env vars injection (MASTRAGEN_SESSION_ID, MASTRAGEN_API_URL, MASTRAGEN_USER_TOKEN)
-- [ ] T051 [US2] Handle uiSandboxPath configuration - start Astro service only if configured (deferred - sandbox feature)
+- [X] T051 [US2] Handle uiSandboxPath configuration - start Astro service only if configured
 - [X] T051.1 [US2] Display error when project has no environments configured on new session form
 
 **Checkpoint**: New sessions can be created with full cui config injection - User Story 2 complete
@@ -147,8 +147,8 @@ Based on plan.md project structure:
 
 > **TDD**: Write these tests FIRST, ensure they FAIL before implementation
 
-- [ ] T052 [P] [US6] Unit test for GitHub installation-based project access in orchestrator/tests/unit/middleware/project-access.test.ts
-- [ ] T053 [P] [US6] Integration test for protected routes with GitHub installation access checks in orchestrator/tests/integration/project-access.test.ts
+- [X] T052 [P] [US6] Unit test for GitHub installation-based project access in orchestrator/tests/unit/middleware/project-access.test.ts
+- [X] T053 [P] [US6] Integration test for protected routes with GitHub installation access checks in orchestrator/tests/integration/project-access.test.ts
 
 ### Implementation for User Story 6
 

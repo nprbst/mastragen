@@ -5,6 +5,7 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database, Project } from '../db/types.ts';
+import { optionalAuth, getAuthUser } from '../middleware/auth.ts';
 import { ProjectsRepository } from '../repositories/index.ts';
 import type {
   EnvironmentResponse,
@@ -12,6 +13,35 @@ import type {
   ProjectWithEnvironments,
 } from '../schemas/index.ts';
 import { AddEnvironmentRequestSchema, CreateProjectRequestSchema } from '../schemas/index.ts';
+
+/**
+ * Fetch user's accessible GitHub App installations.
+ */
+async function getUserInstallationIds(accessToken: string): Promise<number[]> {
+  try {
+    const response = await fetch('https://api.github.com/user/installations', {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+      },
+    });
+
+    if (!response.ok) {
+      console.error('Failed to fetch user installations:', response.status);
+      return [];
+    }
+
+    const data = (await response.json()) as {
+      installations: Array<{ id: number }>;
+    };
+
+    return data.installations.map((inst) => inst.id);
+  } catch (error) {
+    console.error('Error fetching user installations:', error);
+    return [];
+  }
+}
 
 /**
  * Transforms a database project to API response format.
@@ -37,8 +67,52 @@ export function projectsRoutes(db: Kysely<Database>): Hono {
   const app = new Hono();
   const projectsRepo = new ProjectsRepository(db);
 
-  // GET /projects - List all projects
-  app.get('/', async (c) => {
+  // GET /projects - List projects accessible to the user
+  app.get('/', optionalAuth(), async (c) => {
+    const user = getAuthUser(c);
+
+    // If authenticated, filter by user's accessible installations
+    if (user) {
+      // Get user's GitHub access token
+      const dbUser = await db
+        .selectFrom('users')
+        .select(['github_access_token'])
+        .where('id', '=', user.id)
+        .executeTakeFirst();
+
+      if (dbUser?.github_access_token) {
+        // Fetch user's accessible installations
+        const installationIds = await getUserInstallationIds(dbUser.github_access_token);
+
+        if (installationIds.length > 0) {
+          // Get internal installation IDs that match
+          const installations = await db
+            .selectFrom('github_app_installations')
+            .select(['id'])
+            .where('installation_id', 'in', installationIds)
+            .execute();
+
+          const internalIds = installations.map((i) => i.id);
+
+          if (internalIds.length > 0) {
+            // Filter projects by those installations
+            const projects = await db
+              .selectFrom('projects')
+              .selectAll()
+              .where('installation_id', 'in', internalIds)
+              .execute();
+
+            return c.json(projects.map(toProjectResponse), 200);
+          }
+        }
+
+        // User has no accessible installations
+        return c.json([], 200);
+      }
+    }
+
+    // Unauthenticated: return all projects (for backwards compatibility)
+    // In production, this could be restricted
     const projects = await projectsRepo.findAll();
     return c.json(projects.map(toProjectResponse), 200);
   });

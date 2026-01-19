@@ -1,5 +1,5 @@
 import type { Kysely } from 'kysely';
-import type { Database, Project, ProjectCuiConfig, ProjectCommand } from '../db/types.ts';
+import type { Database, ProjectCuiConfig } from '../db/types.ts';
 import { ProjectsRepository } from '../repositories/index.ts';
 
 /**

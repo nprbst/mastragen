@@ -63,6 +63,7 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
   const sandboxService = new SandboxService({
     projectsRepo,
     sessionsRepo,
+    db, // T048: Pass db for cui config injection
   });
 
   // POST /sessions - Create a new session
