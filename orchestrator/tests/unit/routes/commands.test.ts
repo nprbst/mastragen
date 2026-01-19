@@ -12,6 +12,34 @@ import { ProjectsRepository } from '../../../src/repositories/index.ts';
 const TEST_DB_PATH = './data/test-commands-routes.db';
 
 /**
+ * Helper to create a test JWT token.
+ */
+function createTestJwt(payload: {
+  sub: string;
+  email: string;
+  name?: string | null;
+}, expiresIn: number = 3600): string {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+
+  const fullPayload = {
+    ...payload,
+    iat: now,
+    exp: now + expiresIn,
+  };
+
+  const base64urlEncode = (str: string): string => {
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  };
+
+  const headerBase64 = base64urlEncode(JSON.stringify(header));
+  const payloadBase64 = base64urlEncode(JSON.stringify(fullPayload));
+  const signature = base64urlEncode(`${headerBase64}.${payloadBase64}.test-secret`);
+
+  return `${headerBase64}.${payloadBase64}.${signature}`;
+}
+
+/**
  * T064: Unit test for commands CRUD operations
  *
  * Tests the commands routes:
@@ -25,6 +53,11 @@ describe('commands routes', () => {
   let db: Kysely<Database>;
   let projectsRepo: ProjectsRepository;
   let testProjectId: string;
+  let testUserId: string;
+  let testInstallationId: string;
+  let authToken: string;
+  let authHeaders: Record<string, string>;
+  let originalFetch: typeof fetch;
 
   beforeAll(async () => {
     if (existsSync(TEST_DB_PATH)) {
@@ -46,28 +79,107 @@ describe('commands routes', () => {
   });
 
   beforeEach(async () => {
-    // Create test project
-    const project = await projectsRepo.create({
-      name: 'Test Project',
-      github_repo: 'test-org/test-repo',
-      default_branch: 'main',
-      branch_prefix: 'mg/',
-      mastra_path: '.',
-      ui_sandbox_path: null,
-    });
-    testProjectId = project.id;
+    const now = new Date().toISOString();
+
+    // Create test user
+    testUserId = 'user-commands-test';
+    await db
+      .insertInto('users')
+      .values({
+        id: testUserId,
+        email: 'commands@test.com',
+        name: 'Test User',
+        github_id: 12345,
+        github_login: 'testuser',
+        github_access_token: 'test-token',
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    // Create test GitHub installation
+    testInstallationId = 'inst-commands-test';
+    await db
+      .insertInto('github_app_installations')
+      .values({
+        id: testInstallationId,
+        installation_id: 99999,
+        account_type: 'Organization',
+        account_login: 'test-org',
+        account_id: 67890,
+        permissions: '{}',
+        repository_selection: 'all',
+        suspended_at: null,
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    // Create test project linked to installation
+    testProjectId = 'proj-commands-test';
+    await db
+      .insertInto('projects')
+      .values({
+        id: testProjectId,
+        name: 'Test Project',
+        github_repo: 'test-org/test-repo',
+        default_branch: 'main',
+        branch_prefix: 'mg/',
+        mastra_path: '.',
+        ui_sandbox_path: null,
+        installation_id: testInstallationId,
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    // Create auth token
+    authToken = createTestJwt({ sub: testUserId, email: 'commands@test.com', name: 'Test User' });
+    authHeaders = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`,
+    };
+
+    // Mock GitHub API calls for auth middleware
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlStr = url instanceof Request ? url.url : url.toString();
+
+      if (urlStr.includes('api.github.com/repos/')) {
+        return new Response(JSON.stringify({
+          permissions: { admin: true, push: true, pull: true }
+        }), { status: 200 });
+      }
+
+      if (urlStr.includes('api.github.com/user/installations')) {
+        return new Response(JSON.stringify({
+          installations: [{ id: 99999 }]
+        }), { status: 200 });
+      }
+
+      return originalFetch(url);
+    };
   });
 
   afterEach(async () => {
+    // Restore fetch
+    globalThis.fetch = originalFetch;
+
     // Clean up test data
     await db.deleteFrom('project_commands').execute();
     await db.deleteFrom('projects').execute();
+    await db.deleteFrom('github_app_installations').execute();
+    await db.deleteFrom('users').execute();
   });
 
   describe('GET /projects/:projectId/commands', () => {
     test('should return empty array when no commands exist', async () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', commandsRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/commands`);
@@ -80,6 +192,10 @@ describe('commands routes', () => {
     test('should return 404 for non-existent project', async () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', commandsRoutes(db));
 
       const res = await app.request('/projects/non-existent/commands');
@@ -91,11 +207,15 @@ describe('commands routes', () => {
     test('should create a command', async () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', commandsRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'deploy',
           description: 'Deploy the application',
@@ -118,11 +238,15 @@ describe('commands routes', () => {
     test('should return 400 for missing required fields', async () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', commandsRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'deploy',
           // missing description and content
@@ -135,12 +259,16 @@ describe('commands routes', () => {
     test('should return 409 for duplicate command name', async () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', commandsRoutes(db));
 
       // Create first command
       await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'deploy',
           description: 'First deploy',
@@ -151,7 +279,7 @@ describe('commands routes', () => {
       // Try to create duplicate
       const res = await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'deploy',
           description: 'Second deploy',
@@ -167,12 +295,16 @@ describe('commands routes', () => {
     test('should return a command by ID', async () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', commandsRoutes(db));
 
       // Create command
       const createRes = await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'test-cmd',
           description: 'Test command',
@@ -192,6 +324,10 @@ describe('commands routes', () => {
     test('should return 404 for non-existent command', async () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', commandsRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/commands/non-existent`);
@@ -203,12 +339,16 @@ describe('commands routes', () => {
     test('should update a command', async () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', commandsRoutes(db));
 
       // Create command
       const createRes = await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'old-name',
           description: 'Old description',
@@ -220,7 +360,7 @@ describe('commands routes', () => {
       // Update command
       const res = await app.request(`/projects/${testProjectId}/commands/${created.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'new-name',
           description: 'New description',
@@ -244,12 +384,16 @@ describe('commands routes', () => {
     test('should delete a command', async () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', commandsRoutes(db));
 
       // Create command
       const createRes = await app.request(`/projects/${testProjectId}/commands`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           name: 'to-delete',
           description: 'Will be deleted',
@@ -261,6 +405,7 @@ describe('commands routes', () => {
       // Delete command
       const res = await app.request(`/projects/${testProjectId}/commands/${created.id}`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
       });
 
       expect(res.status).toBe(200);

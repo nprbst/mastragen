@@ -17,10 +17,10 @@ describe('SessionShareService', () => {
     test('should create share record in database', async () => {
       const { SessionShareService } = await import('../../../src/services/session-share.ts');
 
-      let insertedData: { session_id?: string; shared_with_email?: string } = {};
+      let insertedData: { session_id?: string; shared_with_user_id?: string; shared_by_user_id?: string } = {};
       const mockDb = {
         insertInto: mock(() => ({
-          values: mock((data: { session_id?: string; shared_with_email?: string }) => {
+          values: mock((data: { session_id?: string; shared_with_user_id?: string; shared_by_user_id?: string }) => {
             insertedData = data;
             return {
               execute: mock(() => Promise.resolve()),
@@ -36,13 +36,15 @@ describe('SessionShareService', () => {
       const service = new SessionShareService(mockDb as never, mockTailscale as never);
       await service.share({
         sessionId: 'session-123',
-        sharedWithEmail: 'colleague@example.com',
+        sharedWithUserId: 'user-789',
         sharedByUserId: 'user-456',
         sandboxHostname: 'sandbox-123.ts.net',
+        sharedWithEmail: 'colleague@example.com',
       });
 
       expect(insertedData.session_id).toBe('session-123');
-      expect(insertedData.shared_with_email).toBe('colleague@example.com');
+      expect(insertedData.shared_with_user_id).toBe('user-789');
+      expect(insertedData.shared_by_user_id).toBe('user-456');
     });
 
     test('should call Tailscale to grant access', async () => {
@@ -70,9 +72,10 @@ describe('SessionShareService', () => {
       const service = new SessionShareService(mockDb as never, mockTailscale as never);
       await service.share({
         sessionId: 'session-123',
-        sharedWithEmail: 'colleague@example.com',
+        sharedWithUserId: 'user-789',
         sharedByUserId: 'user-456',
         sandboxHostname: 'sandbox-123.ts.net',
+        sharedWithEmail: 'colleague@example.com',
       });
 
       expect(grantCalled).toBe(true);
@@ -98,9 +101,10 @@ describe('SessionShareService', () => {
       const service = new SessionShareService(mockDb as never, mockTailscale as never);
       const result = await service.share({
         sessionId: 'session-123',
-        sharedWithEmail: 'colleague@example.com',
+        sharedWithUserId: 'user-789',
         sharedByUserId: 'user-456',
         sandboxHostname: 'sandbox-123.ts.net',
+        sharedWithEmail: 'colleague@example.com',
       });
 
       expect(result.shareId).toBeDefined();
@@ -127,16 +131,18 @@ describe('SessionShareService', () => {
 
       const result1 = await service.share({
         sessionId: 'session-123',
-        sharedWithEmail: 'user1@example.com',
+        sharedWithUserId: 'user-789',
         sharedByUserId: 'user-456',
         sandboxHostname: 'sandbox-123.ts.net',
+        sharedWithEmail: 'user1@example.com',
       });
 
       const result2 = await service.share({
         sessionId: 'session-123',
-        sharedWithEmail: 'user2@example.com',
+        sharedWithUserId: 'user-790',
         sharedByUserId: 'user-456',
         sandboxHostname: 'sandbox-123.ts.net',
+        sharedWithEmail: 'user2@example.com',
       });
 
       expect(result1.shareId).not.toBe(result2.shareId);

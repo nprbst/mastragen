@@ -12,6 +12,34 @@ import { ProjectsRepository, ProjectCuiConfigRepository } from '../../../src/rep
 const TEST_DB_PATH = './data/test-cui-config-routes.db';
 
 /**
+ * Helper to create a test JWT token.
+ */
+function createTestJwt(payload: {
+  sub: string;
+  email: string;
+  name?: string | null;
+}, expiresIn: number = 3600): string {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const now = Math.floor(Date.now() / 1000);
+
+  const fullPayload = {
+    ...payload,
+    iat: now,
+    exp: now + expiresIn,
+  };
+
+  const base64urlEncode = (str: string): string => {
+    return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  };
+
+  const headerBase64 = base64urlEncode(JSON.stringify(header));
+  const payloadBase64 = base64urlEncode(JSON.stringify(fullPayload));
+  const signature = base64urlEncode(`${headerBase64}.${payloadBase64}.test-secret`);
+
+  return `${headerBase64}.${payloadBase64}.${signature}`;
+}
+
+/**
  * T063: Unit test for cui-config CRUD operations
  *
  * Tests the cui-config routes:
@@ -25,6 +53,11 @@ describe('cui-config routes', () => {
   let projectsRepo: ProjectsRepository;
   let cuiConfigRepo: ProjectCuiConfigRepository;
   let testProjectId: string;
+  let testUserId: string;
+  let testInstallationId: string;
+  let authToken: string;
+  let authHeaders: Record<string, string>;
+  let originalFetch: typeof fetch;
 
   beforeAll(async () => {
     if (existsSync(TEST_DB_PATH)) {
@@ -47,28 +80,107 @@ describe('cui-config routes', () => {
   });
 
   beforeEach(async () => {
-    // Create test project
-    const project = await projectsRepo.create({
-      name: 'Test Project',
-      github_repo: 'test-org/test-repo',
-      default_branch: 'main',
-      branch_prefix: 'mg/',
-      mastra_path: '.',
-      ui_sandbox_path: null,
-    });
-    testProjectId = project.id;
+    const now = new Date().toISOString();
+
+    // Create test user
+    testUserId = 'user-cui-config-test';
+    await db
+      .insertInto('users')
+      .values({
+        id: testUserId,
+        email: 'cuiconfig@test.com',
+        name: 'Test User',
+        github_id: 12345,
+        github_login: 'testuser',
+        github_access_token: 'test-token',
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    // Create test GitHub installation
+    testInstallationId = 'inst-cui-config-test';
+    await db
+      .insertInto('github_app_installations')
+      .values({
+        id: testInstallationId,
+        installation_id: 99999,
+        account_type: 'Organization',
+        account_login: 'test-org',
+        account_id: 67890,
+        permissions: '{}',
+        repository_selection: 'all',
+        suspended_at: null,
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    // Create test project linked to installation
+    testProjectId = 'proj-cui-config-test';
+    await db
+      .insertInto('projects')
+      .values({
+        id: testProjectId,
+        name: 'Test Project',
+        github_repo: 'test-org/test-repo',
+        default_branch: 'main',
+        branch_prefix: 'mg/',
+        mastra_path: '.',
+        ui_sandbox_path: null,
+        installation_id: testInstallationId,
+        created_at: now,
+        updated_at: now,
+      })
+      .execute();
+
+    // Create auth token
+    authToken = createTestJwt({ sub: testUserId, email: 'cuiconfig@test.com', name: 'Test User' });
+    authHeaders = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${authToken}`,
+    };
+
+    // Mock GitHub API calls for auth middleware
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlStr = url instanceof Request ? url.url : url.toString();
+
+      if (urlStr.includes('api.github.com/repos/')) {
+        return new Response(JSON.stringify({
+          permissions: { admin: true, push: true, pull: true }
+        }), { status: 200 });
+      }
+
+      if (urlStr.includes('api.github.com/user/installations')) {
+        return new Response(JSON.stringify({
+          installations: [{ id: 99999 }]
+        }), { status: 200 });
+      }
+
+      return originalFetch(url);
+    };
   });
 
   afterEach(async () => {
+    // Restore fetch
+    globalThis.fetch = originalFetch;
+
     // Clean up test data
     await db.deleteFrom('project_cui_config').execute();
     await db.deleteFrom('projects').execute();
+    await db.deleteFrom('github_app_installations').execute();
+    await db.deleteFrom('users').execute();
   });
 
   describe('GET /projects/:projectId/cui-config', () => {
     test('should return 404 for non-existent project', async () => {
       const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', cuiConfigRoutes(db));
 
       const res = await app.request('/projects/non-existent/cui-config');
@@ -78,6 +190,10 @@ describe('cui-config routes', () => {
     test('should return default config when none exists', async () => {
       const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', cuiConfigRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/cui-config`);
@@ -107,6 +223,10 @@ describe('cui-config routes', () => {
 
       const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', cuiConfigRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/cui-config`);
@@ -128,11 +248,15 @@ describe('cui-config routes', () => {
     test('should create config when none exists', async () => {
       const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', cuiConfigRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           claudeMd: '# New Guide',
           mcpServers: { test: { command: 'test' } },
@@ -158,11 +282,15 @@ describe('cui-config routes', () => {
 
       const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', cuiConfigRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           claudeMd: '# Updated Guide',
         }),
@@ -177,11 +305,15 @@ describe('cui-config routes', () => {
     test('should return 400 for invalid data', async () => {
       const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', cuiConfigRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders,
         body: JSON.stringify({
           mcpServers: 'invalid', // Should be object
         }),
@@ -201,10 +333,15 @@ describe('cui-config routes', () => {
 
       const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', cuiConfigRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
       });
 
       expect(res.status).toBe(200);
@@ -217,10 +354,15 @@ describe('cui-config routes', () => {
     test('should return 200 even when no config exists', async () => {
       const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', cuiConfigRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/cui-config`, {
         method: 'DELETE',
+        headers: { Authorization: `Bearer ${authToken}` },
       });
 
       expect(res.status).toBe(200);
@@ -239,6 +381,10 @@ describe('cui-config routes', () => {
 
       const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', cuiConfigRoutes(db));
 
       const res = await app.request(`/projects/${testProjectId}/cui-config/preview`);
@@ -252,9 +398,13 @@ describe('cui-config routes', () => {
       expect(body.claudeMd).toBeDefined();
     });
 
-    test('should return 404 for non-existent project', async () => {
+    test('should return 404 for non-existent project in preview', async () => {
       const { cuiConfigRoutes } = await import('../../../src/routes/cui-config.ts');
       const app = new Hono();
+      app.use('*', async (c, next) => {
+        c.set('db', db);
+        await next();
+      });
       app.route('/projects', cuiConfigRoutes(db));
 
       const res = await app.request('/projects/non-existent/cui-config/preview');

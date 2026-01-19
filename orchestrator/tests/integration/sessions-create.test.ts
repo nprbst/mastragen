@@ -52,7 +52,7 @@ describe('POST /sessions with cui config injection', () => {
     usersRepo = new UsersRepository(db);
 
     app = new Hono();
-    app.route('/sessions', sessionsRoutes(db));
+    app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
 
     // Create test user
     const user = await usersRepo.create({
@@ -122,7 +122,7 @@ describe('POST /sessions with cui config injection', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          projectId: 'non-existent-project',
+          projectId: 'abc123', // Valid hex format but doesn't exist
           artifactName: 'test-feature',
           environment: 'dev',
         }),

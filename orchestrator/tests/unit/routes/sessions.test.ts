@@ -41,7 +41,7 @@ describe('Sessions routes - Dashboard filtering', () => {
     sharesRepo = new SessionSharesRepository(db);
 
     app = new Hono();
-    app.route('/sessions', sessionsRoutes(db));
+    app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
 
     // Create test projects
     const project = await projectsRepo.create({

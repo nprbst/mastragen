@@ -79,7 +79,7 @@ describe('Sessions Git Routes', () => {
       const { sessionsRoutes } = await import('../../src/routes/sessions.ts');
 
       const app = new Hono();
-      app.route('/sessions', sessionsRoutes(db));
+      app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
 
       // Call suspend endpoint
       const res = await app.request(`/sessions/${session.id}/suspend`, {
@@ -115,7 +115,7 @@ describe('Sessions Git Routes', () => {
       const { sessionsRoutes } = await import('../../src/routes/sessions.ts');
 
       const app = new Hono();
-      app.route('/sessions', sessionsRoutes(db));
+      app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
 
       const res = await app.request(`/sessions/${session.id}/suspend`, {
         method: 'POST',

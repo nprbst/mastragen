@@ -56,9 +56,16 @@ function toSessionWithGitResponse(session: Session): SessionWithGitResponse {
 }
 
 /**
+ * Options for sessions routes.
+ */
+export interface SessionsRoutesOptions {
+  dockerEnabled?: boolean;
+}
+
+/**
  * Creates session management routes.
  */
-export function sessionsRoutes(db: Kysely<Database>): Hono {
+export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOptions = {}): Hono {
   const app = new Hono();
 
   const projectsRepo = new ProjectsRepository(db);
@@ -71,6 +78,7 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
     projectsRepo,
     sessionsRepo,
     db, // T048: Pass db for cui config injection
+    dockerEnabled: options.dockerEnabled,
   });
 
   // POST /sessions - Create a new session

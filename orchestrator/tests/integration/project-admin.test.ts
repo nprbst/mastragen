@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeAll, afterAll, beforeEach } from 'bun:test';
+import { describe, expect, test, beforeAll, afterAll, beforeEach, afterEach } from 'bun:test';
 import { existsSync, unlinkSync } from 'node:fs';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
@@ -59,6 +59,7 @@ describe('Project admin workflow', () => {
   let testInstallationId: string;
   let authToken: string;
   let authHeaders: Record<string, string>;
+  let originalFetch: typeof fetch;
 
   beforeAll(async () => {
     if (existsSync(TEST_DB_PATH)) {
@@ -158,6 +159,32 @@ describe('Project admin workflow', () => {
     app.route('/projects', cuiConfigRoutes(db));
     app.route('/projects', commandsRoutes(db));
     app.route('/projects', skillsRoutes(db));
+
+    // Mock GitHub API calls for auth middleware
+    originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url: string | URL | Request) => {
+      const urlStr = url instanceof Request ? url.url : url.toString();
+
+      // Mock /repos/{owner}/{repo} for admin check
+      if (urlStr.includes('api.github.com/repos/')) {
+        return new Response(JSON.stringify({
+          permissions: { admin: true, push: true, pull: true }
+        }), { status: 200 });
+      }
+
+      // Mock /user/installations for access check
+      if (urlStr.includes('api.github.com/user/installations')) {
+        return new Response(JSON.stringify({
+          installations: [{ id: 99999 }]  // Match testInstallationId
+        }), { status: 200 });
+      }
+
+      return originalFetch(url);
+    };
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
   });
 
   describe('Complete admin workflow', () => {
@@ -420,7 +447,7 @@ describe('Project admin workflow', () => {
 
   describe('Cross-project isolation', () => {
     test('should isolate commands between projects', async () => {
-      // Create another project
+      // Create another project linked to the same installation for auth
       const otherProjectId = 'proj-other-test';
       await db
         .insertInto('projects')
@@ -432,7 +459,7 @@ describe('Project admin workflow', () => {
           branch_prefix: 'mg/',
           mastra_path: '.',
           ui_sandbox_path: null,
-          installation_id: null,
+          installation_id: testInstallationId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         })
