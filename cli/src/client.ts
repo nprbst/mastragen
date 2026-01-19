@@ -55,7 +55,8 @@ export class ApiError extends Error {
  * Uses oRPC internally for type-safe communication with Valibot validation.
  */
 export class MgenClient {
-  private baseUrl: string;
+  readonly baseUrl: string;
+
   private rpcClient: ReturnType<typeof createORPCClient<Router>>;
 
   constructor(baseUrl: string) {
@@ -69,6 +70,18 @@ export class MgenClient {
       }),
     });
     this.rpcClient = createORPCClient<Router>(link);
+  }
+
+  /**
+   * Returns true if connected to a localhost server.
+   */
+  isLocalhost(): boolean {
+    try {
+      const url = new URL(this.baseUrl);
+      return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    } catch {
+      return false;
+    }
   }
 
   /**

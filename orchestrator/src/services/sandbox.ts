@@ -54,7 +54,7 @@ export interface RepoPermissions {
  */
 export interface GitHubServiceCreateInterface {
   checkUserPermissions(owner: string, repo: string, username: string): Promise<RepoPermissions>;
-  getDefaultBranchSha(owner: string, repo: string): Promise<string>;
+  getDefaultBranchSha(owner: string, repo: string, branch?: string): Promise<string>;
   createBranch(owner: string, repo: string, branchName: string, fromSha: string): Promise<void>;
 }
 
@@ -224,11 +224,11 @@ export class SandboxService {
 
   // Container image names (built from sandbox/ Dockerfiles)
   private static readonly IMAGES = {
-    init: 'mastragen-001-core-platform-foundation-init',
-    cui: 'mastragen-001-core-platform-foundation-cui',
-    mastra: 'mastragen-001-core-platform-foundation-mastra',
-    astro: 'mastragen-001-core-platform-foundation-astro',
-    vscode: 'mastragen-001-core-platform-foundation-code-server',
+    init: 'mastragen-init',
+    cui: 'mastragen-cui',
+    mastra: 'mastragen-mastra',
+    astro: 'mastragen-astro',
+    vscode: 'mastragen-code-server',
   };
 
   // Cache for session -> project mapping (for URL generation)
@@ -376,7 +376,7 @@ export class SandboxService {
     const branchName = this.generateBranchName(project, userId, artifactName, sessionId);
 
     // Get default branch SHA and create branch on GitHub (T045)
-    const defaultSha = await gitHubService.getDefaultBranchSha(owner, repo);
+    const defaultSha = await gitHubService.getDefaultBranchSha(owner, repo, project.default_branch);
     await gitHubService.createBranch(owner, repo, branchName, defaultSha);
 
     // Generate workspace volume name
@@ -896,16 +896,21 @@ export class SandboxService {
   private async runInitContainer(
     sessionId: string,
     volumeName: string,
-    githubRepo: string
+    githubRepo: string,
+    branch?: string
   ): Promise<void> {
     const containerName = `${sessionId}-init`;
-    console.log(`[SandboxService] Running init container to clone ${githubRepo}...`);
+    console.log(`[SandboxService] Running init container to clone ${githubRepo}${branch ? ` (branch: ${branch})` : ''}...`);
 
     try {
       const container = await this.docker.createContainer({
         name: containerName,
         Image: SandboxService.IMAGES.init,
-        Env: [`GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`, `GITHUB_REPO=${githubRepo}`],
+        Env: [
+          `GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`,
+          `GITHUB_REPO=${githubRepo}`,
+          ...(branch ? [`BRANCH=${branch}`] : []),
+        ],
         HostConfig: {
           Binds: [`${volumeName}:/workspace`],
         },
@@ -976,8 +981,8 @@ export class SandboxService {
       console.log('[SandboxService] Volume already exists, continuing...');
     }
 
-    // Run init container to clone the repo
-    await this.runInitContainer(session.id, volumeName, project.github_repo);
+    // Run init container to clone the repo (using session branch if available)
+    await this.runInitContainer(session.id, volumeName, project.github_repo, session.branch_name ?? undefined);
 
     // Parse environment variables from JSON string
     let parsedEnvVars: Record<string, string> = {};
@@ -1005,30 +1010,33 @@ export class SandboxService {
       env: string[];
       workingDir?: string;
     }> = [
-      {
-        name: `${session.id}-cui`,
-        image: SandboxService.IMAGES.cui,
-        port: SandboxService.PORTS.cui,
-        env: [
-          ...baseEnv,
-          `CUI_AUTH_TOKEN=${session.cui_auth_token || ''}`,
-          ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
-        ],
-      },
-      {
-        name: `${session.id}-mastra`,
-        image: SandboxService.IMAGES.mastra,
-        port: SandboxService.PORTS.mastra,
-        env: baseEnv,
-        workingDir: mastraWorkDir,
-      },
-      {
-        name: `${session.id}-vscode`,
-        image: SandboxService.IMAGES.vscode,
-        port: SandboxService.PORTS.vscode,
-        env: baseEnv,
-      },
-    ];
+        {
+          name: `${session.id}-cui`,
+          image: SandboxService.IMAGES.cui,
+          port: SandboxService.PORTS.cui,
+          env: [
+            ...baseEnv,
+            `CUI_AUTH_TOKEN=${session.cui_auth_token || ''}`,
+            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
+          ],
+        },
+        {
+          name: `${session.id}-mastra`,
+          image: SandboxService.IMAGES.mastra,
+          port: SandboxService.PORTS.mastra,
+          env: baseEnv,
+          workingDir: mastraWorkDir,
+        },
+        {
+          name: `${session.id}-vscode`,
+          image: SandboxService.IMAGES.vscode,
+          port: SandboxService.PORTS.vscode,
+          env: [
+            ...baseEnv,
+            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
+          ],
+        },
+      ];
 
     // T047: Add astro container only if project has UI sandbox path
     if (project.ui_sandbox_path) {

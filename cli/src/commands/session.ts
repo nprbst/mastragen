@@ -15,6 +15,7 @@ import {
 } from '../output.ts';
 import { handleCancel } from '../prompts.ts';
 import { getCachedToken, saveCachedToken, truncateToken } from '../utils/claude-token.ts';
+import { openInChrome, resolveServices } from '../utils/browser.ts';
 
 /**
  * Prompts user for Claude OAuth token with caching support.
@@ -71,6 +72,8 @@ export function sessionCommand(client: MgenClient): Command {
     .option('-n, --name <name>', 'Artifact name (lowercase, hyphens allowed)')
     .option('-e, --env <environment>', 'Environment (e.g., dev, staging)')
     .option('-t, --token <token>', 'Claude OAuth token (from `claude setup-token`)')
+    .option('-c, --cached-token', 'Use cached Claude token without prompting')
+    .option('-o, --open [services]', 'Open services in Chrome incognito (e.g., vscode,cui or all)')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
@@ -141,7 +144,9 @@ export function sessionCommand(client: MgenClient): Command {
 
         // 4. Claude token (optional)
         let claudeToken = options.token as string | undefined;
-        if (!claudeToken && needsInteractive) {
+        if (!claudeToken && options.cachedToken) {
+          claudeToken = getCachedToken() ?? undefined;
+        } else if (!claudeToken && !options.json) {
           claudeToken = await promptForClaudeToken();
         }
 
@@ -165,6 +170,12 @@ export function sessionCommand(client: MgenClient): Command {
             outro('Session created!');
           }
           console.log(formatSessionCreated(result));
+
+          if (options.open) {
+            const services = options.open === true ? 'all' : options.open;
+            const urls = resolveServices(services, result.urls);
+            openInChrome(urls);
+          }
         }
       } catch (err) {
         if (err instanceof ApiError) {
@@ -336,6 +347,7 @@ export function sessionCommand(client: MgenClient): Command {
     .command('resume [id]')
     .description('Resume a suspended session')
     .option('-t, --token <token>', 'Claude OAuth token (from `claude setup-token`)')
+    .option('-o, --open [services]', 'Open services in Chrome incognito (e.g., vscode,cui or all)')
     .option('--json', 'Output as JSON')
     .action(async (idArg, options) => {
       try {
@@ -383,6 +395,12 @@ export function sessionCommand(client: MgenClient): Command {
           console.log(JSON.stringify(result, null, 2));
         } else {
           console.log(formatResumed(result));
+
+          if (options.open) {
+            const services = options.open === true ? 'all' : options.open;
+            const urls = resolveServices(services, result.urls);
+            openInChrome(urls);
+          }
         }
       } catch (err) {
         if (err instanceof ApiError) {
@@ -404,11 +422,27 @@ export function sessionCommand(client: MgenClient): Command {
   session
     .command('cleanup [ids...]')
     .description('Clean up sessions (stop containers and delete)')
+    .option('--all', 'Clean up all sessions (localhost only)')
     .option('--keep-volume', 'Keep the workspace volume (default: remove)')
     .option('--json', 'Output as JSON')
     .action(async (idsArg: string[] | undefined, options) => {
       try {
         let ids = idsArg ?? [];
+
+        // Handle --all flag (localhost only)
+        if (options.all) {
+          if (!client.isLocalhost()) {
+            console.error(error('--all flag is only allowed when connected to localhost'));
+            process.exit(1);
+          }
+          const sessions = await client.listSessions({});
+          ids = sessions.map((s) => s.id);
+
+          if (ids.length === 0) {
+            console.error(error('No sessions found.'));
+            process.exit(1);
+          }
+        }
 
         // Interactive mode if no session IDs provided
         if (ids.length === 0 && !options.json) {

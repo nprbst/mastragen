@@ -1,5 +1,7 @@
 FROM node:20-slim
 
+# Use the existing node user (UID 1000) which matches code-server's coder user
+
 WORKDIR /workspace
 
 # Install git and dependencies for bun
@@ -10,13 +12,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install bun
+# Install bun as node user and symlink to /usr/local/bin
+USER node
 RUN curl -fsSL https://bun.sh/install | bash
-ENV PATH="/root/.bun/bin:${PATH}"
+USER root
+RUN ln -s /home/node/.bun/bin/bun /usr/local/bin/bun \
+    && ln -s /home/node/.bun/bin/bunx /usr/local/bin/bunx
+ENV PATH="/home/node/.bun/bin:${PATH}"
 
 # Copy entrypoint script
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
+
+USER node
 
 EXPOSE 4321
 

@@ -1,5 +1,7 @@
 FROM oven/bun:1-slim
 
+# Use the existing bun user (UID 1000) which matches code-server's coder user
+
 WORKDIR /workspace
 
 # Install git and npm for credential configuration and npx
@@ -14,11 +16,14 @@ COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Create .claude directory structure for cui-server directory detection
-RUN mkdir -p /root/.claude/projects/-workspace
+RUN mkdir -p /home/bun/.claude/projects/-workspace \
+    && chown -R bun:bun /home/bun/.claude
 
 # Copy welcome session file (to root for entrypoint to copy from, and to .claude for image default)
 COPY welcome-session.jsonl /welcome-session.jsonl
-COPY welcome-session.jsonl /root/.claude/projects/-workspace/00000000-0000-0000-0000-000000000001.jsonl
+COPY --chown=bun:bun welcome-session.jsonl /home/bun/.claude/projects/-workspace/00000000-0000-0000-0000-000000000001.jsonl
+
+USER bun
 
 EXPOSE 3001
 

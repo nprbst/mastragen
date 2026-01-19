@@ -3,7 +3,7 @@ import Docker from 'dockerode';
 /**
  * Service for persisting and restoring CUI conversation history.
  *
- * CUI stores conversation history in /root/.claude/projects/-workspace/*.jsonl
+ * CUI stores conversation history in /home/bun/.claude/projects/-workspace/*.jsonl
  * This service copies history to/from the workspace's .cui/ directory so it
  * can be versioned with git.
  */
@@ -13,7 +13,7 @@ export class CuiHistoryService {
   private workspacePath: string;
 
   // CUI stores history in this directory inside the container
-  private static readonly CUI_HISTORY_PATH = '/root/.claude/projects/-workspace';
+  private static readonly CUI_HISTORY_PATH = '/home/bun/.claude/projects/-workspace';
   // Directory in workspace where history is persisted for git
   private static readonly WORKSPACE_HISTORY_DIR = '.cui';
 
@@ -76,7 +76,7 @@ export class CuiHistoryService {
 
   /**
    * Saves CUI conversation history from the container to the workspace.
-   * Copies /root/.claude/projects/-workspace/*.jsonl to {workspace}/.cui/
+   * Copies /home/bun/.claude/projects/-workspace/*.jsonl to {workspace}/.cui/
    *
    * This should be called before git commit during suspend.
    */
@@ -105,7 +105,7 @@ export class CuiHistoryService {
 
   /**
    * Restores CUI conversation history from the workspace to the container.
-   * Copies {workspace}/.cui/*.jsonl to /root/.claude/projects/-workspace/
+   * Copies {workspace}/.cui/*.jsonl to /home/bun/.claude/projects/-workspace/
    *
    * This should be called after containers start during resume.
    */

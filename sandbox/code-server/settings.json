@@ -1,0 +1,29 @@
+{
+  "security.workspace.trust.enabled": false,
+  "workbench.colorTheme": "Default Dark Modern",
+  "workbench.startupEditor": "none",
+  "window.commandCenter": false,
+  "workbench.layoutControl.enabled": false,
+  "workbench.activityBar.visible": true,
+  "workbench.sideBar.location": "left",
+  "zenMode.fullScreen": true,
+  "zenMode.centerLayout": true,
+  "zenMode.hideTabs": false,
+  "zenMode.hideStatusBar": true,
+  "zenMode.hideLineNumbers": false,
+  "zenMode.silentNotifications": true,
+  "chat.commandCenter.enabled": false,
+  "chat.editor.enabled": false,
+  "github.copilot.chat.enabled": false,
+  "simpleBrowser.focusLockIndicator.enabled": false,
+  "auto-run-command.rules": [
+    {
+      "condition": "always",
+      "command": [
+        "workbench.action.toggleZenMode",
+        "claude-vscode.editor.open"
+      ],
+      "message": "Setting up workspace"
+    }
+  ]
+}

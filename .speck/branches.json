@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "branches": [
+    {
+      "name": "001-core-platform-foundation",
+      "specId": "001-core-platform-foundation",
+      "createdAt": "2026-01-17T18:39:25.983Z",
+      "updatedAt": "2026-01-17T18:39:25.983Z"
+    },
+    {
+      "name": "002-git-multi-project",
+      "specId": "002-git-multi-project",
+      "createdAt": "2026-01-18T05:35:10.897Z",
+      "updatedAt": "2026-01-18T05:35:10.897Z"
+    },
+    {
+      "name": "003-cui-config-landing-page",
+      "specId": "003-cui-config-landing-page",
+      "createdAt": "2026-01-18T18:10:21.465Z",
+      "updatedAt": "2026-01-18T18:10:21.465Z"
+    }
+  ],
+  "specIndex": {
+    "001-core-platform-foundation": [
+      "001-core-platform-foundation"
+    ],
+    "002-git-multi-project": [
+      "002-git-multi-project"
+    ],
+    "003-cui-config-landing-page": [
+      "003-cui-config-landing-page"
+    ]
+  }
+}
