@@ -16,9 +16,18 @@ done
 echo "Found package.json, continuing..."
 
 # Install dependencies if node_modules doesn't exist
+# Use a lock file to prevent concurrent installs from multiple containers
+LOCKFILE="/workspace/.bun-install.lock"
 if [ ! -d "node_modules" ]; then
     echo "Installing dependencies..."
-    bun install
+    # Try to acquire lock, wait if another container is installing
+    exec 200>"$LOCKFILE"
+    flock -w 300 200 || { echo "Could not acquire lock, proceeding anyway..."; }
+    # Check again after acquiring lock (another container may have finished)
+    if [ ! -d "node_modules" ]; then
+        bun install
+    fi
+    flock -u 200
 fi
 
 # Execute the main command

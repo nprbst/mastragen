@@ -13,9 +13,17 @@ UI_PATH="${UI_SANDBOX_PATH:-packages/ui}"
 cd "/workspace/${UI_PATH}"
 
 # Install dependencies if package.json exists and node_modules doesn't
+# Use a lock file to prevent concurrent installs from multiple containers
+LOCKFILE="/workspace/.bun-install.lock"
 if [ -f "package.json" ] && [ ! -d "node_modules" ]; then
     echo "Installing dependencies..."
-    bun install
+    exec 200>"$LOCKFILE"
+    flock -w 300 200 || { echo "Could not acquire lock, proceeding anyway..."; }
+    # Check again after acquiring lock
+    if [ ! -d "node_modules" ]; then
+        bun install
+    fi
+    flock -u 200
 fi
 
 # Set Mastra API URL for container networking (default to Docker service name)
