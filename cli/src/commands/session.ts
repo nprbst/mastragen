@@ -15,6 +15,7 @@ import {
 } from '../output.ts';
 import { handleCancel } from '../prompts.ts';
 import { getCachedToken, saveCachedToken, truncateToken } from '../utils/claude-token.ts';
+import { openInChrome, resolveServices } from '../utils/browser.ts';
 
 /**
  * Prompts user for Claude OAuth token with caching support.
@@ -72,6 +73,7 @@ export function sessionCommand(client: MgenClient): Command {
     .option('-e, --env <environment>', 'Environment (e.g., dev, staging)')
     .option('-t, --token <token>', 'Claude OAuth token (from `claude setup-token`)')
     .option('-c, --cached-token', 'Use cached Claude token without prompting')
+    .option('-o, --open [services]', 'Open services in Chrome incognito (e.g., vscode,cui or all)')
     .option('--json', 'Output as JSON')
     .action(async (options) => {
       try {
@@ -168,6 +170,12 @@ export function sessionCommand(client: MgenClient): Command {
             outro('Session created!');
           }
           console.log(formatSessionCreated(result));
+
+          if (options.open) {
+            const services = options.open === true ? 'all' : options.open;
+            const urls = resolveServices(services, result.urls);
+            openInChrome(urls);
+          }
         }
       } catch (err) {
         if (err instanceof ApiError) {
@@ -339,6 +347,7 @@ export function sessionCommand(client: MgenClient): Command {
     .command('resume [id]')
     .description('Resume a suspended session')
     .option('-t, --token <token>', 'Claude OAuth token (from `claude setup-token`)')
+    .option('-o, --open [services]', 'Open services in Chrome incognito (e.g., vscode,cui or all)')
     .option('--json', 'Output as JSON')
     .action(async (idArg, options) => {
       try {
@@ -386,6 +395,12 @@ export function sessionCommand(client: MgenClient): Command {
           console.log(JSON.stringify(result, null, 2));
         } else {
           console.log(formatResumed(result));
+
+          if (options.open) {
+            const services = options.open === true ? 'all' : options.open;
+            const urls = resolveServices(services, result.urls);
+            openInChrome(urls);
+          }
         }
       } catch (err) {
         if (err instanceof ApiError) {
