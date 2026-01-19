@@ -7,6 +7,8 @@ import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations as runMigrations001 } from '../../src/db/migrations/001_initial.ts';
 import { runMigrations as runMigrations002 } from '../../src/db/migrations/002_git_fields.ts';
 import { runMigrations as runMigrations003 } from '../../src/db/migrations/003_cui_config.ts';
+import { runMigrations as runMigrations004 } from '../../src/db/migrations/004_indexes.ts';
+import { runMigrations as runMigrations005 } from '../../src/db/migrations/005_rename_cui_to_claude.ts';
 import { claudeConfigRoutes } from '../../src/routes/claude-config.ts';
 import { commandsRoutes } from '../../src/routes/commands.ts';
 import { skillsRoutes } from '../../src/routes/skills.ts';
@@ -69,6 +71,8 @@ describe('Project admin workflow', () => {
     await runMigrations001(db);
     await runMigrations002(db);
     await runMigrations003(db);
+    await runMigrations004(db);
+    await runMigrations005(db);
   });
 
   afterAll(async () => {
@@ -156,7 +160,7 @@ describe('Project admin workflow', () => {
       c.set('db', db);
       await next();
     });
-    app.route('/projects', cuiConfigRoutes(db));
+    app.route('/projects', claudeConfigRoutes(db));
     app.route('/projects', commandsRoutes(db));
     app.route('/projects', skillsRoutes(db));
 
@@ -190,7 +194,7 @@ describe('Project admin workflow', () => {
   describe('Complete admin workflow', () => {
     test('should configure Claude config, add commands, and add skills', async () => {
       // Step 1: Get initial Claude config (should create default)
-      let res = await app.request(`/projects/${testProjectId}/cui-config`);
+      let res = await app.request(`/projects/${testProjectId}/claude-config`);
       expect(res.status).toBe(200);
       const initialConfig = (await res.json()) as {
         projectId: string;
@@ -200,7 +204,7 @@ describe('Project admin workflow', () => {
       expect(initialConfig.projectId).toBe(testProjectId);
 
       // Step 2: Update Claude config
-      res = await app.request(`/projects/${testProjectId}/cui-config`, {
+      res = await app.request(`/projects/${testProjectId}/claude-config`, {
         method: 'PUT',
         headers: authHeaders,
         body: JSON.stringify({
@@ -269,7 +273,7 @@ describe('Project admin workflow', () => {
       expect(skills[0].name).toBe('mastra-development');
 
       // Step 7: Get preview
-      res = await app.request(`/projects/${testProjectId}/cui-config/preview`);
+      res = await app.request(`/projects/${testProjectId}/claude-config/preview`);
       expect(res.status).toBe(200);
       const preview = (await res.json()) as {
         settingsJson: { mcpServers: Record<string, unknown> };
@@ -331,14 +335,14 @@ describe('Project admin workflow', () => {
       expect(remainingSkills).toHaveLength(0);
 
       // Step 12: Delete Claude config
-      res = await app.request(`/projects/${testProjectId}/cui-config`, {
+      res = await app.request(`/projects/${testProjectId}/claude-config`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${authToken}` },
       });
       expect(res.status).toBe(200);
 
       // Verify config returns default
-      res = await app.request(`/projects/${testProjectId}/cui-config`);
+      res = await app.request(`/projects/${testProjectId}/claude-config`);
       expect(res.status).toBe(200);
       const finalConfig = (await res.json()) as { claudeMd: string | null };
       expect(finalConfig.claudeMd).toBeNull();
@@ -433,7 +437,7 @@ describe('Project admin workflow', () => {
     });
 
     test('should validate Claude config mcpServers JSON', async () => {
-      const res = await app.request(`/projects/${testProjectId}/cui-config`, {
+      const res = await app.request(`/projects/${testProjectId}/claude-config`, {
         method: 'PUT',
         headers: authHeaders,
         body: JSON.stringify({

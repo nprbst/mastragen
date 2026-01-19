@@ -7,6 +7,8 @@ import { createDatabase } from '../../../src/db/index.ts';
 import { runMigrations as runMigrations001 } from '../../../src/db/migrations/001_initial.ts';
 import { runMigrations as runMigrations002 } from '../../../src/db/migrations/002_git_fields.ts';
 import { runMigrations as runMigrations003 } from '../../../src/db/migrations/003_cui_config.ts';
+import { runMigrations as runMigrations004 } from '../../../src/db/migrations/004_indexes.ts';
+import { runMigrations as runMigrations005 } from '../../../src/db/migrations/005_rename_cui_to_claude.ts';
 import { ProjectsRepository } from '../../../src/repositories/index.ts';
 import { createTestJwt } from '../../helpers/jwt.ts';
 
@@ -40,6 +42,8 @@ describe('skills routes', () => {
     await runMigrations001(db);
     await runMigrations002(db);
     await runMigrations003(db);
+    await runMigrations004(db);
+    await runMigrations005(db);
 
     projectsRepo = new ProjectsRepository(db);
   });

@@ -506,14 +506,14 @@ describe('Sessions Git Routes', () => {
   });
 
   /**
-   * T038: CUI History Preservation
+   * T038: Claude History Preservation
    *
    * Tests that conversation history is saved and restored:
-   * - On suspend: Copy from CUI's /root/.claude/projects/-workspace/ to workspace's .cui/
-   * - On resume: Copy from workspace's .cui/ back to CUI container
+   * - On suspend: Copy from Claude's /home/coder/.claude/projects/-workspace/ to workspace's .claude-history/
+   * - On resume: Copy from workspace's .claude-history/ back to VS Code container
    */
-  describe('CUI History Preservation (T038)', () => {
-    test('suspendWithGit calls saveCuiHistory to persist conversation history', async () => {
+  describe('Claude History Preservation (T038)', () => {
+    test('suspendWithGit calls saveClaudeHistory to persist conversation history', async () => {
       const mockCalls: string[] = [];
 
       const mockGitService = {
@@ -541,24 +541,24 @@ describe('Sessions Git Routes', () => {
         getCommitCount: mock(() => Promise.resolve(1)),
       };
 
-      const mockCuiHistoryService = {
-        saveCuiHistory: mock(() => {
-          mockCalls.push('saveCuiHistory');
+      const mockClaudeHistoryService = {
+        saveClaudeHistory: mock(() => {
+          mockCalls.push('saveClaudeHistory');
           return Promise.resolve();
         }),
-        restoreCuiHistory: mock(() => {
-          mockCalls.push('restoreCuiHistory');
+        restoreClaudeHistory: mock(() => {
+          mockCalls.push('restoreClaudeHistory');
           return Promise.resolve();
         }),
       };
 
       const session = await sessionsRepo.create({
         project_id: testProjectId,
-        artifact_name: 'cui-history-suspend-test',
+        artifact_name: 'claude-history-suspend-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
         user_id: 'testuser',
-        branch_name: 'mg/testuser/cui-history-suspend-test-abc123',
+        branch_name: 'mg/testuser/claude-history-suspend-test-abc123',
       });
 
       const { SandboxService } = await import('../../src/services/sandbox.ts');
@@ -569,23 +569,23 @@ describe('Sessions Git Routes', () => {
         dockerEnabled: false,
       });
 
-      // Call suspendWithGit with CUI history service
+      // Call suspendWithGit with Claude history service
       const result = await sandboxService.suspendWithGit(
         session.id,
         mockGitService as any,
-        { cuiHistoryService: mockCuiHistoryService }
+        { claudeHistoryService: mockClaudeHistoryService }
       );
 
-      // Verify saveCuiHistory was called before commit
-      const saveCuiHistoryIndex = mockCalls.indexOf('saveCuiHistory');
+      // Verify saveClaudeHistory was called before commit
+      const saveClaudeHistoryIndex = mockCalls.indexOf('saveClaudeHistory');
       const commitIndex = mockCalls.findIndex((c) => c.startsWith('commitAll:'));
 
-      expect(saveCuiHistoryIndex).toBeGreaterThanOrEqual(0);
-      expect(saveCuiHistoryIndex).toBeLessThan(commitIndex);
+      expect(saveClaudeHistoryIndex).toBeGreaterThanOrEqual(0);
+      expect(saveClaudeHistoryIndex).toBeLessThan(commitIndex);
       expect(result.state).toBe('suspended');
     });
 
-    test('resumeWithGit calls restoreCuiHistory after clone', async () => {
+    test('resumeWithGit calls restoreClaudeHistory after clone', async () => {
       const mockCalls: string[] = [];
 
       const mockGitService = {
@@ -599,24 +599,24 @@ describe('Sessions Git Routes', () => {
         }),
       };
 
-      const mockCuiHistoryService = {
-        saveCuiHistory: mock(() => {
-          mockCalls.push('saveCuiHistory');
+      const mockClaudeHistoryService = {
+        saveClaudeHistory: mock(() => {
+          mockCalls.push('saveClaudeHistory');
           return Promise.resolve();
         }),
-        restoreCuiHistory: mock(() => {
-          mockCalls.push('restoreCuiHistory');
+        restoreClaudeHistory: mock(() => {
+          mockCalls.push('restoreClaudeHistory');
           return Promise.resolve();
         }),
       };
 
       const session = await sessionsRepo.create({
         project_id: testProjectId,
-        artifact_name: 'cui-history-resume-test',
+        artifact_name: 'claude-history-resume-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
         user_id: 'testuser',
-        branch_name: 'mg/testuser/cui-history-resume-test-xyz789',
+        branch_name: 'mg/testuser/claude-history-resume-test-xyz789',
       });
 
       await sessionsRepo.updateGitState(session.id, {
@@ -633,23 +633,23 @@ describe('Sessions Git Routes', () => {
         dockerEnabled: false,
       });
 
-      // Call resumeWithGit with CUI history service
+      // Call resumeWithGit with Claude history service
       const result = await sandboxService.resumeWithGit(
         session.id,
         mockGitService as any,
-        { cuiHistoryService: mockCuiHistoryService }
+        { claudeHistoryService: mockClaudeHistoryService }
       );
 
-      // Verify restoreCuiHistory was called after clone
+      // Verify restoreClaudeHistory was called after clone
       const cloneIndex = mockCalls.findIndex((c) => c.startsWith('clone:'));
-      const restoreIndex = mockCalls.indexOf('restoreCuiHistory');
+      const restoreIndex = mockCalls.indexOf('restoreClaudeHistory');
 
       expect(cloneIndex).toBeGreaterThanOrEqual(0);
       expect(restoreIndex).toBeGreaterThan(cloneIndex);
       expect(result.session.state).toBe('active');
     });
 
-    test('saveCuiHistory is skipped gracefully when history directory does not exist', async () => {
+    test('saveClaudeHistory is skipped gracefully when history directory does not exist', async () => {
       const mockCalls: string[] = [];
 
       const mockGitService = {
@@ -662,13 +662,13 @@ describe('Sessions Git Routes', () => {
         getCommitCount: mock(() => Promise.resolve(0)),
       };
 
-      // Mock that throws "no such file" error
-      const mockCuiHistoryService = {
-        saveCuiHistory: mock(() => {
-          mockCalls.push('saveCuiHistory:no-history');
+      // Mock that handles "no such file" gracefully
+      const mockClaudeHistoryService = {
+        saveClaudeHistory: mock(() => {
+          mockCalls.push('saveClaudeHistory:no-history');
           return Promise.resolve(); // Should handle gracefully
         }),
-        restoreCuiHistory: mock(() => Promise.resolve()),
+        restoreClaudeHistory: mock(() => Promise.resolve()),
       };
 
       const session = await sessionsRepo.create({
@@ -690,7 +690,7 @@ describe('Sessions Git Routes', () => {
 
       // Should not throw, even if no history exists
       const result = await sandboxService.suspendWithGit(session.id, mockGitService as any, {
-        cuiHistoryService: mockCuiHistoryService,
+        claudeHistoryService: mockClaudeHistoryService,
       });
 
       expect(result.state).toBe('suspended');
@@ -1297,7 +1297,7 @@ describe('Sessions Git Routes', () => {
 
         // Verify URLs include astro (because ui_sandbox_path is configured)
         expect(result.urls).toBeDefined();
-        expect(result.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+        expect(result.urls.vscode).toMatch(/^http:\/\/localhost:\d+/);
         expect(result.urls.astro).toMatch(/^http:\/\/localhost:\d+/);
       });
 
@@ -1398,7 +1398,6 @@ describe('Sessions Git Routes', () => {
           artifact_name: 'cross-dir-commit-test',
           environment: 'dev',
           workspace_volume: 'test-volume',
-          cui_auth_token: 'test-token',
           user_id: 'testuser',
           branch_name: 'mg/testuser/cross-dir-commit-test-abc123',
         });
@@ -1467,7 +1466,6 @@ describe('Sessions Git Routes', () => {
           artifact_name: 'multi-dir-test',
           environment: 'dev',
           workspace_volume: 'test-volume',
-          cui_auth_token: 'test-token',
           user_id: 'testuser',
           branch_name: 'mg/testuser/multi-dir-test-xyz789',
         });
@@ -1508,7 +1506,6 @@ describe('Sessions Git Routes', () => {
           artifact_name: 'git-root-test',
           environment: 'dev',
           workspace_volume: 'test-volume',
-          cui_auth_token: 'test-token',
           user_id: 'testuser',
           branch_name: 'mg/testuser/git-root-test-abc123',
         });

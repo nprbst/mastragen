@@ -90,7 +90,6 @@ describe('Sessions Routes', () => {
 
       const body = (await res.json()) as Record<string, unknown>;
       expect(body.urls).toBeDefined();
-      expect((body.urls as Record<string, unknown>).cui).toMatch(/^http:\/\/localhost:\d+/);
       expect((body.urls as Record<string, unknown>).mastra).toMatch(/^http:\/\/localhost:\d+/);
       expect((body.urls as Record<string, unknown>).vscode).toMatch(/^http:\/\/localhost:\d+/);
       // astro may be null if not configured
@@ -273,7 +272,7 @@ describe('Sessions Routes', () => {
       expect(body.id).toBe(id);
       expect(body.state).toBe('active');
       expect(body.urls).toBeDefined();
-      expect((body.urls as Record<string, unknown>).cui).toMatch(/^http:\/\/localhost:\d+/);
+      expect((body.urls as Record<string, unknown>).vscode).toMatch(/^http:\/\/localhost:\d+/);
     });
 
     test('returns 404 when session not found', async () => {
@@ -339,7 +338,6 @@ describe('Sessions Routes', () => {
       expect(body.artifactName).toBe('get-test');
       expect(body.state).toBe('active');
       expect(body.urls).toBeDefined();
-      expect((body.urls as Record<string, unknown>).cui).toMatch(/^http:\/\/localhost:\d+/);
       expect((body.urls as Record<string, unknown>).mastra).toMatch(/^http:\/\/localhost:\d+/);
       expect((body.urls as Record<string, unknown>).vscode).toMatch(/^http:\/\/localhost:\d+/);
     });

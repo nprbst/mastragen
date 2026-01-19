@@ -61,7 +61,7 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
 
   await sql`
     CREATE INDEX IF NOT EXISTS idx_session_shares_shared_with
-    ON session_shares(shared_with_email);
+    ON session_shares(shared_with_user_id);
   `.execute(db);
 
   // GitHub installations index

@@ -6,15 +6,17 @@ import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations as runMigrations001 } from '../../src/db/migrations/001_initial.ts';
 import { runMigrations as runMigrations002 } from '../../src/db/migrations/002_git_fields.ts';
 import { runMigrations as runMigrations003 } from '../../src/db/migrations/003_cui_config.ts';
+import { runMigrations as runMigrations004 } from '../../src/db/migrations/004_indexes.ts';
+import { runMigrations as runMigrations005 } from '../../src/db/migrations/005_rename_cui_to_claude.ts';
 import type { Database } from '../../src/db/types.ts';
 import { ProjectsRepository, UsersRepository } from '../../src/repositories/index.ts';
 import { sessionsRoutes } from '../../src/routes/sessions.ts';
 
-// Test T039: Integration test for POST /sessions with cui config injection
+// Test T039: Integration test for POST /sessions with Claude config injection
 
 const TEST_DB_PATH = './data/test-sessions-create.db';
 
-describe('POST /sessions with cui config injection', () => {
+describe('POST /sessions with Claude config injection', () => {
   let db: Kysely<Database>;
   let app: Hono;
   let projectsRepo: ProjectsRepository;
@@ -30,6 +32,8 @@ describe('POST /sessions with cui config injection', () => {
     await runMigrations001(db);
     await runMigrations002(db);
     await runMigrations003(db);
+    await runMigrations004(db);
+    await runMigrations005(db);
   });
 
   afterAll(async () => {
@@ -42,7 +46,7 @@ describe('POST /sessions with cui config injection', () => {
   beforeEach(async () => {
     // Clean tables between tests
     await db.deleteFrom('sessions').execute();
-    await db.deleteFrom('project_cui_config').execute();
+    await db.deleteFrom('project_claude_config').execute();
     await db.deleteFrom('project_commands').execute();
     await db.deleteFrom('project_environments').execute();
     await db.deleteFrom('projects').execute();
@@ -78,7 +82,7 @@ describe('POST /sessions with cui config injection', () => {
     });
   });
 
-  describe('Session creation with cui config', () => {
+  describe('Session creation with Claude config', () => {
     test('should create session and return URLs', async () => {
       const res = await app.request('/sessions', {
         method: 'POST',
@@ -172,10 +176,10 @@ describe('POST /sessions with cui config injection', () => {
     });
   });
 
-  describe('cui config injection on session create', () => {
-    test('should inject settings.json when project has cui config', async () => {
-      // Add cui config for project
-      await db.insertInto('project_cui_config').values({
+  describe('Claude config injection on session create', () => {
+    test('should inject settings.json when project has Claude config', async () => {
+      // Add Claude config for project
+      await db.insertInto('project_claude_config').values({
         id: 'config-1',
         project_id: testProjectId,
         mcp_servers: JSON.stringify({
@@ -203,7 +207,7 @@ describe('POST /sessions with cui config injection', () => {
       // For now we just verify the session is created successfully
     });
 
-    test('should use default config when project has no cui config', async () => {
+    test('should use default config when project has no Claude config', async () => {
       const res = await app.request('/sessions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -262,7 +266,6 @@ describe('POST /sessions with cui config injection', () => {
       const body = await res.json();
 
       expect(body.urls).toBeDefined();
-      expect(body.urls.cui).toBeDefined();
       expect(body.urls.mastra).toBeDefined();
       expect(body.urls.vscode).toBeDefined();
       // astro URL is optional based on project config

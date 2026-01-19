@@ -199,7 +199,7 @@ describe('Git Workflow E2E', () => {
 
       expect(resumeResult.session.state).toBe('active');
       expect(resumeResult.urls).toBeDefined();
-      expect(resumeResult.urls.cui).toMatch(/^http:\/\/localhost:\d+/);
+      expect(resumeResult.urls.vscode).toMatch(/^http:\/\/localhost:\d+/);
 
       // Verify git operations for resume
       expect(operationLog.find((op) => op.startsWith('git:clone:'))).toBeDefined();
@@ -376,7 +376,6 @@ describe('Git Workflow E2E', () => {
         artifact_name: 'container-lock-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'lock-user-2',
         branch_name: 'mg/lock-user-2/container-lock-test-abc123',
         container_id: 'running-container-id', // Simulates running containers
@@ -412,7 +411,6 @@ describe('Git Workflow E2E', () => {
         artifact_name: 'lock-message-test',
         environment: 'dev',
         workspace_volume: 'test-volume',
-        cui_auth_token: 'test-token',
         user_id: 'lock-user-3',
         branch_name: 'mg/lock-user-3/lock-message-test-abc123',
         container_id: 'running-container-456',

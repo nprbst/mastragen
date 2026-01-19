@@ -114,7 +114,6 @@ describe('SessionWithUrlsResponseSchema', () => {
       createdAt: '2024-01-17T12:00:00Z',
       updatedAt: '2024-01-17T12:00:00Z',
       urls: {
-        cui: 'http://localhost:3001',
         mastra: 'http://localhost:4111',
         astro: null,
         vscode: 'http://localhost:8080',
@@ -122,7 +121,7 @@ describe('SessionWithUrlsResponseSchema', () => {
     };
     const result = v.parse(SessionWithUrlsResponseSchema, valid);
     expect(result).toEqual(valid);
-    expect(result.urls.cui).toBe('http://localhost:3001');
+    expect(result.urls.vscode).toBe('http://localhost:8080');
   });
 
   test('rejects missing URLs', () => {
