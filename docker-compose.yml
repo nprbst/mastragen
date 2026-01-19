@@ -83,6 +83,7 @@ services:
       - workspace:/workspace
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - ASTRO_PREVIEW_URL=${ASTRO_PREVIEW_URL:-http://localhost:4321}
     depends_on:
       - orchestrator
     profiles:
