@@ -5,7 +5,7 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database } from '../db/types.ts';
-import { ProjectsRepository, ProjectCuiConfigRepository } from '../repositories/index.ts';
+import { ProjectsRepository, ProjectCuiConfigRepository, ProjectCommandsRepository, ProjectSkillsRepository } from '../repositories/index.ts';
 
 /**
  * Schema for updating cui config.
@@ -42,6 +42,8 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
   const app = new Hono();
   const projectsRepo = new ProjectsRepository(db);
   const cuiConfigRepo = new ProjectCuiConfigRepository(db);
+  const commandsRepo = new ProjectCommandsRepository(db);
+  const skillsRepo = new ProjectSkillsRepository(db);
 
   /**
    * Helper to transform DB config to API response.
@@ -206,9 +208,23 @@ export function cuiConfigRoutes(db: Kysely<Database>): Hono {
       claudeMd = claudeMd.replace(/\{\{githubRepo\}\}/g, project.github_repo);
     }
 
+    // Fetch commands and skills
+    const commands = await commandsRepo.findByProjectId(projectId);
+    const skills = await skillsRepo.findByProjectId(projectId);
+
     return c.json({
       settingsJson,
       claudeMd,
+      commands: commands.map((cmd) => ({
+        name: cmd.name,
+        description: cmd.description,
+        content: cmd.content,
+      })),
+      skills: skills.map((skill) => ({
+        name: skill.name,
+        description: skill.description,
+        content: skill.content,
+      })),
       project: {
         id: project.id,
         name: project.name,
