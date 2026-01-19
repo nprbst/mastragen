@@ -3,6 +3,19 @@ import { sql } from 'kysely';
 import type { Database } from '../types.ts';
 
 /**
+ * Checks if a column exists in a table using PRAGMA table_info.
+ * SQLite doesn't support IF NOT EXISTS for ALTER TABLE ADD COLUMN.
+ */
+async function columnExists(
+  db: Kysely<Database>,
+  tableName: string,
+  columnName: string
+): Promise<boolean> {
+  const result = await sql<{ name: string }>`PRAGMA table_info(${sql.raw(tableName)})`.execute(db);
+  return result.rows.some((row) => row.name === columnName);
+}
+
+/**
  * Migration 003: cui Configuration & Landing Page (Phase 3)
  *
  * Creates tables for:
@@ -88,10 +101,12 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
     .column('github_login')
     .execute();
 
-  // Extend projects table with installation_id FK
-  await sql`ALTER TABLE projects ADD COLUMN installation_id TEXT REFERENCES github_app_installations(id)`.execute(
-    db
-  );
+  // Extend projects table with installation_id FK (if not already added)
+  if (!(await columnExists(db, 'projects', 'installation_id'))) {
+    await sql`ALTER TABLE projects ADD COLUMN installation_id TEXT REFERENCES github_app_installations(id)`.execute(
+      db
+    );
+  }
 
   // Create project_cui_config table
   await db.schema
@@ -187,15 +202,17 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
     .column('shared_with_user_id')
     .execute();
 
-  // Extend sessions table with last_activity_at column
+  // Extend sessions table with last_activity_at column (if not already added)
   // SQLite ALTER TABLE ADD COLUMN doesn't support non-constant defaults like datetime('now')
   // Add as nullable, backfill existing rows, then handle defaults in application layer
-  await sql`ALTER TABLE sessions ADD COLUMN last_activity_at TEXT`.execute(db);
+  if (!(await columnExists(db, 'sessions', 'last_activity_at'))) {
+    await sql`ALTER TABLE sessions ADD COLUMN last_activity_at TEXT`.execute(db);
 
-  // Backfill existing sessions with current timestamp
-  await sql`UPDATE sessions SET last_activity_at = datetime('now') WHERE last_activity_at IS NULL`.execute(
-    db
-  );
+    // Backfill existing sessions with current timestamp
+    await sql`UPDATE sessions SET last_activity_at = datetime('now') WHERE last_activity_at IS NULL`.execute(
+      db
+    );
+  }
 
   // Create indexes for sessions (for dashboard queries)
   await db.schema

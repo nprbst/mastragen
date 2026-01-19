@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
-import { existsSync, unlinkSync } from 'node:fs';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
-import { createDatabase } from '../../src/db/index.ts';
-import { runMigrations as runMigrations001 } from '../../src/db/migrations/001_initial.ts';
-import { runMigrations as runMigrations002 } from '../../src/db/migrations/002_git_fields.ts';
 import type { Database } from '../../src/db/types.ts';
+import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import { SessionsRepository } from '../../src/repositories/sessions.ts';
 
@@ -25,12 +22,7 @@ describe('Sessions Git Routes', () => {
   let testProjectId: string;
 
   beforeEach(async () => {
-    if (existsSync(TEST_DB_PATH)) {
-      unlinkSync(TEST_DB_PATH);
-    }
-    db = createDatabase(TEST_DB_PATH);
-    await runMigrations001(db);
-    await runMigrations002(db);
+    db = await createTestDb(TEST_DB_PATH);
 
     projectsRepo = new ProjectsRepository(db);
     sessionsRepo = new SessionsRepository(db);
@@ -50,10 +42,7 @@ describe('Sessions Git Routes', () => {
   });
 
   afterEach(async () => {
-    await db.destroy();
-    if (existsSync(TEST_DB_PATH)) {
-      unlinkSync(TEST_DB_PATH);
-    }
+    await cleanupTestDb(db, TEST_DB_PATH);
   });
 
   describe('POST /sessions/:id/suspend (T021 - Contract Test)', () => {
