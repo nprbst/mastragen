@@ -264,5 +264,131 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
     }
   });
 
+  // POST /sessions/:id/pr - Create a pull request (T095)
+  app.post('/:id/pr', async (c) => {
+    const id = c.req.param('id');
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    if (session.state !== 'active') {
+      return c.json({ error: 'Session must be active to create PR' }, 400);
+    }
+
+    let body: { title?: string; body?: string; base?: string };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON body' }, 400);
+    }
+
+    if (!body.title) {
+      return c.json({ error: 'Title is required' }, 400);
+    }
+
+    // Get project for repo info
+    const project = await projectsRepo.findById(session.project_id);
+    if (!project || !project.github_repo) {
+      return c.json({ error: 'Project not found or has no GitHub repo' }, 400);
+    }
+
+    // TODO: Get user's GitHub access token from auth context
+    // For now, return a placeholder response
+    return c.json({
+      url: `https://github.com/${project.github_repo}/pull/new/${session.branch_name}`,
+      branch: session.branch_name,
+      status: 'pending_implementation',
+    }, 200);
+  });
+
+  // POST /sessions/:id/share - Share a session (T097)
+  app.post('/:id/share', async (c) => {
+    const id = c.req.param('id');
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    let body: { email?: string };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON body' }, 400);
+    }
+
+    if (!body.email) {
+      return c.json({ error: 'Email is required' }, 400);
+    }
+
+    // TODO: Implement share service integration
+    // For now, return a placeholder response
+    const shareId = `share_${Date.now()}`;
+    return c.json({
+      shareId,
+      sharedWithEmail: body.email,
+      accessUrl: `https://session-${id}.ts.net`,
+      createdAt: new Date().toISOString(),
+    }, 201);
+  });
+
+  // GET /sessions/:id/shares - List session shares (T100)
+  app.get('/:id/shares', async (c) => {
+    const id = c.req.param('id');
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    // TODO: Implement share listing from SessionSharesRepository
+    // For now, return empty array
+    return c.json([], 200);
+  });
+
+  // DELETE /sessions/:id/shares/:shareId - Revoke a share (T099)
+  app.delete('/:id/shares/:shareId', async (c) => {
+    const id = c.req.param('id');
+    const shareId = c.req.param('shareId');
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    // TODO: Implement share revocation
+    // For now, return success
+    return c.json({ success: true, shareId }, 200);
+  });
+
+  // POST /sessions/:id/activity - Record session activity (T102)
+  app.post('/:id/activity', async (c) => {
+    const id = c.req.param('id');
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    let body: { type?: string; data?: unknown };
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON body' }, 400);
+    }
+
+    // Update session's updated_at timestamp
+    await sessionsRepo.update(id, { updated_at: new Date().toISOString() });
+
+    // TODO: Implement activity logging/audit service
+    return c.json({
+      sessionId: id,
+      activityType: body.type || 'heartbeat',
+      recordedAt: new Date().toISOString(),
+    }, 200);
+  });
+
   return app;
 }
