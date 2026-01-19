@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database, Session } from '../db/types.ts';
-import { ProjectsRepository, SessionsRepository } from '../repositories/index.ts';
+import { ProjectsRepository, SessionsRepository, SessionSharesRepository, UsersRepository } from '../repositories/index.ts';
 import {
   CreateSessionRequestSchema,
   ListSessionsFilterSchema,
@@ -21,6 +21,9 @@ import {
   SessionNotActiveError,
   SessionNotFoundError,
 } from '../services/sandbox.ts';
+import { getTailscaleService } from '../services/tailscale.ts';
+import { getAuthUser, requireAuth } from '../middleware/auth.ts';
+import { getAuditLogger } from '../services/audit-logger.ts';
 
 /**
  * Transforms a database session to API response format.
@@ -60,6 +63,10 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
 
   const projectsRepo = new ProjectsRepository(db);
   const sessionsRepo = new SessionsRepository(db);
+  const sessionSharesRepo = new SessionSharesRepository(db);
+  const usersRepo = new UsersRepository(db);
+  const tailscaleService = getTailscaleService();
+  const auditLogger = getAuditLogger();
   const sandboxService = new SandboxService({
     projectsRepo,
     sessionsRepo,
@@ -303,13 +310,24 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
     }, 200);
   });
 
-  // POST /sessions/:id/share - Share a session (T097)
-  app.post('/:id/share', async (c) => {
+  // POST /sessions/:id/share - Share a session (T097, T062)
+  // Requires authentication to share sessions
+  app.post('/:id/share', requireAuth(), async (c) => {
     const id = c.req.param('id');
+    const authUser = getAuthUser(c);
+
+    if (!authUser) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
 
     const session = await sessionsRepo.findById(id);
     if (!session) {
       return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    // Only active sessions can be shared
+    if (session.state !== 'active') {
+      return c.json({ error: 'Only active sessions can be shared' }, 400);
     }
 
     let body: { email?: string };
@@ -323,14 +341,56 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
       return c.json({ error: 'Email is required' }, 400);
     }
 
-    // TODO: Implement share service integration
-    // For now, return a placeholder response
-    const shareId = `share_${Date.now()}`;
-    return c.json({
-      shareId,
+    // Cannot share with self
+    if (body.email === authUser.email) {
+      return c.json({ error: 'Cannot share session with yourself' }, 400);
+    }
+
+    // Look up the target user by email
+    const targetUser = await usersRepo.findByEmail(body.email);
+    if (!targetUser) {
+      return c.json({ error: 'User not found with that email' }, 404);
+    }
+
+    // Check if already shared with this user
+    const existingShare = await sessionSharesRepo.findActiveShare(id, targetUser.id);
+    if (existingShare) {
+      return c.json({ error: 'Session already shared with this user' }, 409);
+    }
+
+    // Create the share record in the database
+    const share = await sessionSharesRepo.create({
+      sessionId: id,
+      sharedByUserId: authUser.id,
+      sharedWithUserId: targetUser.id,
+    });
+
+    // T062: Grant Tailscale access for the sandbox
+    // Sandbox device name follows convention: session-{sessionId}
+    const sandboxDeviceName = `session-${id}`;
+    await tailscaleService.grantSessionAccess({
+      sessionId: id,
+      sandboxDeviceName,
+      targetUserEmail: body.email,
+      sharedByUserId: authUser.id,
+    });
+
+    // Log the share event
+    auditLogger.logShareEvent({
+      action: 'grant',
+      sessionId: id,
+      sharedByUserId: authUser.id,
+      sharedWithUserId: targetUser.id,
       sharedWithEmail: body.email,
-      accessUrl: `https://session-${id}.ts.net`,
-      createdAt: new Date().toISOString(),
+      shareId: share.id,
+    });
+
+    return c.json({
+      shareId: share.id,
+      sharedWithEmail: body.email,
+      sharedWithUserId: targetUser.id,
+      accessUrl: `https://${sandboxDeviceName}.ts.net`,
+      createdAt: share.granted_at,
     }, 201);
   });
 
@@ -343,24 +403,79 @@ export function sessionsRoutes(db: Kysely<Database>): Hono {
       return c.json({ error: `Session not found: ${id}` }, 404);
     }
 
-    // TODO: Implement share listing from SessionSharesRepository
-    // For now, return empty array
-    return c.json([], 200);
+    // Get all active shares for this session
+    const shares = await sessionSharesRepo.getSessionShares(id);
+
+    return c.json(shares.map(share => ({
+      id: share.id,
+      sessionId: share.session_id,
+      sharedByUserId: share.shared_by_user_id,
+      sharedWithUserId: share.shared_with_user_id,
+      sharedWithEmail: share.shared_with_email,
+      sharedWithName: share.shared_with_name,
+      grantedAt: share.granted_at,
+    })), 200);
   });
 
-  // DELETE /sessions/:id/shares/:shareId - Revoke a share (T099)
-  app.delete('/:id/shares/:shareId', async (c) => {
+  // DELETE /sessions/:id/shares/:shareId - Revoke a share (T099, T062)
+  // Requires authentication to revoke shares
+  app.delete('/:id/shares/:shareId', requireAuth(), async (c) => {
     const id = c.req.param('id');
     const shareId = c.req.param('shareId');
+    const authUser = getAuthUser(c);
+
+    if (!authUser) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
 
     const session = await sessionsRepo.findById(id);
     if (!session) {
       return c.json({ error: `Session not found: ${id}` }, 404);
     }
 
-    // TODO: Implement share revocation
-    // For now, return success
-    return c.json({ success: true, shareId }, 200);
+    // Find the share
+    const share = await sessionSharesRepo.findById(shareId);
+    if (!share) {
+      return c.json({ error: `Share not found: ${shareId}` }, 404);
+    }
+
+    // Verify the share belongs to this session
+    if (share.session_id !== id) {
+      return c.json({ error: 'Share does not belong to this session' }, 400);
+    }
+
+    // Check if already revoked
+    if (share.revoked_at) {
+      return c.json({ error: 'Share already revoked' }, 400);
+    }
+
+    // Get the shared user's email for Tailscale revocation
+    const sharedWithUser = await usersRepo.findById(share.shared_with_user_id);
+    const sharedWithEmail = sharedWithUser?.email || '';
+
+    // Revoke the share in the database
+    await sessionSharesRepo.revoke(shareId);
+
+    // T062: Revoke Tailscale access for the sandbox
+    const sandboxDeviceName = `session-${id}`;
+    await tailscaleService.revokeSessionAccess({
+      sessionId: id,
+      sandboxDeviceName,
+      targetUserEmail: sharedWithEmail,
+      revokedByUserId: authUser.id,
+    });
+
+    // Log the revoke event
+    auditLogger.logShareEvent({
+      action: 'revoke',
+      sessionId: id,
+      sharedByUserId: authUser.id,
+      sharedWithUserId: share.shared_with_user_id,
+      sharedWithEmail,
+      shareId,
+    });
+
+    return c.json({ success: true, shareId, revokedAt: new Date().toISOString() }, 200);
   });
 
   // POST /sessions/:id/activity - Record session activity (T102)

@@ -152,15 +152,15 @@ Based on plan.md project structure:
 
 ### Implementation for User Story 6
 
-- [ ] T054 [US6] Create auth callback page in landing-page/src/pages/auth/callback.astro
-- [ ] T055 [US6] Create login page with GitHub OAuth in landing-page/src/pages/auth/login.astro
-- [ ] T056 [US6] Add auth state management in landing-page/src/lib/auth.ts
-- [ ] T057 [US6] Implement protected route wrapper in landing-page/src/middleware/index.ts (Astro middleware)
-- [ ] T058 [US6] Add GitHub installation access check to all project-scoped routes in orchestrator/src/middleware/auth.ts
-- [ ] T059 [US6] Filter projects list by user's accessible GitHub installations in GET /projects
-- [ ] T060 [US6] Add structured audit logging for auth events (login, logout) in auth routes
-- [ ] T061 [P] [US6] Create Tailscale service for ACL management in orchestrator/src/services/tailscale.ts
-- [ ] T062 [US6] Implement Tailscale access control for session sandboxes based on user identity
+- [X] T054 [US6] Create auth callback page in landing-page/src/pages/auth/callback.astro
+- [X] T055 [US6] Create login page with GitHub OAuth in landing-page/src/pages/auth/login.astro
+- [X] T056 [US6] Add auth state management in landing-page/src/lib/auth.ts
+- [X] T057 [US6] Implement protected route wrapper in landing-page/src/middleware/index.ts (Astro middleware)
+- [X] T058 [US6] Add GitHub installation access check to all project-scoped routes in orchestrator/src/middleware/auth.ts
+- [X] T059 [US6] Filter projects list by user's accessible GitHub installations in GET /projects
+- [X] T060 [US6] Add structured audit logging for auth events (login, logout) in auth routes
+- [X] T061 [P] [US6] Create Tailscale service for ACL management in orchestrator/src/services/tailscale.ts
+- [X] T062 [US6] Implement Tailscale access control for session sandboxes based on user identity
 
 **Checkpoint**: Full auth flow works with project-level access control - User Story 6 complete
 
