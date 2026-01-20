@@ -5,7 +5,6 @@ import { SessionCard, type ServiceUrls } from './SessionCard';
 export interface SessionListProps {
   initialSessions?: Session[];
   showSharedWithMe?: boolean;
-  orchestratorUrl?: string;
 }
 
 interface GroupedSessions {
@@ -40,9 +39,9 @@ function groupSessionsByProject(sessions: Session[]): GroupedSessions[] {
   });
 }
 
-function generateServiceUrls(sessionId: string, baseUrl: string): ServiceUrls {
+function generateServiceUrls(sessionId: string): ServiceUrls {
   // URLs are port-based per Constitution III. Multi-Service Architecture
-  const baseHost = new URL(baseUrl).hostname;
+  const baseHost = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   return {
     mastra: `http://${sessionId}.${baseHost}:4111`,
     astro: `http://${sessionId}.${baseHost}:4321`,
@@ -136,7 +135,6 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 export function SessionList({
   initialSessions,
   showSharedWithMe = true,
-  orchestratorUrl = 'http://localhost:4000',
 }: SessionListProps) {
   const [sessions, setSessions] = useState<Session[]>(initialSessions || []);
   const [sharedSessions, setSharedSessions] = useState<Session[]>([]);
@@ -230,7 +228,7 @@ export function SessionList({
                   <SessionCard
                     key={session.id}
                     session={session}
-                    urls={session.state === 'active' ? generateServiceUrls(session.id, orchestratorUrl) : undefined}
+                    urls={session.state === 'active' ? generateServiceUrls(session.id) : undefined}
                   />
                 ))}
               </div>
@@ -259,7 +257,7 @@ export function SessionList({
                   <SessionCard
                     key={session.id}
                     session={session}
-                    urls={session.state === 'active' ? generateServiceUrls(session.id, orchestratorUrl) : undefined}
+                    urls={session.state === 'active' ? generateServiceUrls(session.id) : undefined}
                   />
                 ))}
               </div>

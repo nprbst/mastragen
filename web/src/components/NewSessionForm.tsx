@@ -2,9 +2,7 @@ import { useState, useEffect } from 'react';
 import { ProjectSelector } from './ProjectSelector';
 import { EnvironmentSelector } from './EnvironmentSelector';
 
-export interface NewSessionFormProps {
-  orchestratorUrl?: string;
-}
+export interface NewSessionFormProps {}
 
 interface Project {
   id: string;
@@ -26,7 +24,9 @@ interface CreateSessionResponse {
   };
 }
 
-export function NewSessionForm({ orchestratorUrl = 'http://localhost:4000' }: NewSessionFormProps) {
+const API_BASE = '/api';
+
+export function NewSessionForm({}: NewSessionFormProps) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
@@ -41,7 +41,7 @@ export function NewSessionForm({ orchestratorUrl = 'http://localhost:4000' }: Ne
   useEffect(() => {
     async function fetchProjects() {
       try {
-        const res = await fetch(`${orchestratorUrl}/projects`);
+        const res = await fetch(`${API_BASE}/projects`);
         if (!res.ok) throw new Error('Failed to fetch projects');
         const data = await res.json();
         setProjects(data);
@@ -52,7 +52,7 @@ export function NewSessionForm({ orchestratorUrl = 'http://localhost:4000' }: Ne
       }
     }
     fetchProjects();
-  }, [orchestratorUrl]);
+  }, []);
 
   // Fetch environments when project changes
   useEffect(() => {
@@ -65,7 +65,7 @@ export function NewSessionForm({ orchestratorUrl = 'http://localhost:4000' }: Ne
     async function fetchEnvironments() {
       setLoadingEnvironments(true);
       try {
-        const res = await fetch(`${orchestratorUrl}/projects/${selectedProjectId}/environments`);
+        const res = await fetch(`${API_BASE}/projects/${selectedProjectId}/environments`);
         if (!res.ok) throw new Error('Failed to fetch environments');
         const data = await res.json();
         setEnvironments(data);
@@ -80,7 +80,7 @@ export function NewSessionForm({ orchestratorUrl = 'http://localhost:4000' }: Ne
       }
     }
     fetchEnvironments();
-  }, [selectedProjectId, orchestratorUrl]);
+  }, [selectedProjectId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +88,7 @@ export function NewSessionForm({ orchestratorUrl = 'http://localhost:4000' }: Ne
     setLoading(true);
 
     try {
-      const res = await fetch(`${orchestratorUrl}/sessions`, {
+      const res = await fetch(`${API_BASE}/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

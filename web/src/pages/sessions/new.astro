@@ -1,8 +1,6 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import NewSessionForm from '../../components/NewSessionForm';
-
-const orchestratorUrl = import.meta.env.PUBLIC_ORCHESTRATOR_URL || 'http://localhost:4000';
 ---
 
 <Layout title="Create New Session">
@@ -23,7 +21,7 @@ const orchestratorUrl = import.meta.env.PUBLIC_ORCHESTRATOR_URL || 'http://local
         Your session will be provisioned with the project's Claude configuration.
       </p>
 
-      <NewSessionForm client:load orchestratorUrl={orchestratorUrl} />
+      <NewSessionForm client:load />
     </div>
   </div>
 </Layout>

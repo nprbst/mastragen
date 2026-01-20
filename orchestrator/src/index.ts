@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
+import { serveStatic } from 'hono/bun';
 import { loadConfig } from './config.ts';
 import { createDatabase } from './db/index.ts';
 import { runMigrations } from './db/migrator.ts';
@@ -35,29 +36,41 @@ app.use('*', async (c, next) => {
   await next();
 });
 
-// Routes
-app.route('/auth', createAuthRoutes(db));
-app.route('/health', healthRoutes(db));
-app.route('/projects', projectsRoutes(db));
-app.route('/sessions', sessionsRoutes(db));
+// REST API routes under /api
+const api = new Hono();
+api.route('/auth', createAuthRoutes(db));
+api.route('/health', healthRoutes(db));
+api.route('/projects', projectsRoutes(db));
+api.route('/sessions', sessionsRoutes(db));
 
 // GitHub webhook handler
 const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || 'development-webhook-secret';
-app.route('/webhooks', createWebhookRoutes(db, webhookSecret));
+api.route('/webhooks', createWebhookRoutes(db, webhookSecret));
 
-// oRPC handler for type-safe API calls
+// API info route
+api.get('/', (c) => {
+  return c.json({
+    name: 'mastragen-orchestrator',
+    version: process.env.npm_package_version ?? '0.1.0',
+    docs: '/api/health',
+    rpc: '/rpc',
+  });
+});
+
+app.route('/api', api);
+
+// oRPC handler for type-safe API calls (stays at /rpc)
 app.all('/rpc/*', async (c) => {
   return handleORPCRequest(c, db);
 });
 
-// Root route
-app.get('/', (c) => {
-  return c.json({
-    name: 'mastragen-orchestrator',
-    version: process.env.npm_package_version ?? '0.1.0',
-    docs: '/health',
-    rpc: '/rpc',
-  });
+// Serve Astro's client-side assets (CSS, JS bundles)
+app.use('/_astro/*', serveStatic({ root: '../web/dist/client/' }));
+
+// Delegate all other routes to Astro SSR handler
+const { handler: astroHandler } = await import('../web/dist/server/entry.mjs');
+app.all('*', async (c) => {
+  return astroHandler(c.req.raw);
 });
 
 // Start server

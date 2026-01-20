@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { existsSync, unlinkSync } from 'node:fs';
 import type { Kysely } from 'kysely';
 import { createDatabase } from '../../src/db/index.ts';
-import { runMigrations } from '../../src/db/migrations/001_initial.ts';
+import { runMigrations } from '../../src/db/migrator.ts';
 import type { Database } from '../../src/db/types.ts';
 
 const TEST_DB_PATH = './data/test-migrations.db';

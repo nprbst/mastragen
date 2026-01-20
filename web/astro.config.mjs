@@ -1,4 +1,5 @@
 import { defineConfig } from 'astro/config';
+import node from '@astrojs/node';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 
@@ -8,7 +9,5 @@ export default defineConfig({
     tailwind(),
   ],
   output: 'server',
-  server: {
-    port: 3000,
-  },
+  adapter: node({ mode: 'middleware' }),
 });

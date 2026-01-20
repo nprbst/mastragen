@@ -9,10 +9,10 @@ interface Environment {
 
 interface EnvironmentsTabProps {
   projectId: string;
-  orchestratorUrl: string;
+  apiBase: string;
 }
 
-export default function EnvironmentsTab({ projectId, orchestratorUrl }: EnvironmentsTabProps) {
+export default function EnvironmentsTab({ projectId, apiBase }: EnvironmentsTabProps) {
   const [environments, setEnvironments] = useState<Environment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +26,7 @@ export default function EnvironmentsTab({ projectId, orchestratorUrl }: Environm
 
   async function fetchEnvironments() {
     try {
-      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/environments`);
+      const response = await fetch(`${apiBase}/projects/${projectId}/environments`);
       if (!response.ok) throw new Error('Failed to fetch environments');
       const data = await response.json();
       setEnvironments(data);
@@ -43,7 +43,7 @@ export default function EnvironmentsTab({ projectId, orchestratorUrl }: Environm
 
     setSaving(true);
     try {
-      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/environments`, {
+      const response = await fetch(`${apiBase}/projects/${projectId}/environments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newEnvName }),

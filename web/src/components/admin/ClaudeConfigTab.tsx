@@ -15,10 +15,10 @@ interface ClaudeConfig {
 
 interface ClaudeConfigTabProps {
   projectId: string;
-  orchestratorUrl: string;
+  apiBase: string;
 }
 
-export default function ClaudeConfigTab({ projectId, orchestratorUrl }: ClaudeConfigTabProps) {
+export default function ClaudeConfigTab({ projectId, apiBase }: ClaudeConfigTabProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export default function ClaudeConfigTab({ projectId, orchestratorUrl }: ClaudeCo
 
   async function fetchConfig() {
     try {
-      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/claude-config`, {
+      const response = await fetch(`${apiBase}/projects/${projectId}/claude-config`, {
         headers: createAuthHeaders(),
       });
       if (!response.ok) throw new Error('Failed to fetch config');
@@ -70,7 +70,7 @@ export default function ClaudeConfigTab({ projectId, orchestratorUrl }: ClaudeCo
         throw new Error('Invalid MCP servers JSON');
       }
 
-      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/claude-config`, {
+      const response = await fetch(`${apiBase}/projects/${projectId}/claude-config`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

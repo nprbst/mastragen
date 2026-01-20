@@ -12,10 +12,10 @@ interface Skill {
 
 interface SkillsTabProps {
   projectId: string;
-  orchestratorUrl: string;
+  apiBase: string;
 }
 
-export default function SkillsTab({ projectId, orchestratorUrl }: SkillsTabProps) {
+export default function SkillsTab({ projectId, apiBase }: SkillsTabProps) {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +28,7 @@ export default function SkillsTab({ projectId, orchestratorUrl }: SkillsTabProps
 
   async function fetchSkills() {
     try {
-      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/skills`);
+      const response = await fetch(`${apiBase}/projects/${projectId}/skills`);
       if (!response.ok) throw new Error('Failed to fetch skills');
       const data = await response.json();
       setSkills(data);
@@ -43,7 +43,7 @@ export default function SkillsTab({ projectId, orchestratorUrl }: SkillsTabProps
     if (!confirm('Are you sure you want to delete this skill?')) return;
 
     try {
-      const response = await fetch(`${orchestratorUrl}/projects/${projectId}/skills/${skillId}`, {
+      const response = await fetch(`${apiBase}/projects/${projectId}/skills/${skillId}`, {
         method: 'DELETE',
       });
       if (!response.ok) throw new Error('Failed to delete skill');
@@ -92,7 +92,7 @@ export default function SkillsTab({ projectId, orchestratorUrl }: SkillsTabProps
         <SkillForm
           skill={editingSkill}
           projectId={projectId}
-          orchestratorUrl={orchestratorUrl}
+          apiBase={apiBase}
           onSave={() => {
             fetchSkills();
             setShowAddForm(false);
@@ -148,12 +148,12 @@ export default function SkillsTab({ projectId, orchestratorUrl }: SkillsTabProps
 interface SkillFormProps {
   skill: Skill | null;
   projectId: string;
-  orchestratorUrl: string;
+  apiBase: string;
   onSave: () => void;
   onCancel: () => void;
 }
 
-function SkillForm({ skill, projectId, orchestratorUrl, onSave, onCancel }: SkillFormProps) {
+function SkillForm({ skill, projectId, apiBase, onSave, onCancel }: SkillFormProps) {
   const [name, setName] = useState(skill?.name || '');
   const [description, setDescription] = useState(skill?.description || '');
   const [content, setContent] = useState(skill?.content || '');
@@ -167,8 +167,8 @@ function SkillForm({ skill, projectId, orchestratorUrl, onSave, onCancel }: Skil
 
     try {
       const url = skill
-        ? `${orchestratorUrl}/projects/${projectId}/skills/${skill.id}`
-        : `${orchestratorUrl}/projects/${projectId}/skills`;
+        ? `${apiBase}/projects/${projectId}/skills/${skill.id}`
+        : `${apiBase}/projects/${projectId}/skills`;
 
       const response = await fetch(url, {
         method: skill ? 'PUT' : 'POST',

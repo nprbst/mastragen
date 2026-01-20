@@ -1,10 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { existsSync, unlinkSync } from 'node:fs';
 import type { Kysely } from 'kysely';
-import { createDatabase } from '../../src/db/index.ts';
-import { runMigrations } from '../../src/db/migrations/001_initial.ts';
 import type { Database } from '../../src/db/types.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
+import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-projects-repo.db';
 
@@ -13,19 +11,12 @@ describe('ProjectsRepository', () => {
   let repo: ProjectsRepository;
 
   beforeEach(async () => {
-    if (existsSync(TEST_DB_PATH)) {
-      unlinkSync(TEST_DB_PATH);
-    }
-    db = createDatabase(TEST_DB_PATH);
-    await runMigrations(db);
+    db = await createTestDb(TEST_DB_PATH);
     repo = new ProjectsRepository(db);
   });
 
   afterEach(async () => {
-    await db.destroy();
-    if (existsSync(TEST_DB_PATH)) {
-      unlinkSync(TEST_DB_PATH);
-    }
+    await cleanupTestDb(db, TEST_DB_PATH);
   });
 
   describe('create', () => {

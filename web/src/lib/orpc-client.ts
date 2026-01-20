@@ -1,4 +1,4 @@
-const ORCHESTRATOR_URL = import.meta.env.PUBLIC_ORCHESTRATOR_URL || 'http://localhost:4000';
+const API_BASE = '/api';
 
 export interface Session {
   id: string;
@@ -63,7 +63,7 @@ export async function fetchSessions(params?: SessionListParams): Promise<Session
   if (params?.limit) searchParams.set('limit', String(params.limit));
   if (params?.offset) searchParams.set('offset', String(params.offset));
 
-  const response = await fetch(`${ORCHESTRATOR_URL}/sessions?${searchParams}`);
+  const response = await fetch(`${API_BASE}/sessions?${searchParams}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch sessions: ${response.statusText}`);
   }
@@ -71,7 +71,7 @@ export async function fetchSessions(params?: SessionListParams): Promise<Session
 }
 
 export async function fetchProjects(): Promise<Project[]> {
-  const response = await fetch(`${ORCHESTRATOR_URL}/projects`);
+  const response = await fetch(`${API_BASE}/projects`);
   if (!response.ok) {
     throw new Error(`Failed to fetch projects: ${response.statusText}`);
   }
@@ -79,7 +79,7 @@ export async function fetchProjects(): Promise<Project[]> {
 }
 
 export async function createSession(params: CreateSessionParams): Promise<Session> {
-  const response = await fetch(`${ORCHESTRATOR_URL}/sessions`, {
+  const response = await fetch(`${API_BASE}/sessions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
@@ -91,7 +91,7 @@ export async function createSession(params: CreateSessionParams): Promise<Sessio
 }
 
 export async function fetchSession(id: string): Promise<Session> {
-  const response = await fetch(`${ORCHESTRATOR_URL}/sessions/${id}`);
+  const response = await fetch(`${API_BASE}/sessions/${id}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch session: ${response.statusText}`);
   }

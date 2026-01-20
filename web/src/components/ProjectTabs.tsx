@@ -17,9 +17,8 @@ interface Project {
   updatedAt: string;
 }
 
-interface ProjectTabsProps {
+export interface ProjectTabsProps {
   projectId: string;
-  orchestratorUrl: string;
 }
 
 type TabId = 'overview' | 'environments' | 'claude-config' | 'skills' | 'access';
@@ -32,16 +31,19 @@ const tabs: { id: TabId; label: string }[] = [
   { id: 'access', label: 'Access' },
 ];
 
-export default function ProjectTabs({ projectId, orchestratorUrl }: ProjectTabsProps) {
+const API_BASE = '/api';
+
+export default function ProjectTabs({ projectId }: ProjectTabsProps) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+
     async function fetchProject() {
       try {
-        const response = await fetch(`${orchestratorUrl}/projects/${projectId}`);
+        const response = await fetch(`${API_BASE}/projects/${projectId}`);
         if (!response.ok) {
           if (response.status === 404) {
             setError('Project not found');
@@ -59,7 +61,7 @@ export default function ProjectTabs({ projectId, orchestratorUrl }: ProjectTabsP
       }
     }
     fetchProject();
-  }, [projectId, orchestratorUrl]);
+  }, [projectId]);
 
   if (loading) {
     return (
@@ -131,26 +133,26 @@ export default function ProjectTabs({ projectId, orchestratorUrl }: ProjectTabsP
         {activeTab === 'overview' && (
           <OverviewTab
             project={project}
-            orchestratorUrl={orchestratorUrl}
+            apiBase={API_BASE}
             onUpdate={setProject}
           />
         )}
-        {activeTab === 'environments' && (
+        {activeTab === 'environments' && projectId && (
           <EnvironmentsTab
             projectId={projectId}
-            orchestratorUrl={orchestratorUrl}
+            apiBase={API_BASE}
           />
         )}
-        {activeTab === 'claude-config' && (
+        {activeTab === 'claude-config' && projectId && (
           <ClaudeConfigTab
             projectId={projectId}
-            orchestratorUrl={orchestratorUrl}
+            apiBase={API_BASE}
           />
         )}
-        {activeTab === 'skills' && (
+        {activeTab === 'skills' && projectId && (
           <SkillsTab
             projectId={projectId}
-            orchestratorUrl={orchestratorUrl}
+            apiBase={API_BASE}
           />
         )}
         {activeTab === 'access' && <AccessTab project={project} />}

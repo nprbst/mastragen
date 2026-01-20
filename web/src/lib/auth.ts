@@ -4,7 +4,7 @@
  * Handles token storage, user context, and authentication state.
  */
 
-const ORCHESTRATOR_URL = import.meta.env.PUBLIC_ORCHESTRATOR_URL || 'http://localhost:4000';
+const API_BASE = '/api';
 const TOKEN_STORAGE_KEY = 'mastragen_access_token';
 const USER_STORAGE_KEY = 'mastragen_user';
 const AUTH_COOKIE_NAME = 'mastragen_authenticated';
@@ -119,7 +119,7 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
   if (!accessToken) return null;
 
   try {
-    const response = await fetch(`${ORCHESTRATOR_URL}/auth/me`, {
+    const response = await fetch(`${API_BASE}/auth/me`, {
       headers: {
         Authorization: `Bearer ${accessToken}`,
       },
@@ -149,7 +149,7 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
  */
 export async function refreshAccessToken(): Promise<string | null> {
   try {
-    const response = await fetch(`${ORCHESTRATOR_URL}/auth/refresh`, {
+    const response = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
       credentials: 'include',
     });
@@ -178,7 +178,7 @@ export async function refreshAccessToken(): Promise<string | null> {
 export function login(redirectUri?: string): void {
   if (typeof window === 'undefined') return;
 
-  const loginUrl = new URL(`${ORCHESTRATOR_URL}/auth/login`);
+  const loginUrl = new URL(`${API_BASE}/auth/login`);
   // Use the callback page as redirect, storing the final destination
   const callbackUrl = new URL('/auth/callback', window.location.origin);
   if (redirectUri) {
@@ -197,7 +197,7 @@ export async function logout(): Promise<void> {
 
   if (accessToken) {
     try {
-      await fetch(`${ORCHESTRATOR_URL}/auth/logout`, {
+      await fetch(`${API_BASE}/auth/logout`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${accessToken}`,

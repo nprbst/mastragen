@@ -14,11 +14,11 @@ interface Project {
 
 interface OverviewTabProps {
   project: Project;
-  orchestratorUrl: string;
+  apiBase: string;
   onUpdate: (project: Project) => void;
 }
 
-export default function OverviewTab({ project, orchestratorUrl, onUpdate }: OverviewTabProps) {
+export default function OverviewTab({ project, apiBase, onUpdate }: OverviewTabProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +38,7 @@ export default function OverviewTab({ project, orchestratorUrl, onUpdate }: Over
     setError(null);
 
     try {
-      const response = await fetch(`${orchestratorUrl}/projects/${project.id}`, {
+      const response = await fetch(`${apiBase}/projects/${project.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData),
