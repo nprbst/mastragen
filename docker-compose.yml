@@ -1,3 +1,8 @@
+networks:
+  mastragen:
+    name: mastragen
+    driver: bridge
+
 services:
   orchestrator:
     build:
@@ -15,6 +20,9 @@ services:
       - AWS_REGION=${AWS_REGION}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - ORCHESTRATOR_URL=http://orchestrator:3000
+    networks:
+      - mastragen
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
@@ -33,6 +41,8 @@ services:
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+    networks:
+      - mastragen
     depends_on:
       - orchestrator
     profiles:
@@ -50,6 +60,8 @@ services:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - UI_SANDBOX_PATH=${UI_SANDBOX_PATH:-packages/ui}
       - MASTRA_API_URL=http://mastra:4111
+    networks:
+      - mastragen
     depends_on:
       - orchestrator
       - mastra
@@ -70,6 +82,8 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - ASTRO_PREVIEW_URL=${ASTRO_PREVIEW_URL:-http://localhost:4321}
+    networks:
+      - mastragen
     depends_on:
       - orchestrator
     profiles:
@@ -85,6 +99,8 @@ services:
       - GITHUB_REPO=${GITHUB_REPO}
       - BRANCH=${BRANCH}
       - UI_SANDBOX_PATH=${UI_SANDBOX_PATH}
+    networks:
+      - mastragen
     profiles:
       - sandbox
 

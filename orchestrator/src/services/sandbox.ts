@@ -901,6 +901,7 @@ export class SandboxService {
         ],
         HostConfig: {
           Binds: [`${volumeName}:/workspace`],
+          NetworkMode: 'mastragen',
         },
       });
 
@@ -1047,6 +1048,7 @@ export class SandboxService {
               PortBindings: {
                 [`${config.port}/tcp`]: [{ HostPort: String(config.port) }],
               },
+              NetworkMode: 'mastragen',
             },
             ExposedPorts: {
               [`${config.port}/tcp`]: {},

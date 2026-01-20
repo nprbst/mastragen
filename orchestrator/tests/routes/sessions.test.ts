@@ -280,16 +280,7 @@ describe('Sessions Routes', () => {
       expect(body.sessionToken).toBeDefined(); // New token returned on resume
     });
 
-    test('returns 401 when no token provided', async () => {
-      const res = await app.request('/sessions/nonexistent/resume', {
-        method: 'POST',
-      });
-
-      expect(res.status).toBe(401);
-
-      const body = (await res.json()) as Record<string, unknown>;
-      expect(body.error).toBe('Unauthorized');
-    });
+    // Note: resume does NOT require session auth - it's called by CLI when session is suspended
 
     test('returns 400 when session is already active', async () => {
       // Create a session (already active)

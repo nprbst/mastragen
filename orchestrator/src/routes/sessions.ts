@@ -174,7 +174,8 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
   });
 
   // POST /sessions/:id/resume - Resume a suspended session
-  app.post('/:id/resume', requireSessionAuth(), async (c) => {
+  // Note: Does not require session auth - called by CLI when session is suspended
+  app.post('/:id/resume', async (c) => {
     const id = c.req.param('id');
 
     // Parse optional request body for claudeToken
