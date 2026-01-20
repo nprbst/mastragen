@@ -133,7 +133,7 @@ export class MgenClient {
    */
   async createSession(request: CreateSessionRequest): Promise<SessionWithUrls> {
     // Use REST endpoint until oRPC handlers are fully implemented
-    return this.request<SessionWithUrls>('/sessions', {
+    return this.request<SessionWithUrls>('/api/sessions', {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -152,7 +152,7 @@ export class MgenClient {
     }
 
     const queryString = params.toString();
-    const path = queryString ? `/sessions?${queryString}` : '/sessions';
+    const path = queryString ? `/api/sessions?${queryString}` : '/api/sessions';
 
     return this.request<Session[]>(path, {
       method: 'GET',
@@ -163,7 +163,7 @@ export class MgenClient {
    * Gets a session by ID.
    */
   async getSession(id: string): Promise<Session | SessionWithUrls> {
-    return this.request<Session | SessionWithUrls>(`/sessions/${id}`, {
+    return this.request<Session | SessionWithUrls>(`/api/sessions/${id}`, {
       method: 'GET',
     });
   }
@@ -172,7 +172,7 @@ export class MgenClient {
    * Suspends an active session.
    */
   async suspendSession(id: string): Promise<Session> {
-    return this.request<Session>(`/sessions/${id}/suspend`, {
+    return this.request<Session>(`/api/sessions/${id}/suspend`, {
       method: 'POST',
     });
   }
@@ -181,7 +181,7 @@ export class MgenClient {
    * Resumes a suspended session.
    */
   async resumeSession(id: string, options?: { claudeToken?: string }): Promise<SessionWithUrls> {
-    return this.request<SessionWithUrls>(`/sessions/${id}/resume`, {
+    return this.request<SessionWithUrls>(`/api/sessions/${id}/resume`, {
       method: 'POST',
       body: options?.claudeToken ? JSON.stringify({ claudeToken: options.claudeToken }) : undefined,
     });
@@ -196,7 +196,7 @@ export class MgenClient {
       params.set('removeVolume', 'true');
     }
     const queryString = params.toString();
-    const path = queryString ? `/sessions/${id}?${queryString}` : `/sessions/${id}`;
+    const path = queryString ? `/api/sessions/${id}?${queryString}` : `/api/sessions/${id}`;
 
     return this.request<{ message: string }>(path, {
       method: 'DELETE',
@@ -207,7 +207,7 @@ export class MgenClient {
    * Lists all projects.
    */
   async listProjects(): Promise<Project[]> {
-    return this.request<Project[]>('/projects', {
+    return this.request<Project[]>('/api/projects', {
       method: 'GET',
     });
   }
@@ -239,7 +239,7 @@ export class MgenClient {
    * Gets a project by ID with its environments.
    */
   async getProject(id: string): Promise<ProjectDetail> {
-    return this.request<ProjectDetail>(`/projects/${id}`, {
+    return this.request<ProjectDetail>(`/api/projects/${id}`, {
       method: 'GET',
     });
   }
@@ -248,7 +248,7 @@ export class MgenClient {
    * Creates a new project.
    */
   async createProject(request: CreateProjectRequest): Promise<Project> {
-    return this.request<Project>('/projects', {
+    return this.request<Project>('/api/projects', {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -258,7 +258,7 @@ export class MgenClient {
    * Adds an environment to a project.
    */
   async addEnvironment(projectId: string, request: AddEnvironmentRequest): Promise<Environment> {
-    return this.request<Environment>(`/projects/${projectId}/environments`, {
+    return this.request<Environment>(`/api/projects/${projectId}/environments`, {
       method: 'POST',
       body: JSON.stringify(request),
     });
@@ -268,7 +268,7 @@ export class MgenClient {
    * Lists environments for a project.
    */
   async listEnvironments(projectId: string): Promise<Environment[]> {
-    return this.request<Environment[]>(`/projects/${projectId}/environments`, {
+    return this.request<Environment[]>(`/api/projects/${projectId}/environments`, {
       method: 'GET',
     });
   }

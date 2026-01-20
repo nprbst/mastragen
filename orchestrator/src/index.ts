@@ -16,6 +16,12 @@ import { handleORPCRequest } from './orpc/index.ts';
 
 const config = loadConfig();
 
+// Web UI dist path - configurable for Docker vs local dev
+const webDistPath = process.env.WEB_DIST_PATH || '../web/dist';
+
+// Import Astro SSR handler (Hono middleware from hono-astro-adapter)
+const { handler: ssrHandler } = await import(`${webDistPath}/server/entry.mjs`);
+
 // Initialize database
 const db = createDatabase(config.databasePath);
 
@@ -59,19 +65,19 @@ api.get('/', (c) => {
 
 app.route('/api', api);
 
+// Health check at root (standard for load balancers/monitoring)
+app.route('/health', healthRoutes(db));
+
 // oRPC handler for type-safe API calls (stays at /rpc)
 app.all('/rpc/*', async (c) => {
   return handleORPCRequest(c, db);
 });
 
 // Serve Astro's client-side assets (CSS, JS bundles)
-app.use('/_astro/*', serveStatic({ root: '../web/dist/client/' }));
+app.use('/_astro/*', serveStatic({ root: `${webDistPath}/client/` }));
 
-// Delegate all other routes to Astro SSR handler
-const { handler: astroHandler } = await import('../web/dist/server/entry.mjs');
-app.all('*', async (c) => {
-  return astroHandler(c.req.raw);
-});
+// Astro SSR handler (Hono middleware from hono-astro-adapter)
+app.use(ssrHandler);
 
 // Start server
 console.warn(`Starting Mastragen Orchestrator on ${config.host}:${config.port}`);

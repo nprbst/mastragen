@@ -1,68 +1,69 @@
-# Plan: Serve Web UI Through Orchestrator (SSR)
+# Plan: Serve Web UI Through Orchestrator (SSR) - Using hono-astro-adapter
 
 ## Goal
-Serve the Astro web UI via SSR through the orchestrator, with REST API routes at `/api/*` and oRPC at `/rpc`.
+Serve the Astro web UI via SSR through the orchestrator using `hono-astro-adapter`, with REST API routes at `/api/*` and oRPC at `/rpc`.
 
-## Changes Overview
+## Current State
+- Directory renamed: `landing-page/` → `web/` ✅
+- REST routes prefixed with `/api` ✅
+- CLI updated to use `/api/*` paths ✅
+- Health check at root `/health` ✅
 
-| Area | Change |
-|------|--------|
-| Directory rename | `landing-page/` → `web/` |
-| Web UI | Keep SSR, add `@astrojs/node` adapter in middleware mode |
-| REST API routes | Prefix with `/api` (auth, health, projects, sessions, webhooks) |
-| oRPC | Keep at `/rpc` (not moved) |
-| Orchestrator | Import Astro handler, delegate non-API routes to it |
-| Tests | Update REST route paths to `/api/*` |
+## Problem
+The `@astrojs/node` adapter (middleware mode) expects Node.js `IncomingMessage`/`ServerResponse` objects, but Hono/Bun uses the Fetch API. Current standalone + proxy approach works but adds complexity.
 
-**Why SSR over Static:**
-- Keeps Astro middleware for server-side auth checks
-- Dynamic routes like `/projects/[id]` work naturally
-- No SPA fallback complexity or client-side URL parsing
-- Simpler overall architecture
+## Solution
+Use `hono-astro-adapter` which outputs a native Hono middleware using the Fetch API directly.
 
 ---
 
 ## Implementation Steps
 
-### 1. Rename Directory
-
-```bash
-git mv landing-page web
-```
-
-Update any workspace references (package.json, docker-compose, etc.) to use `web/` instead of `landing-page/`.
-
-### 2. Add Astro Node Adapter
+### 1. Replace @astrojs/node with hono-astro-adapter
 
 **File:** `web/package.json`
 ```bash
-cd web && bun add @astrojs/node
+cd web && bun remove @astrojs/node && bun add hono-astro-adapter
 ```
 
 **File:** `web/astro.config.mjs`
 ```javascript
 import { defineConfig } from 'astro/config';
-import node from '@astrojs/node';
+import honoAstro from 'hono-astro-adapter';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 
 export default defineConfig({
   integrations: [react(), tailwind()],
   output: 'server',
-  adapter: node({ mode: 'middleware' }),
+  adapter: honoAstro(),
 });
 ```
 
-### 3. Update Orchestrator Routes to `/api/*` Prefix
+### 2. Update Orchestrator to Use Hono Middleware
 
 **File:** `orchestrator/src/index.ts`
 
-- Create an `api` sub-router for REST endpoints
-- Keep oRPC at `/rpc`
-- Import and delegate to Astro handler for UI routes
-
 ```typescript
-import { handler as astroHandler } from '../web/dist/server/entry.mjs';
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
+import { serveStatic } from 'hono/bun';
+// ... other imports
+
+// Web UI dist path - configurable for Docker vs local dev
+const webDistPath = process.env.WEB_DIST_PATH || '../web/dist';
+
+// Import Astro SSR handler (now a Hono middleware)
+const { handler as ssrHandler } = await import(`${webDistPath}/server/entry.mjs`);
+
+const app = new Hono();
+
+// Middleware
+app.use('*', cors());
+app.use('*', logger());
+
+// ... db context middleware ...
 
 // REST API routes under /api
 const api = new Hono();
@@ -71,106 +72,84 @@ api.route('/health', healthRoutes(db));
 api.route('/projects', projectsRoutes(db));
 api.route('/sessions', sessionsRoutes(db));
 api.route('/webhooks', createWebhookRoutes(db, webhookSecret));
-
 app.route('/api', api);
 
-// oRPC stays at /rpc
+// Health check at root (standard for load balancers)
+app.route('/health', healthRoutes(db));
+
+// oRPC handler
 app.all('/rpc/*', async (c) => handleORPCRequest(c, db));
 
-// Delegate all other routes to Astro SSR
-app.all('*', async (c) => {
-  return astroHandler(c.req.raw);
-});
-```
-
-### 4. Revert Static-Related Changes
-
-Undo the static-related changes made earlier:
-
-**File:** `web/src/pages/projects/index.astro`
-- Rename back to `[id].astro` (git mv)
-- Restore `Astro.params.id` usage
-- Restore `orchestratorUrl` prop passing
-
-**Files to restore/update:**
-- `web/src/components/ProjectTabs.tsx` - restore props interface
-- `web/src/components/admin/*.tsx` - restore `orchestratorUrl` prop
-- `web/src/pages/index.astro` - restore prop passing
-- `web/src/pages/sessions/new.astro` - restore prop passing
-
-### 5. Update Web UI API Calls for `/api` Prefix
-
-The API base URL changes from root to `/api`:
-
-**Files to update:**
-- `web/src/lib/orpc-client.ts` - Use `/api` for REST calls
-- `web/src/lib/auth.ts` - Use `/api/auth/*` for auth endpoints
-
-```typescript
-// Both files use /api as base
-const API_BASE = '/api';
-```
-
-**Note:** The existing changes to use `/api` prefix are correct and should be kept.
-
-### 6. Keep Astro Middleware for Auth
-
-**File:** `web/src/middleware.ts` - Keep as-is
-
-The Astro middleware handles server-side auth checks before rendering protected pages. This stays because we're keeping SSR.
-
-### 7. Update All Tests
-
-Update route paths in test files from `/path` to `/api/path`:
-
-**Test files to update:**
-- `orchestrator/tests/routes/*.test.ts`
-- `orchestrator/tests/unit/routes/*.test.ts`
-- `orchestrator/tests/unit/middleware/*.test.ts`
-- `orchestrator/tests/integration/*.test.ts`
-- `orchestrator/tests/e2e/*.test.ts`
-
-### 8. Update Build Process
-
-**Web UI builds to `dist/server/` for SSR:**
-```bash
-cd web && bun run build
-# Output: dist/server/entry.mjs (the handler)
-# Output: dist/client/ (static assets)
-```
-
-**Orchestrator needs to:**
-1. Serve Astro's static client assets from `dist/client/`
-2. Import the SSR handler from `dist/server/entry.mjs`
-
-```typescript
-import { serveStatic } from 'hono/bun';
-
 // Serve Astro's client-side assets (CSS, JS bundles)
-app.use('/_astro/*', serveStatic({ root: '../web/dist/client/' }));
+app.use('/_astro/*', serveStatic({ root: `${webDistPath}/client/` }));
+
+// Astro SSR handler (already Hono middleware)
+app.use(ssrHandler);
+```
+
+### 3. Simplify Docker Setup
+
+Remove the separate `web` service - orchestrator serves everything.
+
+**File:** `docker-compose.yml`
+- Remove `web` service
+- Remove `depends_on: web` from orchestrator
+- Remove `ASTRO_URL` environment variable
+- Keep web dist volume mount for local dev
+
+**File:** `docker-compose.override.yml`
+- Remove `web` service override
+- Keep web dist volume mount: `./web/dist:/web/dist:ro`
+- Keep `WEB_DIST_PATH=/web/dist`
+
+### 4. Remove Standalone Files
+
+Delete files created for standalone approach:
+- `web/Dockerfile`
+- `web/Dockerfile.dev`
+- `web/.dockerignore`
+
+### 5. Build Process
+
+The orchestrator Dockerfile needs to build the web UI or mount it:
+
+**Option A - Dev (mount dist):**
+```yaml
+volumes:
+  - ./web/dist:/web/dist:ro
+environment:
+  - WEB_DIST_PATH=/web/dist
+```
+
+**Option B - Production (build in Dockerfile):**
+```dockerfile
+# In orchestrator/Dockerfile
+COPY --from=web-builder /app/dist /web/dist
+ENV WEB_DIST_PATH=/web/dist
 ```
 
 ---
 
-## Critical Files
+## Critical Files to Modify
 
-| File | Purpose |
-|------|---------|
-| `orchestrator/src/index.ts` | Add `/api` prefix, import Astro handler |
-| `web/astro.config.mjs` | Add node adapter in middleware mode |
-| `web/src/lib/orpc-client.ts` | Update base to `/api` |
-| `web/src/lib/auth.ts` | Update to `/api/auth/*` |
-| `web/src/middleware.ts` | Keep for SSR auth (no changes) |
+| File | Change |
+|------|--------|
+| `web/package.json` | Replace `@astrojs/node` with `hono-astro-adapter` |
+| `web/astro.config.mjs` | Use `honoAstro()` adapter |
+| `orchestrator/src/index.ts` | Import SSR handler as Hono middleware, add `serveStatic` |
+| `docker-compose.yml` | Remove `web` service |
+| `docker-compose.override.yml` | Remove `web` override, keep volume mount |
 
 ---
 
 ## Verification
 
-1. **Build web UI**: `cd web && bun run build`
+1. **Rebuild web**: `cd web && bun run build`
 2. **Run orchestrator**: `cd orchestrator && bun run dev`
-3. **Test SSR**: Navigate to `http://localhost:3000/` - should see web UI (SSR)
-4. **Test API routes**: `curl http://localhost:3000/api/health` - should return health status
-5. **Test oRPC**: Verify `/rpc` endpoints work
-6. **Test auth flow**: Login via `/auth/login`, verify Astro middleware redirects work
-7. **Test dynamic route**: Navigate to `/projects/<id>` - should work with SSR params
-8. **Run tests**: `cd orchestrator && bun test` - all tests should pass with `/api/*` paths
+3. **Test SSR**: `curl http://localhost:3000/` - should render HTML
+4. **Test API**: `curl http://localhost:3000/api/health`
+5. **Test health root**: `curl http://localhost:3000/health`
+6. **Test oRPC**: Verify `/rpc` endpoints work
+7. **Test static assets**: Check `/_astro/*` files load
+8. **Run tests**: `cd orchestrator && bun test`
+9. **Docker test**: `docker compose up --build` - single service serves everything

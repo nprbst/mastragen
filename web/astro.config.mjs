@@ -1,5 +1,5 @@
 import { defineConfig } from 'astro/config';
-import node from '@astrojs/node';
+import honoAstro from 'hono-astro-adapter';
 import react from '@astrojs/react';
 import tailwind from '@astrojs/tailwind';
 
@@ -9,5 +9,11 @@ export default defineConfig({
     tailwind(),
   ],
   output: 'server',
-  adapter: node({ mode: 'middleware' }),
+  adapter: honoAstro(),
+  vite: {
+    ssr: {
+      // Bundle all dependencies for portability (Docker)
+      noExternal: true,
+    },
+  },
 });

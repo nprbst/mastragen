@@ -95,7 +95,7 @@ describe('MgenClient', () => {
       });
 
       expect(result).toEqual(mockResponse);
-      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/sessions`, {
+      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/api/sessions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -190,7 +190,7 @@ describe('MgenClient', () => {
       const result = await client.listSessions();
 
       expect(result).toEqual(mockResponse);
-      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/sessions`, {
+      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/api/sessions`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -203,7 +203,7 @@ describe('MgenClient', () => {
 
       await client.listSessions({ state: 'active' });
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/sessions?state=active`, {
+      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/api/sessions?state=active`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -216,7 +216,7 @@ describe('MgenClient', () => {
 
       await client.listSessions({ projectId: 'proj01' });
 
-      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/sessions?projectId=proj01`, {
+      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/api/sessions?projectId=proj01`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -230,7 +230,7 @@ describe('MgenClient', () => {
       await client.listSessions({ state: 'suspended', projectId: 'proj01' });
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        `${baseUrl}/sessions?state=suspended&projectId=proj01`,
+        `${baseUrl}/api/sessions?state=suspended&projectId=proj01`,
         {
           method: 'GET',
           headers: { 'Content-Type': 'application/json' },
@@ -263,7 +263,7 @@ describe('MgenClient', () => {
       const result = await client.getSession('abc123');
 
       expect(result).toEqual(mockResponse);
-      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/sessions/abc123`, {
+      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/api/sessions/abc123`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -304,7 +304,7 @@ describe('MgenClient', () => {
       const result = await client.suspendSession('abc123');
 
       expect(result).toEqual(mockResponse);
-      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/sessions/abc123/suspend`, {
+      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/api/sessions/abc123/suspend`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -350,7 +350,7 @@ describe('MgenClient', () => {
       const result = await client.resumeSession('abc123');
 
       expect(result).toEqual(mockResponse);
-      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/sessions/abc123/resume`, {
+      expect(globalThis.fetch).toHaveBeenCalledWith(`${baseUrl}/api/sessions/abc123/resume`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
