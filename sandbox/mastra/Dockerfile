@@ -10,9 +10,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy entrypoint script
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Copy scripts
+COPY mastra/entrypoint.sh /entrypoint.sh
+COPY scripts/restart-wrapper.sh /app/restart-wrapper.sh
+RUN chmod +x /entrypoint.sh /app/restart-wrapper.sh
 
 USER bun
 

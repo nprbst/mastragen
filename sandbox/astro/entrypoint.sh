@@ -22,5 +22,5 @@ cd "/workspace/${UI_PATH}"
 # Set Mastra API URL for container networking (default to Docker service name)
 export MASTRA_API_URL="${MASTRA_API_URL:-http://mastra:4111}"
 
-# Execute the main command
-exec "$@"
+# Execute the main command with restart wrapper
+exec /app/restart-wrapper.sh astro "$@"

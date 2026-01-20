@@ -1,3 +1,5 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import type { Kysely } from 'kysely';
 import type { Database, ProjectClaudeConfig } from '../db/types.ts';
 import { ProjectsRepository } from '../repositories/index.ts';
@@ -32,6 +34,14 @@ export interface Command {
 }
 
 /**
+ * Skill definition.
+ */
+export interface Skill {
+  name: string;
+  content: string;
+}
+
+/**
  * MCP server configuration.
  */
 export interface McpServerConfig {
@@ -39,6 +49,20 @@ export interface McpServerConfig {
   args?: string[];
   env?: Record<string, string>;
 }
+
+const BUILTIN_COMMANDS_DIR = '/app/claude-commands';
+const BUILTIN_SKILLS_DIR = '/app/claude-skills';
+
+const DEFAULT_MCP_SERVERS: Record<string, McpServerConfig> = {
+  'astro-docs': {
+    command: 'bunx',
+    args: ['--bun', 'mcp-remote', 'https://mcp.docs.astro.build/mcp'],
+  },
+  'mastra-docs': {
+    command: 'bunx',
+    args: ['--bun', '@mastra/mcp-docs-server'],
+  },
+};
 
 /**
  * Claude settings.json structure.
@@ -84,13 +108,16 @@ export class ClaudeInjectionService {
     // Get project Claude config
     const claudeConfig = await this.getClaudeConfig(config.projectId);
 
-    // Parse MCP servers from config
-    let mcpServers: Record<string, McpServerConfig> = {};
+    // Start with default MCP servers
+    let mcpServers: Record<string, McpServerConfig> = { ...DEFAULT_MCP_SERVERS };
+
+    // Merge project-specific MCP servers (overrides defaults)
     if (claudeConfig?.mcp_servers) {
       try {
-        mcpServers = JSON.parse(claudeConfig.mcp_servers);
+        const projectMcpServers = JSON.parse(claudeConfig.mcp_servers);
+        mcpServers = { ...mcpServers, ...projectMcpServers };
       } catch {
-        // Invalid JSON, use empty object
+        // Invalid JSON, keep defaults only
       }
     }
 
@@ -126,6 +153,13 @@ export class ClaudeInjectionService {
     content += `Project: ${project.name}\n`;
     content += `Environment: ${config.environment}\n`;
     content += `Session: ${config.sessionId}\n\n`;
+
+    // Add sandbox container management documentation
+    content += `## Sandbox Container Management\n\n`;
+    content += `The development environment runs in separate containers. If hot-reload isn't working or you need to restart a service:\n\n`;
+    content += `- \`touch /workspace/.restart-astro\` - Restart the Astro dev server (UI)\n`;
+    content += `- \`touch /workspace/.restart-mastra\` - Restart the Mastra dev server (agents/tools)\n\n`;
+    content += `The process will restart within 1-2 seconds after the file is touched.\n\n`;
 
     // Add custom CLAUDE.md content if configured
     if (claudeConfig?.claude_md) {
@@ -179,6 +213,52 @@ export class ClaudeInjectionService {
       description: cmd.description,
       content: cmd.content,
     }));
+  }
+
+  /**
+   * Get built-in commands from the filesystem.
+   */
+  async getBuiltinCommands(): Promise<Command[]> {
+    const commands: Command[] = [];
+
+    try {
+      const files = await fs.readdir(BUILTIN_COMMANDS_DIR);
+
+      for (const file of files) {
+        if (file.endsWith('.md') && file !== 'README.md') {
+          const content = await fs.readFile(path.join(BUILTIN_COMMANDS_DIR, file), 'utf-8');
+          const name = file.replace('.md', '');
+          commands.push({ name, description: null, content });
+        }
+      }
+    } catch (err) {
+      console.warn('[ClaudeInjectionService] Could not read built-in commands:', err);
+    }
+
+    return commands;
+  }
+
+  /**
+   * Get built-in skills from the filesystem.
+   */
+  async getBuiltinSkills(): Promise<Skill[]> {
+    const skills: Skill[] = [];
+
+    try {
+      const files = await fs.readdir(BUILTIN_SKILLS_DIR);
+
+      for (const file of files) {
+        if (file.endsWith('.md') && file !== 'README.md') {
+          const content = await fs.readFile(path.join(BUILTIN_SKILLS_DIR, file), 'utf-8');
+          const name = file.replace('.md', '');
+          skills.push({ name, content });
+        }
+      }
+    } catch (err) {
+      console.warn('[ClaudeInjectionService] Could not read built-in skills:', err);
+    }
+
+    return skills;
   }
 
   /**

@@ -15,5 +15,5 @@ while [ ! -f "/workspace/.init-complete" ]; do
 done
 echo "Init complete, starting mastra..."
 
-# Execute the main command
-exec "$@"
+# Execute the main command with restart wrapper
+exec /app/restart-wrapper.sh mastra "$@"

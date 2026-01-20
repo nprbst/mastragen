@@ -21,6 +21,22 @@ if [ -f /home/coder/.claude/env.sh ]; then
     source /home/coder/.claude/env.sh
 fi
 
+# Add restart functions to bashrc for sandbox container management
+cat >> /home/coder/.bashrc << 'EOF'
+
+# Sandbox container restart functions
+# Touch a file in /workspace to signal the restart-wrapper to restart the process
+restart-astro() {
+    touch /workspace/.restart-astro
+    echo "Restart signal sent to astro container"
+}
+
+restart-mastra() {
+    touch /workspace/.restart-mastra
+    echo "Restart signal sent to mastra container"
+}
+EOF
+
 # Install/update extensions (always get latest)
 code-server --install-extension oven.bun-vscode --force 2>/dev/null || true
 code-server --install-extension astro-build.astro-vscode --force 2>/dev/null || true

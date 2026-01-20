@@ -20,9 +20,10 @@ RUN ln -s /home/node/.bun/bin/bun /usr/local/bin/bun \
     && ln -s /home/node/.bun/bin/bunx /usr/local/bin/bunx
 ENV PATH="/home/node/.bun/bin:${PATH}"
 
-# Copy entrypoint script
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
+# Copy scripts
+COPY astro/entrypoint.sh /entrypoint.sh
+COPY scripts/restart-wrapper.sh /app/restart-wrapper.sh
+RUN chmod +x /entrypoint.sh /app/restart-wrapper.sh
 
 USER node
 
