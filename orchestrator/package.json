@@ -33,12 +33,14 @@
     "kysely": "^0.27.0",
     "kysely-bun-sqlite": "^0.4.0",
     "nanoid": "^5.0.0",
+    "tar-stream": "^3.1.7",
     "valibot": "^1.2.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.0",
     "@types/bun": "latest",
-    "@types/dockerode": "^3.3.0"
+    "@types/dockerode": "^3.3.0",
+    "@types/tar-stream": "^3.1.4"
   },
   "peerDependencies": {
     "typescript": "^5"

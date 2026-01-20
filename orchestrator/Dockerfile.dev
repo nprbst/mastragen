@@ -8,13 +8,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
-COPY package.json bun.lock ./
+COPY orchestrator/package.json orchestrator/bun.lock ./
 
 # Install all dependencies (including dev)
 RUN bun install
 
 # Copy source code
-COPY src ./src
+COPY orchestrator/src ./src
+
+# Create directories for commands and skills (mounted as volumes in dev)
+RUN mkdir -p /app/claude-commands /app/claude-skills
 
 # Create data directory
 RUN mkdir -p /app/data

@@ -12,9 +12,14 @@ This directory contains the built-in skills (knowledge/instructions) that are in
 
 ## Format
 
-Each skill is a markdown file with the following structure:
+Each skill is a markdown file with YAML frontmatter:
 
 ```markdown
+---
+name: skill-name
+description: Brief description for Claude to decide when to use this skill
+---
+
 # Skill Name
 
 Description of the skill's purpose.
@@ -28,4 +33,4 @@ When this skill should be activated.
 The actual knowledge/instructions for Claude.
 ```
 
-Skills are injected to `/mnt/skills/project/` in the sandbox.
+Skills are injected to `/home/coder/.claude/skills/<skill-name>/SKILL.md` in the sandbox.

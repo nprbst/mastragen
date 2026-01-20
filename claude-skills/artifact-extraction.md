@@ -1,3 +1,8 @@
+---
+name: artifact-extraction
+description: Guidance on extracting reusable components, hooks, utilities, and configurations from development sessions
+---
+
 # Artifact Extraction Patterns
 
 This skill provides guidance on extracting reusable artifacts from development sessions.

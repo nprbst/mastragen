@@ -178,7 +178,7 @@ export async function refreshAccessToken(): Promise<string | null> {
 export function login(redirectUri?: string): void {
   if (typeof window === 'undefined') return;
 
-  const loginUrl = new URL(`${API_BASE}/auth/login`);
+  const loginUrl = new URL(`${API_BASE}/auth/login`, window.location.origin);
   // Use the callback page as redirect, storing the final destination
   const callbackUrl = new URL('/auth/callback', window.location.origin);
   if (redirectUri) {

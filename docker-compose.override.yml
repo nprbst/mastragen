@@ -4,12 +4,14 @@
 services:
   orchestrator:
     build:
-      context: ./orchestrator
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: orchestrator/Dockerfile.dev
     volumes:
       - ./orchestrator/src:/app/src:ro
       - ./data:/app/data
       - ./web/dist:/web/dist:ro
+      - ./claude-commands:/app/claude-commands:ro
+      - ./claude-skills:/app/claude-skills:ro
     environment:
       - NODE_ENV=development
       - WEB_DIST_PATH=/web/dist
@@ -32,7 +34,7 @@ services:
     profiles:
       - dev
 
-  code-server:
+  vscode:
     volumes:
       - ./fixtures/test-project:/workspace
     profiles:

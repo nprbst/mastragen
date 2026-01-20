@@ -1,3 +1,8 @@
+---
+name: mastra-development
+description: Guidance for developing Mastra agents, tools, and workflows using the Mastra TypeScript framework
+---
+
 # Mastra Development Patterns
 
 This skill provides domain knowledge for developing Mastra-based applications.

@@ -23,6 +23,7 @@ COPY --chown=coder:coder settings.json /home/coder/.local/share/code-server/User
 
 # Create .claude directory structure for Claude Code configuration injection
 RUN mkdir -p /home/coder/.claude/commands \
+    && mkdir -p /home/coder/.claude/skills \
     && mkdir -p /home/coder/.claude/projects/-workspace \
     && chown -R coder:coder /home/coder/.claude
 

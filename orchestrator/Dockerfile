@@ -8,13 +8,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy package files
-COPY package.json bun.lock ./
+COPY orchestrator/package.json orchestrator/bun.lock ./
 
 # Install dependencies
 RUN bun install --frozen-lockfile --production
 
 # Copy source code
-COPY src ./src
+COPY orchestrator/src ./src
+
+# Copy built-in commands and skills
+COPY claude-commands /app/claude-commands
+COPY claude-skills /app/claude-skills
 
 # Create data directory
 RUN mkdir -p /app/data

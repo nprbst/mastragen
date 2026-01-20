@@ -1,3 +1,8 @@
+---
+name: session-management
+description: Guidance on managing development sessions including suspend, resume, PR creation, and collaboration workflows
+---
+
 # Session Management Workflow
 
 This skill provides guidance on managing development sessions effectively.
