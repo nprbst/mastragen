@@ -33,6 +33,12 @@ describe('Sessions Routes', () => {
     });
 
     app = new Hono();
+    // Add db to context (like the main app does)
+    app.use('*', async (c, next) => {
+      // @ts-expect-error - db is added dynamically to context for middleware use
+      c.set('db', db);
+      await next();
+    });
     app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
   });
 
@@ -180,11 +186,12 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = (await createRes.json()) as Record<string, unknown>;
+      const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
 
-      // Suspend the session
+      // Suspend the session (with session token)
       const res = await app.request(`/sessions/${id}/suspend`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
       });
 
       expect(res.status).toBe(200);
@@ -195,15 +202,15 @@ describe('Sessions Routes', () => {
       expect(body.updatedAt).toBeDefined();
     });
 
-    test('returns 404 when session not found', async () => {
+    test('returns 401 when no token provided', async () => {
       const res = await app.request('/sessions/nonexistent/suspend', {
         method: 'POST',
       });
 
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(401);
 
       const body = (await res.json()) as Record<string, unknown>;
-      expect(body.error).toContain('not found');
+      expect(body.error).toBe('Unauthorized');
     });
 
     test('returns 400 when session is already suspended', async () => {
@@ -217,14 +224,18 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = (await createRes.json()) as Record<string, unknown>;
+      const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
 
       // Suspend once
-      await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
+      await app.request(`/sessions/${id}/suspend`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
 
       // Try to suspend again
       const res = await app.request(`/sessions/${id}/suspend`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
       });
 
       expect(res.status).toBe(400);
@@ -246,13 +257,17 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = (await createRes.json()) as Record<string, unknown>;
+      const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
 
-      await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
+      await app.request(`/sessions/${id}/suspend`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
 
-      // Resume the session
+      // Resume the session (with session token)
       const res = await app.request(`/sessions/${id}/resume`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
       });
 
       expect(res.status).toBe(200);
@@ -262,17 +277,18 @@ describe('Sessions Routes', () => {
       expect(body.state).toBe('active');
       expect(body.urls).toBeDefined();
       expect((body.urls as Record<string, unknown>).vscode).toMatch(/^http:\/\/localhost:\d+/);
+      expect(body.sessionToken).toBeDefined(); // New token returned on resume
     });
 
-    test('returns 404 when session not found', async () => {
+    test('returns 401 when no token provided', async () => {
       const res = await app.request('/sessions/nonexistent/resume', {
         method: 'POST',
       });
 
-      expect(res.status).toBe(404);
+      expect(res.status).toBe(401);
 
       const body = (await res.json()) as Record<string, unknown>;
-      expect(body.error).toContain('not found');
+      expect(body.error).toBe('Unauthorized');
     });
 
     test('returns 400 when session is already active', async () => {
@@ -286,11 +302,12 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = (await createRes.json()) as Record<string, unknown>;
+      const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
 
-      // Try to resume an active session
+      // Try to resume an active session (with session token)
       const res = await app.request(`/sessions/${id}/resume`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
       });
 
       expect(res.status).toBe(400);
@@ -342,9 +359,12 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = (await createRes.json()) as Record<string, unknown>;
+      const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
 
-      await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
+      await app.request(`/sessions/${id}/suspend`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
 
       // Get the session
       const res = await app.request(`/sessions/${id}`, {
@@ -438,10 +458,13 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id: suspendedId } = (await res2.json()) as Record<string, unknown>;
+      const { id: suspendedId, sessionToken } = (await res2.json()) as Record<string, unknown>;
 
-      // Suspend one
-      await app.request(`/sessions/${suspendedId}/suspend`, { method: 'POST' });
+      // Suspend one (with session token)
+      await app.request(`/sessions/${suspendedId}/suspend`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
 
       // Filter by active
       const res = await app.request('/sessions?state=active', {
@@ -466,8 +489,11 @@ describe('Sessions Routes', () => {
           environment: 'dev',
         }),
       });
-      const { id } = (await createRes.json()) as Record<string, unknown>;
-      await app.request(`/sessions/${id}/suspend`, { method: 'POST' });
+      const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
+      await app.request(`/sessions/${id}/suspend`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+      });
 
       // Create active session
       await app.request('/sessions', {

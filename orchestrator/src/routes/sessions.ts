@@ -22,8 +22,9 @@ import {
   SessionNotFoundError,
 } from '../services/sandbox.ts';
 import { getTailscaleService } from '../services/tailscale.ts';
-import { getAuthUser, requireAuth } from '../middleware/auth.ts';
+import { getAuthUser, requireAuth, requireSessionAuth } from '../middleware/auth.ts';
 import { getAuditLogger } from '../services/audit-logger.ts';
+import { AuthService } from '../services/auth.ts';
 
 /**
  * Transforms a database session to API response format.
@@ -112,9 +113,17 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
         claudeToken: body.claudeToken,
       });
 
+      // Generate session-scoped token for API authentication
+      const authService = new AuthService(db);
+      const sessionToken = await authService.generateSessionToken(
+        result.session.id,
+        body.userId ?? ''
+      );
+
       const response: SessionWithUrlsResponse = {
         ...toSessionResponse(result.session),
         urls: result.urls,
+        sessionToken,
       };
 
       return c.json(response, 201);
@@ -144,7 +153,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
   });
 
   // POST /sessions/:id/suspend - Suspend an active session
-  app.post('/:id/suspend', async (c) => {
+  app.post('/:id/suspend', requireSessionAuth(), async (c) => {
     const id = c.req.param('id');
 
     try {
@@ -165,7 +174,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
   });
 
   // POST /sessions/:id/resume - Resume a suspended session
-  app.post('/:id/resume', async (c) => {
+  app.post('/:id/resume', requireSessionAuth(), async (c) => {
     const id = c.req.param('id');
 
     // Parse optional request body for claudeToken
@@ -182,9 +191,18 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
 
     try {
       const result = await sandboxService.resume(id, claudeToken);
+
+      // Generate session-scoped token for API authentication
+      const authService = new AuthService(db);
+      const sessionToken = await authService.generateSessionToken(
+        result.session.id,
+        result.session.user_id ?? ''
+      );
+
       const response: SessionWithUrlsAndGitResponse = {
         ...toSessionWithGitResponse(result.session),
         urls: result.urls,
+        sessionToken,
       };
       return c.json(response, 200);
     } catch (error) {
@@ -280,7 +298,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
   });
 
   // POST /sessions/:id/pr - Create a pull request (T095)
-  app.post('/:id/pr', async (c) => {
+  app.post('/:id/pr', requireSessionAuth(), async (c) => {
     const id = c.req.param('id');
 
     const session = await sessionsRepo.findById(id);
@@ -487,7 +505,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
   });
 
   // POST /sessions/:id/activity - Record session activity (T102)
-  app.post('/:id/activity', async (c) => {
+  app.post('/:id/activity', requireSessionAuth(), async (c) => {
     const id = c.req.param('id');
 
     const session = await sessionsRepo.findById(id);

@@ -1,8 +1,11 @@
 import type { Context, MiddlewareHandler } from 'hono';
-import { verifyJwt, JWTExpired } from '../services/auth.ts';
+import type { Kysely } from 'kysely';
+import type { Database } from '../db/types.ts';
+import { verifyJwt, JWTExpired, AuthService } from '../services/auth.ts';
 
 // Symbol for storing auth user in context
 const AUTH_USER_KEY = 'authUser';
+const SESSION_AUTH_KEY = 'sessionAuth';
 
 /**
  * Decoded and validated user from JWT.
@@ -11,6 +14,14 @@ export interface AuthUser {
   id: string;
   email: string;
   name?: string | null;
+}
+
+/**
+ * Session auth info from session-scoped JWT.
+ */
+export interface SessionAuth {
+  sessionId: string;
+  userId: string;
 }
 
 /**
@@ -96,6 +107,67 @@ export function optionalAuth(): MiddlewareHandler {
 
     await next();
   };
+}
+
+/**
+ * Middleware that requires session-scoped authentication.
+ * Validates a session JWT and ensures the token matches the session ID in the route.
+ *
+ * Expects :id param in route (the session ID).
+ * Requires db in context (set by earlier middleware).
+ */
+export function requireSessionAuth(): MiddlewareHandler {
+  return async (c, next) => {
+    const authHeader = c.req.header('Authorization');
+
+    if (!authHeader) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+
+    const token = extractBearerToken(authHeader);
+    if (!token) {
+      return c.json({ error: 'Invalid authorization header' }, 401);
+    }
+
+    // Get db from context
+    const db = c.get('db') as Kysely<Database> | undefined;
+    if (!db) {
+      console.error('Database not available in context for session auth');
+      return c.json({ error: 'Internal server error' }, 500);
+    }
+
+    try {
+      const authService = new AuthService(db);
+      const sessionAuth = await authService.verifySessionToken(token);
+
+      if (!sessionAuth) {
+        return c.json({ error: 'Invalid session token' }, 401);
+      }
+
+      // Verify the session ID in the token matches the route parameter
+      const sessionId = c.req.param('id');
+      if (sessionAuth.sessionId !== sessionId) {
+        return c.json({ error: 'Token does not match session' }, 403);
+      }
+
+      // Store session auth in context
+      c.set(SESSION_AUTH_KEY, sessionAuth);
+      await next();
+    } catch (error) {
+      if (error instanceof JWTExpired) {
+        return c.json({ error: 'Session token expired' }, 401);
+      }
+      return c.json({ error: 'Invalid session token' }, 401);
+    }
+  };
+}
+
+/**
+ * Get the session auth from context.
+ * Returns undefined if not authenticated with session token.
+ */
+export function getSessionAuth(c: Context): SessionAuth | undefined {
+  return c.get(SESSION_AUTH_KEY) as SessionAuth | undefined;
 }
 
 /**

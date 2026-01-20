@@ -22,6 +22,7 @@ export interface SessionEnvVarsConfig {
   environment: string;
   sessionId: string;
   userId?: string;
+  sessionToken?: string;
 }
 
 /**
@@ -189,10 +190,12 @@ export class ClaudeInjectionService {
     }
 
     // Add session-specific vars
-    const apiUrl = process.env.ORCHESTRATOR_URL || 'http://localhost:4000';
+    const apiUrl = process.env.ORCHESTRATOR_URL || 'http://localhost:3000';
     envVars.MASTRAGEN_SESSION_ID = config.sessionId;
     envVars.MASTRAGEN_API_URL = apiUrl;
-    envVars.MASTRAGEN_USER_TOKEN = `session-token-${config.sessionId}`; // Placeholder
+    if (config.sessionToken) {
+      envVars.MASTRAGEN_USER_TOKEN = config.sessionToken;
+    }
 
     return envVars;
   }

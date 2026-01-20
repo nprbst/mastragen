@@ -95,6 +95,7 @@ export type SuspendSessionResponse = v.InferOutput<typeof SuspendSessionResponse
 export const SessionWithUrlsResponseSchema = v.object({
   ...SessionResponseSchema.entries,
   urls: ServiceUrlsSchema,
+  sessionToken: v.optional(v.string()),
 });
 export type SessionWithUrlsResponse = v.InferOutput<typeof SessionWithUrlsResponseSchema>;
 
@@ -104,6 +105,7 @@ export type SessionWithUrlsResponse = v.InferOutput<typeof SessionWithUrlsRespon
 export const SessionWithUrlsAndGitResponseSchema = v.object({
   ...SessionWithGitResponseSchema.entries,
   urls: ServiceUrlsSchema,
+  sessionToken: v.optional(v.string()),
 });
 export type SessionWithUrlsAndGitResponse = v.InferOutput<typeof SessionWithUrlsAndGitResponseSchema>;
 

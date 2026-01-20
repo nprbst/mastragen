@@ -26,7 +26,7 @@ const getSecretKey = () => new TextEncoder().encode(JWT_SECRET);
 const GITHUB_CONFIG = {
   clientId: process.env.GITHUB_APP_CLIENT_ID || '',
   clientSecret: process.env.GITHUB_APP_CLIENT_SECRET || '',
-  redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:4000/auth/callback',
+  redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:3000/api/auth/callback',
 };
 
 // GitHub API base URLs
@@ -626,5 +626,45 @@ export class AuthService {
       github_id: user.github_id,
       github_login: user.github_login,
     };
+  }
+
+  /**
+   * Generate a session-scoped JWT for sandbox-to-orchestrator API calls.
+   * These tokens allow Claude (running in the sandbox) to call session endpoints.
+   */
+  async generateSessionToken(sessionId: string, userId: string): Promise<string> {
+    return createJwt(
+      {
+        sub: sessionId,
+        sessionId,
+        userId,
+        type: 'session',
+      },
+      REFRESH_TOKEN_EXPIRY_SECONDS // 7 days - match session lifetime
+    );
+  }
+
+  /**
+   * Verify a session-scoped JWT token.
+   * Returns the session and user IDs if valid, null if invalid.
+   */
+  async verifySessionToken(
+    token: string
+  ): Promise<{ sessionId: string; userId: string } | null> {
+    try {
+      const payload = await verifyJwt(token);
+
+      // Verify this is a session token
+      if (payload.type !== 'session') {
+        return null;
+      }
+
+      return {
+        sessionId: payload.sessionId as string,
+        userId: payload.userId as string,
+      };
+    } catch {
+      return null;
+    }
   }
 }

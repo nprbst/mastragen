@@ -10,6 +10,9 @@ import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import type { Router } from '../../orchestrator/src/orpc/router.ts';
 
+// Import session token utilities
+import { getSessionToken, saveSessionToken } from './utils/session-token.ts';
+
 // Import types from orchestrator schemas (single source of truth)
 import type {
   HealthStatus,
@@ -133,10 +136,17 @@ export class MgenClient {
    */
   async createSession(request: CreateSessionRequest): Promise<SessionWithUrls> {
     // Use REST endpoint until oRPC handlers are fully implemented
-    return this.request<SessionWithUrls>('/api/sessions', {
+    const result = await this.request<SessionWithUrls>('/api/sessions', {
       method: 'POST',
       body: JSON.stringify(request),
     });
+
+    // Store session token for later use (suspend, activity, etc.)
+    if (result.sessionToken) {
+      saveSessionToken(result.id, result.sessionToken);
+    }
+
+    return result;
   }
 
   /**
@@ -170,10 +180,18 @@ export class MgenClient {
 
   /**
    * Suspends an active session.
+   * Uses cached session token for authentication.
    */
   async suspendSession(id: string): Promise<Session> {
+    const sessionToken = getSessionToken(id);
+    const headers: Record<string, string> = {};
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`;
+    }
+
     return this.request<Session>(`/api/sessions/${id}/suspend`, {
       method: 'POST',
+      headers,
     });
   }
 
@@ -181,10 +199,17 @@ export class MgenClient {
    * Resumes a suspended session.
    */
   async resumeSession(id: string, options?: { claudeToken?: string }): Promise<SessionWithUrls> {
-    return this.request<SessionWithUrls>(`/api/sessions/${id}/resume`, {
+    const result = await this.request<SessionWithUrls>(`/api/sessions/${id}/resume`, {
       method: 'POST',
       body: options?.claudeToken ? JSON.stringify({ claudeToken: options.claudeToken }) : undefined,
     });
+
+    // Store new session token (regenerated on resume)
+    if (result.sessionToken) {
+      saveSessionToken(result.id, result.sessionToken);
+    }
+
+    return result;
   }
 
   /**

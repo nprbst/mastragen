@@ -33,10 +33,22 @@ Suspends with a custom commit message.
 
 ## Implementation
 
-When invoked, call the orchestrator API:
+When invoked, first source the environment variables if not already set, then call the orchestrator API:
 
 ```bash
-curl -X POST "$MASTRAGEN_API_URL/sessions/$MASTRAGEN_SESSION_ID/suspend" \
+# Source session environment variables if not already set
+if [ -z "$MASTRAGEN_API_URL" ] && [ -f ~/.claude/env.sh ]; then
+  source ~/.claude/env.sh
+fi
+
+# Verify required variables are set
+if [ -z "$MASTRAGEN_API_URL" ] || [ -z "$MASTRAGEN_SESSION_ID" ] || [ -z "$MASTRAGEN_USER_TOKEN" ]; then
+  echo "Error: Session environment variables not configured. Cannot suspend."
+  exit 1
+fi
+
+# Call the suspend API
+curl -X POST "$MASTRAGEN_API_URL/api/sessions/$MASTRAGEN_SESSION_ID/suspend" \
   -H "Authorization: Bearer $MASTRAGEN_USER_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"message": "WIP: Session suspended"}'

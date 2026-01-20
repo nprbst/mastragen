@@ -5,6 +5,7 @@ import type { Database } from '../../src/db/types.ts';
 import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import { SessionsRepository } from '../../src/repositories/sessions.ts';
+import { AuthService } from '../../src/services/auth.ts';
 
 const TEST_DB_PATH = './data/test-sessions-git.db';
 
@@ -63,15 +64,26 @@ describe('Sessions Git Routes', () => {
         commitCount: 3,
       });
 
+      // Generate a session token for authentication
+      const authService = new AuthService(db);
+      const sessionToken = await authService.generateSessionToken(session.id, 'testuser');
+
       // Import the sessions routes module which we need to enhance
       const { sessionsRoutes } = await import('../../src/routes/sessions.ts');
 
       const app = new Hono();
+      // Add db to context (like the main app does)
+      app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
+        c.set('db', db);
+        await next();
+      });
       app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
 
-      // Call suspend endpoint
+      // Call suspend endpoint with session token
       const res = await app.request(`/sessions/${session.id}/suspend`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
       });
 
       expect(res.status).toBe(200);
@@ -99,13 +111,24 @@ describe('Sessions Git Routes', () => {
         branch_name: 'mg/testuser/no-commits-test-def456',
       });
 
+      // Generate a session token for authentication
+      const authService = new AuthService(db);
+      const sessionToken = await authService.generateSessionToken(session.id, 'testuser');
+
       const { sessionsRoutes } = await import('../../src/routes/sessions.ts');
 
       const app = new Hono();
+      // Add db to context (like the main app does)
+      app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
+        c.set('db', db);
+        await next();
+      });
       app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
 
       const res = await app.request(`/sessions/${session.id}/suspend`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
       });
 
       expect(res.status).toBe(200);

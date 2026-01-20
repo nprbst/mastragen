@@ -163,11 +163,12 @@ describe('claude-injection service', () => {
         environment: 'dev',
         sessionId: 'session-xyz',
         userId: 'user-123',
+        sessionToken: 'test-jwt-token',
       });
 
       expect(envVars.MASTRAGEN_SESSION_ID).toBe('session-xyz');
       expect(envVars.MASTRAGEN_API_URL).toBeDefined();
-      expect(envVars.MASTRAGEN_USER_TOKEN).toBeDefined();
+      expect(envVars.MASTRAGEN_USER_TOKEN).toBe('test-jwt-token');
     });
 
     test('should merge project env vars with session env vars', async () => {

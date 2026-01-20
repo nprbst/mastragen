@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import path from 'node:path';
+import { pack } from 'tar-stream';
 import Docker from 'dockerode';
 import type { Kysely } from 'kysely';
 import type { Database, Project, Session } from '../db/types.ts';
@@ -7,6 +9,7 @@ import type { SessionsRepository } from '../repositories/sessions.ts';
 import type { GitStatus, CommitResult } from './git.ts';
 import { InsufficientPermissionsError, GitHubService, type PRResult, type PRCreateInput } from './github.ts';
 import { ClaudeInjectionService } from './claude-injection.ts';
+import { AuthService } from './auth.ts';
 
 export { InsufficientPermissionsError };
 
@@ -212,6 +215,7 @@ export class SandboxService {
   private dockerEnabled: boolean;
   private docker: Docker;
   private claudeInjectionService: ClaudeInjectionService | null = null;
+  private db: Kysely<Database> | null = null;
 
   // Default ports for services
   private static readonly PORTS = {
@@ -225,7 +229,7 @@ export class SandboxService {
     init: 'mastragen-init',
     mastra: 'mastragen-mastra',
     astro: 'mastragen-astro',
-    vscode: 'mastragen-code-server',
+    vscode: 'mastragen-vscode',
   };
 
   // Cache for session -> project mapping (for URL generation)
@@ -237,6 +241,7 @@ export class SandboxService {
     this.dockerEnabled = options.dockerEnabled ?? true;
     this.docker = new Docker();
     if (options.db) {
+      this.db = options.db;
       this.claudeInjectionService = new ClaudeInjectionService(options.db);
     }
   }
@@ -1133,7 +1138,6 @@ export class SandboxService {
         environment: config.environment,
         sessionId,
       });
-      const settingsJson = JSON.stringify(settings, null, 2);
 
       // Generate CLAUDE.md
       const claudeMd = await this.claudeInjectionService.generateClaudeMd({
@@ -1142,28 +1146,56 @@ export class SandboxService {
         sessionId,
       });
 
-      // Get custom commands
-      const commands = await this.claudeInjectionService.getCommands({
+      // Get built-in and project-specific commands
+      const builtinCommands = await this.claudeInjectionService.getBuiltinCommands();
+      const projectCommands = await this.claudeInjectionService.getCommands({
         projectId: config.projectId,
         environment: config.environment,
       });
+      const allCommands = [...builtinCommands, ...projectCommands];
 
-      // Create ~/.claude directory in the container (should exist from Dockerfile, but ensure)
+      // Get built-in skills
+      const builtinSkills = await this.claudeInjectionService.getBuiltinSkills();
+
+      // Create directories in the container
       await this.execInContainer(container, ['mkdir', '-p', '/home/coder/.claude/commands']);
+      await this.execInContainer(container, ['mkdir', '-p', '/home/coder/.claude/skills']);
 
-      // Write settings.json
-      await this.writeFileToContainer(container, '/home/coder/.claude/settings.json', settingsJson);
+      // Write settings.json (without mcpServers - those go in ~/.claude.json)
+      const { mcpServers, ...settingsWithoutMcp } = settings;
+      const settingsJsonClean = JSON.stringify(settingsWithoutMcp, null, 2);
+      await this.writeFileToContainer(container, '/home/coder/.claude/settings.json', settingsJsonClean);
       console.log('[SandboxService] Wrote settings.json to container');
+
+      // Write MCP servers to ~/.claude.json (the correct location for MCP config)
+      const claudeJsonConfig = { mcpServers };
+      await this.writeFileToContainer(container, '/home/coder/.claude.json', JSON.stringify(claudeJsonConfig, null, 2));
+      console.log('[SandboxService] Wrote MCP config to ~/.claude.json');
 
       // Write CLAUDE.md to .claude directory (global instructions)
       await this.writeFileToContainer(container, '/home/coder/.claude/CLAUDE.md', claudeMd);
       console.log('[SandboxService] Wrote CLAUDE.md to .claude directory');
 
-      // Write custom commands
-      for (const command of commands) {
+      // Write all commands (built-in + project-specific)
+      for (const command of allCommands) {
         const commandPath = `/home/coder/.claude/commands/${command.name}.md`;
         await this.writeFileToContainer(container, commandPath, command.content);
         console.log(`[SandboxService] Wrote command ${command.name}.md`);
+      }
+
+      // Write built-in skills (each skill is a folder with SKILL.md inside)
+      for (const skill of builtinSkills) {
+        const skillDir = `/home/coder/.claude/skills/${skill.name}`;
+        await this.execInContainer(container, ['mkdir', '-p', skillDir]);
+        await this.writeFileToContainer(container, `${skillDir}/SKILL.md`, skill.content);
+        console.log(`[SandboxService] Wrote skill ${skill.name}/SKILL.md`);
+      }
+
+      // Generate session-scoped JWT for API authentication
+      let sessionToken: string | undefined;
+      if (this.db) {
+        const authService = new AuthService(this.db);
+        sessionToken = await authService.generateSessionToken(sessionId, config.userId ?? '');
       }
 
       // Get and set session-specific environment variables
@@ -1172,6 +1204,7 @@ export class SandboxService {
         environment: config.environment,
         sessionId,
         userId: config.userId ?? '',
+        sessionToken,
       });
 
       // Write environment variables to a file that can be sourced
@@ -1194,43 +1227,27 @@ export class SandboxService {
   private async execInContainer(container: Docker.Container, cmd: string[]): Promise<void> {
     const exec = await container.exec({
       Cmd: cmd,
-      AttachStdout: true,
-      AttachStderr: true,
+      AttachStdout: false,
+      AttachStderr: false,
     });
-    await exec.start({ hijack: true, stdin: false });
+    await exec.start({ Detach: true });
   }
 
   /**
-   * Writes content to a file in a container using shell redirection.
+   * Writes content to a file in a container using Docker's putArchive API.
    */
   private async writeFileToContainer(
     container: Docker.Container,
     filePath: string,
     content: string
   ): Promise<void> {
-    // Escape content for shell
-    const escapedContent = content.replace(/'/g, "'\\''");
-    const cmd = ['sh', '-c', `cat > '${filePath}' << 'EOFMARKER'\n${escapedContent}\nEOFMARKER`];
+    const fileName = path.basename(filePath);
+    const dirPath = path.dirname(filePath);
 
-    const exec = await container.exec({
-      Cmd: cmd,
-      AttachStdout: true,
-      AttachStderr: true,
-    });
+    const tarStream = pack();
+    tarStream.entry({ name: fileName }, content);
+    tarStream.finalize();
 
-    await new Promise<void>((resolve, reject) => {
-      exec.start({ hijack: true, stdin: false }, (err, stream) => {
-        if (err) {
-          reject(err);
-          return;
-        }
-        if (stream) {
-          stream.on('end', resolve);
-          stream.on('error', reject);
-        } else {
-          resolve();
-        }
-      });
-    });
+    await container.putArchive(tarStream, { path: dirPath });
   }
 }

@@ -34,6 +34,12 @@ describe('Session Lifecycle E2E', () => {
 
     // Setup app with all routes
     app = new Hono();
+    // Add db to context (like the main app does)
+    app.use('*', async (c, next) => {
+      // @ts-expect-error - db is added dynamically to context for middleware use
+      c.set('db', db);
+      await next();
+    });
     app.route('/health', healthRoutes(db));
     app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
   });
@@ -65,9 +71,11 @@ describe('Session Lifecycle E2E', () => {
     expect(session.id).toBeDefined();
     expect(session.state).toBe('active');
     expect(session.urls).toBeDefined();
+    expect(session.sessionToken).toBeDefined();
     expect((session.urls as Record<string, unknown>).vscode).toMatch(/^http:\/\/localhost:\d+/);
 
     const sessionId = session.id;
+    const sessionToken = session.sessionToken as string;
 
     // Step 3: Verify session appears in list
     const listRes1 = await app.request('/sessions');
@@ -84,9 +92,10 @@ describe('Session Lifecycle E2E', () => {
     expect(sessionDetails1.state).toBe('active');
     expect(sessionDetails1.urls).toBeDefined();
 
-    // Step 5: Suspend the session
+    // Step 5: Suspend the session (requires session token)
     const suspendRes = await app.request(`/sessions/${sessionId}/suspend`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${sessionToken}` },
     });
     expect(suspendRes.status).toBe(200);
     const suspended = (await suspendRes.json()) as Record<string, unknown>;
@@ -112,14 +121,16 @@ describe('Session Lifecycle E2E', () => {
     expect(suspendedSessions.length).toBe(1);
     expect(suspendedSessions[0]?.id).toBe(sessionId);
 
-    // Step 9: Resume the session
+    // Step 9: Resume the session (requires session token)
     const resumeRes = await app.request(`/sessions/${sessionId}/resume`, {
       method: 'POST',
+      headers: { Authorization: `Bearer ${sessionToken}` },
     });
     expect(resumeRes.status).toBe(200);
     const resumed = (await resumeRes.json()) as Record<string, unknown>;
     expect(resumed.state).toBe('active');
     expect(resumed.urls).toBeDefined();
+    expect(resumed.sessionToken).toBeDefined(); // New token returned on resume
 
     // Step 10: Final verification - session is active again
     const getRes3 = await app.request(`/sessions/${sessionId}`);
@@ -148,6 +159,7 @@ describe('Session Lifecycle E2E', () => {
       }),
     });
     const session1 = (await session1Res.json()) as Record<string, unknown>;
+    const session1Token = session1.sessionToken as string;
 
     const session2Res = await app.request('/sessions', {
       method: 'POST',
@@ -160,8 +172,11 @@ describe('Session Lifecycle E2E', () => {
     });
     await session2Res.json(); // Consume response
 
-    // Suspend one session
-    await app.request(`/sessions/${session1.id}/suspend`, { method: 'POST' });
+    // Suspend one session (requires session token)
+    await app.request(`/sessions/${session1.id}/suspend`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session1Token}` },
+    });
 
     // Verify filter returns correct counts
     const activeRes = await app.request('/sessions?state=active');

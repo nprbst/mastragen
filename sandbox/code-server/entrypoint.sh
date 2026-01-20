@@ -21,6 +21,15 @@ if [ -f /home/coder/.claude/env.sh ]; then
     source /home/coder/.claude/env.sh
 fi
 
+# Ensure session env vars are available in all new shell sessions (e.g. VS Code terminals)
+if [ -f /home/coder/.claude/env.sh ]; then
+    if ! grep -q "source /home/coder/.claude/env.sh" ~/.bashrc 2>/dev/null; then
+        echo "" >> ~/.bashrc
+        echo "# Session environment variables (injected by mastragen)" >> ~/.bashrc
+        echo "source /home/coder/.claude/env.sh" >> ~/.bashrc
+    fi
+fi
+
 # Add restart functions to bashrc for sandbox container management
 cat >> /home/coder/.bashrc << 'EOF'
 
