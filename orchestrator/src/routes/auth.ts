@@ -3,6 +3,7 @@ import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
 import { AuthService } from '../services/auth.ts';
 import { requireAuth, getAuthUser } from '../middleware/auth.ts';
 import { getAuditLogger } from '../services/audit-logger.ts';
+import { getPublicKey } from '../lib/crypto.ts';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.ts';
 
@@ -156,6 +157,7 @@ export function createAuthRoutes(db: Kysely<Database>): Hono {
       avatarUrl: user.avatar_url,
       githubId: user.github_id,
       githubLogin: user.github_login,
+      encryptionPublicKey: getPublicKey(),
     });
   });
 

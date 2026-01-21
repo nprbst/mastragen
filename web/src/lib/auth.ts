@@ -4,7 +4,7 @@
  * Handles token storage, user context, and authentication state.
  */
 
-import { encryptToken } from './crypto';
+import { encryptToken, setPublicKey, clearCachedPublicKey } from './crypto';
 
 const API_BASE = '/api';
 const TOKEN_STORAGE_KEY = 'mastragen_access_token';
@@ -138,7 +138,21 @@ export async function fetchCurrentUser(): Promise<AuthUser | null> {
       throw new Error(`Failed to fetch user: ${response.statusText}`);
     }
 
-    const user = (await response.json()) as AuthUser;
+    const data = await response.json();
+
+    // Cache the encryption public key if present
+    if (data.encryptionPublicKey) {
+      await setPublicKey(data.encryptionPublicKey);
+    }
+
+    const user: AuthUser = {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      avatarUrl: data.avatarUrl,
+      githubId: data.githubId,
+      githubLogin: data.githubLogin,
+    };
     setCachedUser(user);
     return user;
   } catch (error) {
@@ -217,6 +231,7 @@ export async function logout(): Promise<void> {
 
   clearAccessToken();
   clearCachedUser();
+  clearCachedPublicKey();
 
   if (typeof window !== 'undefined') {
     window.location.href = '/auth/login';

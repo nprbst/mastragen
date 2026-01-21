@@ -2,19 +2,15 @@
  * Browser-side encryption utilities for encrypting tokens with orchestrator's public key.
  */
 
-const API_BASE = '/api';
 let cachedPublicKey: CryptoKey | null = null;
+let cachedPemKey: string | null = null;
 
 /**
- * Fetch and cache the orchestrator's public key.
+ * Set the public key from the auth response.
+ * Call this after fetching /auth/me.
  */
-async function getPublicKey(): Promise<CryptoKey> {
-  if (cachedPublicKey) return cachedPublicKey;
-
-  const res = await fetch(`${API_BASE}/encryption/public-key`);
-  if (!res.ok) throw new Error('Failed to fetch public key');
-
-  const { publicKey: pemKey } = await res.json();
+export async function setPublicKey(pemKey: string): Promise<void> {
+  if (cachedPemKey === pemKey) return; // Already cached
 
   // Convert PEM to ArrayBuffer for Web Crypto
   const pemContents = pemKey
@@ -30,25 +26,34 @@ async function getPublicKey(): Promise<CryptoKey> {
     false,
     ['encrypt']
   );
+  cachedPemKey = pemKey;
+}
 
-  return cachedPublicKey;
+/**
+ * Check if the public key has been set.
+ */
+export function hasPublicKey(): boolean {
+  return cachedPublicKey !== null;
 }
 
 /**
  * Encrypt a token with the orchestrator's public key.
  * Returns base64-encoded ciphertext.
+ * Throws if setPublicKey() hasn't been called.
  */
 export async function encryptToken(plaintext: string): Promise<string> {
-  const publicKey = await getPublicKey();
+  if (!cachedPublicKey) {
+    throw new Error('Public key not set. Call setPublicKey() first.');
+  }
   const encoded = new TextEncoder().encode(plaintext);
-  const encrypted = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, publicKey, encoded);
-  // Return as base64 for transport/storage
+  const encrypted = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, cachedPublicKey, encoded);
   return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
 }
 
 /**
- * Clear cached public key (useful if key rotation happens).
+ * Clear cached public key.
  */
 export function clearCachedPublicKey(): void {
   cachedPublicKey = null;
+  cachedPemKey = null;
 }

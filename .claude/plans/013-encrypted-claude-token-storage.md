@@ -14,10 +14,14 @@ Store the Claude Code Token securely in localStorage using asymmetric encryption
 ┌─────────────────────┐                    ┌─────────────────────┐
 │       Browser       │                    │    Orchestrator     │
 ├─────────────────────┤                    ├─────────────────────┤
-│                     │  GET /public-key   │                     │
-│  Fetch public key ──┼───────────────────►│  Return RSA pub key │
-│                     │◄───────────────────┼──                   │
+│                     │  GET /auth/me      │                     │
+│  Login/Auth ────────┼───────────────────►│  Return user info   │
+│                     │◄───────────────────┼── + RSA public key  │
 │                     │                    │                     │
+│  Cache public key   │                    │                     │
+│  with user data     │                    │                     │
+│         │           │                    │                     │
+│         ▼           │                    │                     │
 │  Encrypt token      │                    │                     │
 │  with public key    │                    │                     │
 │         │           │                    │                     │
@@ -29,16 +33,18 @@ Store the Claude Code Token securely in localStorage using asymmetric encryption
 └─────────────────────┘                    └─────────────────────┘
 ```
 
+Public key is returned in `/auth/me` response instead of a separate `/encryption/public-key`
+endpoint. This eliminates an extra round-trip since the frontend already calls `/auth/me` on login.
+
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| [orchestrator/src/lib/crypto.ts](orchestrator/src/lib/crypto.ts) | NEW: RSA key management and decryption |
-| [orchestrator/src/routes/encryption.ts](orchestrator/src/routes/encryption.ts) | NEW: Public key endpoint |
-| [orchestrator/src/index.ts](orchestrator/src/index.ts) | Register encryption routes |
+| [orchestrator/src/lib/crypto.ts](orchestrator/src/lib/crypto.ts) | ✅ DONE: RSA key management and decryption |
+| [orchestrator/src/routes/auth.ts](orchestrator/src/routes/auth.ts) | ✅ DONE: Add `encryptionPublicKey` to `/me` response |
 | [orchestrator/src/routes/sessions.ts](orchestrator/src/routes/sessions.ts) | Accept and decrypt encrypted tokens |
-| [web/src/lib/crypto.ts](web/src/lib/crypto.ts) | NEW: Web Crypto encryption utilities |
-| [web/src/lib/auth.ts](web/src/lib/auth.ts) | Token storage with encryption |
+| [web/src/lib/crypto.ts](web/src/lib/crypto.ts) | ✅ DONE: Accept public key via `setPublicKey()` (no fetch) |
+| [web/src/lib/auth.ts](web/src/lib/auth.ts) | ✅ DONE: Cache public key from `/auth/me`, token storage |
 | [web/src/components/NewSessionForm.tsx](web/src/components/NewSessionForm.tsx) | Pre-fill, remember checkbox, clear option |
 | [web/src/components/SessionCard.tsx](web/src/components/SessionCard.tsx) | Check for stored token on resume, prompt if missing |
 
@@ -96,22 +102,23 @@ export function decryptToken(encryptedBase64: string): string {
 }
 ```
 
-### 0b. Backend: Encryption Routes (`orchestrator/src/routes/encryption.ts`)
+### 0b. Backend: Add public key to `/auth/me` response
+
+In `orchestrator/src/routes/auth.ts`, add `encryptionPublicKey` to the `/me` response:
 
 ```typescript
-import { Hono } from 'hono';
-import { getPublicKey } from '../lib/crypto';
+import { getPublicKey } from '../lib/crypto.ts';
 
-export function encryptionRoutes(): Hono {
-  const app = new Hono();
-
-  // Public endpoint - no auth required
-  app.get('/public-key', (c) => {
-    return c.json({ publicKey: getPublicKey() });
-  });
-
-  return app;
-}
+// In GET /me handler
+return c.json({
+  id: user.id,
+  email: user.email,
+  name: user.name,
+  avatarUrl: user.avatar_url,
+  githubId: user.github_id,
+  githubLogin: user.github_login,
+  encryptionPublicKey: getPublicKey(),
+});
 ```
 
 ### 0c. Backend: Update Sessions Routes
@@ -138,27 +145,21 @@ if (body.encryptedClaudeToken) {
 
 ### 1. Frontend: Web Crypto Utilities (`web/src/lib/crypto.ts`)
 
-NEW file for browser-side encryption:
+Browser-side encryption - receives public key from auth, no separate fetch:
 
 ```typescript
-const API_BASE = '/api';
 let cachedPublicKey: CryptoKey | null = null;
+let cachedPemKey: string | null = null;
 
-// Fetch and cache the orchestrator's public key
-async function getPublicKey(): Promise<CryptoKey> {
-  if (cachedPublicKey) return cachedPublicKey;
+// Set public key from auth response (called by auth.ts)
+export async function setPublicKey(pemKey: string): Promise<void> {
+  if (cachedPemKey === pemKey) return; // Already cached
 
-  const res = await fetch(`${API_BASE}/encryption/public-key`);
-  if (!res.ok) throw new Error('Failed to fetch public key');
-
-  const { publicKey: pemKey } = await res.json();
-
-  // Convert PEM to ArrayBuffer for Web Crypto
   const pemContents = pemKey
     .replace('-----BEGIN PUBLIC KEY-----', '')
     .replace('-----END PUBLIC KEY-----', '')
     .replace(/\s/g, '');
-  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  const binaryDer = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
 
   cachedPublicKey = await crypto.subtle.importKey(
     'spki',
@@ -167,26 +168,22 @@ async function getPublicKey(): Promise<CryptoKey> {
     false,
     ['encrypt']
   );
-
-  return cachedPublicKey;
+  cachedPemKey = pemKey;
 }
 
-// Encrypt a token with the orchestrator's public key
+// Encrypt a token - throws if setPublicKey() hasn't been called
 export async function encryptToken(plaintext: string): Promise<string> {
-  const publicKey = await getPublicKey();
+  if (!cachedPublicKey) {
+    throw new Error('Public key not set. Call setPublicKey() first.');
+  }
   const encoded = new TextEncoder().encode(plaintext);
-  const encrypted = await crypto.subtle.encrypt(
-    { name: 'RSA-OAEP' },
-    publicKey,
-    encoded
-  );
-  // Return as base64 for transport/storage
+  const encrypted = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, cachedPublicKey, encoded);
   return btoa(String.fromCharCode(...new Uint8Array(encrypted)));
 }
 
-// Clear cached key (useful if key rotation happens)
 export function clearCachedPublicKey(): void {
   cachedPublicKey = null;
+  cachedPemKey = null;
 }
 ```
 
@@ -465,10 +462,11 @@ In development, keys are generated at startup and logged with a warning.
 
 ## Verification
 
-1. **Backend key endpoint**: `curl /api/encryption/public-key` returns a valid PEM public key
-2. **New session with remember**: Create session, check "Remember", inspect localStorage - value should be base64 encrypted blob
-3. **New session uses stored**: Refresh page, submit without entering token - should work using stored encrypted token
-4. **Clear token**: Click "Clear stored token", verify localStorage key is removed
-5. **Resume with stored token**: Resume a suspended session, verify it works without prompting
-6. **Resume without token**: Clear stored token, try resume, verify prompt appears
-7. **Decryption works**: Backend logs should show decrypted token being used (dev only)
+1. **Auth includes public key**: Login and verify `/auth/me` response includes `encryptionPublicKey`
+2. **No separate endpoint**: Verify `/api/encryption/public-key` returns 404
+3. **New session with remember**: Create session, check "Remember", inspect localStorage - value should be base64 encrypted blob
+4. **New session uses stored**: Refresh page, submit without entering token - should work using stored encrypted token
+5. **Clear token**: Click "Clear stored token", verify localStorage key is removed
+6. **Resume with stored token**: Resume a suspended session, verify it works without prompting
+7. **Resume without token**: Clear stored token, try resume, verify prompt appears
+8. **Decryption works**: Backend logs should show decrypted token being used (dev only)

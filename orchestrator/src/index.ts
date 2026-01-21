@@ -7,7 +7,6 @@ import { createDatabase } from './db/index.ts';
 import { runMigrations } from './db/migrator.ts';
 import {
   createAuthRoutes,
-  encryptionRoutes,
   healthRoutes,
   projectsRoutes,
   sessionsRoutes,
@@ -50,7 +49,6 @@ app.use('*', async (c, next) => {
 // REST API routes under /api
 const api = new Hono();
 api.route('/auth', createAuthRoutes(db));
-api.route('/encryption', encryptionRoutes());
 api.route('/health', healthRoutes(db));
 api.route('/projects', projectsRoutes(db));
 api.route('/sessions', sessionsRoutes(db));
