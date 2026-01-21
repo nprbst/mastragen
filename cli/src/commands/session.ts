@@ -9,6 +9,9 @@ import {
   formatSession,
   formatSessionTable,
   formatResumed,
+  formatShareCreated,
+  formatShareTable,
+  formatIdleStatus,
   success,
   error,
   waitForPorts,
@@ -508,6 +511,124 @@ export function sessionCommand(client: MgenClient): Command {
         }
       } catch (err) {
         if (err instanceof Error) {
+          console.error(error(`Failed: ${err.message}`));
+        }
+        process.exit(1);
+      }
+    });
+
+  // session share <id> <email>
+  session
+    .command('share <id> <email>')
+    .description('Share a session with another user')
+    .option('--json', 'Output as JSON')
+    .action(async (id: string, email: string, options) => {
+      try {
+        const result = await client.shareSession(id, email);
+
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(formatShareCreated(result));
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          if (err.status === 404) {
+            console.error(error(`Not found: ${err.message}`));
+          } else if (err.status === 409) {
+            console.error(error(`Already shared: ${err.message}`));
+          } else if (err.status === 400) {
+            console.error(error(`Cannot share: ${err.message}`));
+          } else {
+            console.error(error(`API error: ${err.message}`));
+          }
+        } else if (err instanceof Error) {
+          console.error(error(`Failed: ${err.message}`));
+        }
+        process.exit(1);
+      }
+    });
+
+  // session unshare <id> <email>
+  session
+    .command('unshare <id> <email>')
+    .description('Revoke session share from a user')
+    .option('--json', 'Output as JSON')
+    .action(async (id: string, email: string, options) => {
+      try {
+        const result = await client.unshareSession(id, email);
+
+        if (options.json) {
+          console.log(JSON.stringify(result, null, 2));
+        } else {
+          console.log(success(`Share revoked for ${email}`));
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          if (err.status === 404) {
+            console.error(error(`Not found: ${err.message}`));
+          } else {
+            console.error(error(`API error: ${err.message}`));
+          }
+        } else if (err instanceof Error) {
+          console.error(error(`Failed: ${err.message}`));
+        }
+        process.exit(1);
+      }
+    });
+
+  // session shares <id>
+  session
+    .command('shares <id>')
+    .description('List all shares for a session')
+    .option('--json', 'Output as JSON')
+    .action(async (id: string, options) => {
+      try {
+        const shares = await client.listSessionShares(id);
+
+        if (options.json) {
+          console.log(JSON.stringify(shares, null, 2));
+        } else {
+          console.log(formatShareTable(shares));
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          if (err.status === 404) {
+            console.error(error(`Session not found: ${id}`));
+          } else {
+            console.error(error(`API error: ${err.message}`));
+          }
+        } else if (err instanceof Error) {
+          console.error(error(`Failed: ${err.message}`));
+        }
+        process.exit(1);
+      }
+    });
+
+  // session idle-status <id>
+  session
+    .command('idle-status <id>')
+    .description('Get idle status for a session')
+    .option('--json', 'Output as JSON')
+    .action(async (id: string, options) => {
+      try {
+        const status = await client.getIdleStatus(id);
+
+        if (options.json) {
+          console.log(JSON.stringify(status, null, 2));
+        } else {
+          console.log(formatIdleStatus(status));
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          if (err.status === 404) {
+            console.error(error(`Session not found: ${id}`));
+          } else if (err.status === 401) {
+            console.error(error('Unauthorized. Try creating or resuming the session first to cache credentials.'));
+          } else {
+            console.error(error(`API error: ${err.message}`));
+          }
+        } else if (err instanceof Error) {
           console.error(error(`Failed: ${err.message}`));
         }
         process.exit(1);

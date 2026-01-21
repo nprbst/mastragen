@@ -38,6 +38,54 @@ export type Environment = EnvironmentResponse;
 export type Project = ProjectResponse;
 export type ProjectDetail = ProjectWithEnvironments;
 
+// Session sharing types
+export interface SessionShareResult {
+  shareId: string;
+  sharedWithEmail: string;
+  sharedWithUserId: string;
+  accessUrl: string;
+  createdAt: string;
+}
+
+export interface SessionShareInfo {
+  id: string;
+  sessionId: string;
+  sharedByUserId: string;
+  sharedWithUserId: string;
+  sharedWithEmail: string;
+  sharedWithName: string;
+  grantedAt: string;
+}
+
+// Idle status type
+export interface IdleStatus {
+  sessionId: string;
+  state: string;
+  lastActivityAt: string | null;
+  idleTimeoutMinutes: number;
+  warningMinutes: number;
+  idleSinceMinutes: number;
+  warningIssued: boolean;
+  suspendAt: string | null;
+}
+
+// Tailscale types
+export interface TailscaleStatus {
+  configured: boolean;
+  tailnet: string | null;
+  apiKeySet: boolean;
+}
+
+export interface TailscaleDevice {
+  id: string;
+  name: string;
+  hostname: string;
+  addresses: string[];
+  tags: string[];
+  authorized: boolean;
+  user: string;
+}
+
 /**
  * Custom error for API responses with non-2xx status codes.
  */
@@ -296,6 +344,115 @@ export class MgenClient {
     return this.request<Environment[]>(`/api/projects/${projectId}/environments`, {
       method: 'GET',
     });
+  }
+
+  // ===== Session Sharing =====
+
+  /**
+   * Share a session with another user by email.
+   */
+  async shareSession(sessionId: string, email: string): Promise<SessionShareResult> {
+    return this.request<SessionShareResult>(`/api/sessions/${sessionId}/share`, {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  /**
+   * List all shares for a session.
+   */
+  async listSessionShares(sessionId: string): Promise<SessionShareInfo[]> {
+    return this.request<SessionShareInfo[]>(`/api/sessions/${sessionId}/shares`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Revoke a session share by share ID.
+   */
+  async revokeSessionShare(sessionId: string, shareId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/api/sessions/${sessionId}/shares/${shareId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Find a share by email and revoke it.
+   * Looks up the share ID first, then revokes.
+   */
+  async unshareSession(sessionId: string, email: string): Promise<{ message: string }> {
+    const shares = await this.listSessionShares(sessionId);
+    const share = shares.find(s => s.sharedWithEmail === email);
+    if (!share) {
+      throw new ApiError(404, `No active share found for ${email}`);
+    }
+    return this.revokeSessionShare(sessionId, share.id);
+  }
+
+  // ===== Idle Status =====
+
+  /**
+   * Get idle status for a session.
+   * Requires session token authentication.
+   */
+  async getIdleStatus(sessionId: string): Promise<IdleStatus> {
+    const sessionToken = getSessionToken(sessionId);
+    const headers: Record<string, string> = {};
+    if (sessionToken) {
+      headers['Authorization'] = `Bearer ${sessionToken}`;
+    }
+
+    return this.request<IdleStatus>(`/api/sessions/${sessionId}/idle-status`, {
+      method: 'GET',
+      headers,
+    });
+  }
+
+  // ===== Tailscale =====
+
+  /**
+   * Get Tailscale configuration status.
+   */
+  async getTailscaleStatus(): Promise<TailscaleStatus> {
+    return this.request<TailscaleStatus>('/api/tailscale/status', {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * List all devices in the tailnet.
+   */
+  async getTailscaleDevices(): Promise<TailscaleDevice[]> {
+    return this.request<TailscaleDevice[]>('/api/tailscale/devices', {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Get a Tailscale device by name.
+   */
+  async getTailscaleDevice(name: string): Promise<TailscaleDevice> {
+    return this.request<TailscaleDevice>(`/api/tailscale/devices/${encodeURIComponent(name)}`, {
+      method: 'GET',
+    });
+  }
+
+  // ===== Metrics =====
+
+  /**
+   * Get raw Prometheus metrics from the /metrics endpoint.
+   */
+  async getMetrics(): Promise<string> {
+    const url = `${this.baseUrl}/metrics`;
+    const response = await fetch(url, {
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      throw new ApiError(response.status, `Metrics request failed with status ${response.status}`);
+    }
+
+    return response.text();
   }
 
   /**

@@ -13,6 +13,24 @@ Manual testing guide for exercising the Mastragen Kubernetes deployment with Tai
 | Helm | 3.14+ | `brew install helm` |
 | Tailscale CLI | Latest | `brew install tailscale` |
 | Docker | 24+ | Docker Desktop for Mac |
+| mgen CLI | Latest | `cd cli && bun install && bun link` |
+
+### mgen CLI Setup
+
+The `mgen` CLI provides convenient commands for interacting with the orchestrator:
+
+```bash
+# Install and link the CLI
+cd cli
+bun install
+bun link
+
+# Verify installation
+mgen --help
+
+# Configure API URL (optional, defaults to http://localhost:3000)
+export MGEN_API_URL=http://localhost:3000
+```
 
 ### Tailnet Requirements
 
@@ -297,24 +315,29 @@ Wait for all pods to show `Running` status with `1/1` ready.
 # Port-forward to orchestrator
 kubectl port-forward svc/mastragen-orchestrator 3000:3000 &
 
-# Check health endpoint
-curl http://localhost:3000/health
+# Check health using mgen CLI
+mgen health
+
+# Or with JSON output
+mgen health --json
 ```
 
-Expected response:
-```json
-{"status":"healthy","version":"..."}
+Expected output:
+```
+✓ Orchestrator healthy (db: connected, docker: connected)
 ```
 
 #### Verify Tailscale Device Registration
 
 ```bash
-# List devices in your Tailnet
-tailscale status
+# List devices using mgen CLI
+mgen tailscale devices
 
-# Or via API
-curl -s -H "Authorization: Bearer $TAILSCALE_API_KEY" \
-  "https://api.tailscale.com/api/v2/tailnet/$TAILSCALE_TAILNET/devices" | jq '.devices[] | {name, hostname, addresses}'
+# Or filter for mastragen devices
+mgen tailscale devices --filter mastragen
+
+# Or with JSON output
+mgen tailscale devices --json
 ```
 
 Look for devices with `mastragen` in the name.
@@ -338,20 +361,16 @@ curl http://$ORCHESTRATOR_TS_IP:3000/health
 #### Create a Session
 
 ```bash
-# Get auth token (login first via web UI, then extract from cookie/localStorage)
-AUTH_TOKEN="your-jwt-token"
+# Create session interactively (will prompt for project, name, environment)
+mgen session create
 
-# Create session
-curl -X POST http://localhost:3000/api/sessions \
-  -H "Authorization: Bearer $AUTH_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "projectId": "test-project-id",
-    "branchName": "main"
-  }'
+# Or with all options specified
+mgen session create -p my-project -n test-feature -e dev
+
+# With JSON output to capture session ID
+SESSION_ID=$(mgen session create -p my-project -n test-feature -e dev --json | jq -r '.id')
+echo "Created session: $SESSION_ID"
 ```
-
-Note the returned `sessionId`.
 
 #### Verify Sandbox Pod Creation
 
@@ -366,13 +385,11 @@ kubectl logs -l session-id=$SESSION_ID -c tailscale-sidecar
 #### Verify Tailscale Sidecar Connection
 
 ```bash
-# Check device appeared in Tailnet
-tailscale status | grep $SESSION_ID
+# Check device using mgen CLI
+mgen tailscale device session-$SESSION_ID
 
-# Or check via API
-curl -s -H "Authorization: Bearer $TAILSCALE_API_KEY" \
-  "https://api.tailscale.com/api/v2/tailnet/$TAILSCALE_TAILNET/devices" | \
-  jq '.devices[] | select(.hostname | contains("'$SESSION_ID'"))'
+# Or list all and filter
+mgen tailscale devices --filter $SESSION_ID
 ```
 
 #### Access Sandbox Services
@@ -400,22 +417,25 @@ open http://$SANDBOX_TS_IP:4321
 #### Share Session with Another User
 
 ```bash
-# Share via API
-curl -X POST http://localhost:3000/api/sessions/$SESSION_ID/share \
-  -H "Authorization: Bearer $AUTH_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "targetUserEmail": "colleague@example.com"
-  }'
+# Share using mgen CLI
+mgen session share $SESSION_ID colleague@example.com
+
+# With JSON output
+mgen session share $SESSION_ID colleague@example.com --json
+```
+
+#### List Current Shares
+
+```bash
+# List all shares for the session
+mgen session shares $SESSION_ID
 ```
 
 #### Verify ACL Tag Applied
 
 ```bash
-# Check device tags via API
-curl -s -H "Authorization: Bearer $TAILSCALE_API_KEY" \
-  "https://api.tailscale.com/api/v2/tailnet/$TAILSCALE_TAILNET/devices" | \
-  jq '.devices[] | select(.hostname | contains("'$SESSION_ID'")) | .tags'
+# Check device tags using mgen CLI
+mgen tailscale device session-$SESSION_ID --json | jq '.tags'
 ```
 
 Expected: `["tag:mastragen-sandbox", "tag:session-{sessionId}-share"]`
@@ -425,6 +445,9 @@ Expected: `["tag:mastragen-sandbox", "tag:session-{sessionId}-share"]`
 On the shared user's device (must be on same Tailnet):
 
 ```bash
+# Get sandbox Tailscale IP
+SANDBOX_TS_IP=$(mgen tailscale device session-$SESSION_ID --json | jq -r '.addresses[0]')
+
 # They should now be able to access the sandbox
 curl http://$SANDBOX_TS_IP:4111/health
 ```
@@ -432,18 +455,15 @@ curl http://$SANDBOX_TS_IP:4111/health
 #### Revoke Access
 
 ```bash
-# Revoke via API
-curl -X DELETE http://localhost:3000/api/sessions/$SESSION_ID/shares/$SHARE_ID \
-  -H "Authorization: Bearer $AUTH_TOKEN"
+# Revoke using mgen CLI (by email)
+mgen session unshare $SESSION_ID colleague@example.com
 ```
 
 #### Verify Tag Removed
 
 ```bash
 # Check tags again - share tag should be gone
-curl -s -H "Authorization: Bearer $TAILSCALE_API_KEY" \
-  "https://api.tailscale.com/api/v2/tailnet/$TAILSCALE_TAILNET/devices" | \
-  jq '.devices[] | select(.hostname | contains("'$SESSION_ID'")) | .tags'
+mgen tailscale device session-$SESSION_ID --json | jq '.tags'
 ```
 
 ---
@@ -454,14 +474,11 @@ curl -s -H "Authorization: Bearer $TAILSCALE_API_KEY" \
 
 ```bash
 # Create session
-SESSION_ID=$(curl -s -X POST http://localhost:3000/api/sessions \
-  -H "Authorization: Bearer $AUTH_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"projectId": "test-project-id", "branchName": "main"}' | jq -r '.id')
+SESSION_ID=$(mgen session create -p my-project -n idle-test -e dev --json | jq -r '.id')
+echo "Created session: $SESSION_ID"
 
 # Check idle status
-curl http://localhost:3000/api/sessions/$SESSION_ID/idle-status \
-  -H "Authorization: Bearer $AUTH_TOKEN"
+mgen session idle-status $SESSION_ID
 ```
 
 #### Monitor for Warning
@@ -469,18 +486,22 @@ curl http://localhost:3000/api/sessions/$SESSION_ID/idle-status \
 Wait until 5 minutes before configured timeout (default 30 minutes):
 
 ```bash
-# Poll idle status
-watch -n 30 "curl -s http://localhost:3000/api/sessions/$SESSION_ID/idle-status \
-  -H 'Authorization: Bearer $AUTH_TOKEN' | jq"
+# Poll idle status every 30 seconds
+watch -n 30 "mgen session idle-status $SESSION_ID"
+
+# Or with JSON for scripting
+watch -n 30 "mgen session idle-status $SESSION_ID --json | jq"
 ```
 
-Expected response when warning issued:
-```json
-{
-  "idleMinutes": 25,
-  "warningIssued": true,
-  "suspendAt": "2026-01-21T12:30:00Z"
-}
+Expected output when warning issued:
+```
+Session: abc123
+State: active
+Idle for: 25 minutes
+Timeout: 30 minutes
+Warning at: 25 minutes idle
+Warning issued: Yes
+Suspend at: 2026-01-21T12:30:00Z
 ```
 
 #### Verify Auto-Suspension
@@ -488,8 +509,11 @@ Expected response when warning issued:
 After timeout, session should be suspended:
 
 ```bash
-curl http://localhost:3000/api/sessions/$SESSION_ID \
-  -H "Authorization: Bearer $AUTH_TOKEN" | jq '{state, suspensionReason}'
+# Check session state
+mgen session get $SESSION_ID
+
+# Or with JSON to extract specific fields
+mgen session get $SESSION_ID --json | jq '{state, suspensionReason}'
 ```
 
 Expected:
@@ -507,7 +531,11 @@ Expected:
 #### Query Metrics Endpoint
 
 ```bash
-curl http://localhost:3000/metrics
+# Get all Prometheus metrics
+mgen metrics
+
+# Or with JSON parsing
+mgen metrics --json
 ```
 
 Expected format (Prometheus text exposition):
@@ -532,23 +560,24 @@ mastragen_api_request_duration_seconds_bucket{endpoint="/api/sessions",le="0.5"}
 
 ```bash
 # Filter for session metrics
-curl -s http://localhost:3000/metrics | grep mastragen_sessions
+mgen metrics --filter mastragen_sessions
 ```
 
 #### Verify Tailscale Status
 
-The orchestrator health endpoint includes Tailscale status:
-
 ```bash
-curl http://localhost:3000/health | jq '.tailscale'
+# Check Tailscale configuration status
+mgen tailscale status
+
+# Or with JSON output
+mgen tailscale status --json
 ```
 
-Expected:
-```json
-{
-  "configured": true,
-  "tailnet": "your-tailnet.ts.net"
-}
+Expected output:
+```
+✓ Tailscale configured
+  Tailnet: your-tailnet.ts.net
+  API Key: set
 ```
 
 ---

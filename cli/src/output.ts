@@ -2,7 +2,7 @@
  * Output formatting utilities for CLI
  */
 
-import type { Session, SessionWithUrls, HealthStatus, Project, ProjectDetail, Environment } from './client.ts';
+import type { Session, SessionWithUrls, HealthStatus, Project, ProjectDetail, Environment, SessionShareInfo, SessionShareResult, IdleStatus } from './client.ts';
 
 // ANSI color codes for terminal output
 const colors = {
@@ -273,6 +273,79 @@ export function formatEnvironmentAdded(projectName: string, env: Environment): s
   const envVarCount = Object.keys(env.envVars).length;
   if (envVarCount > 0) {
     lines.push(label('  Env Vars', `${envVarCount} defined`));
+  }
+
+  return lines.join('\n');
+}
+
+/**
+ * Formats session share creation result.
+ */
+export function formatShareCreated(result: SessionShareResult): string {
+  return [
+    success(`Session shared with ${colors.bold}${result.sharedWithEmail}${colors.reset}`),
+    label('  Share ID', result.shareId),
+    label('  Access URL', colors.cyan + result.accessUrl + colors.reset),
+  ].join('\n');
+}
+
+/**
+ * Formats a list of session shares as a table.
+ */
+export function formatShareTable(shares: SessionShareInfo[]): string {
+  if (shares.length === 0) {
+    return colors.dim + 'No active shares.' + colors.reset;
+  }
+
+  const cols = {
+    id: 10,
+    email: 30,
+    name: 20,
+    granted: 19,
+  };
+
+  const header = [
+    colors.bold + padRight('SHARE ID', cols.id),
+    padRight('EMAIL', cols.email),
+    padRight('NAME', cols.name),
+    'GRANTED' + colors.reset,
+  ].join('  ');
+
+  const rows = shares.map((s) => {
+    const granted = s.grantedAt.replace('T', ' ').slice(0, 19);
+    return [
+      padRight(s.id.slice(0, cols.id), cols.id),
+      padRight(s.sharedWithEmail.slice(0, cols.email), cols.email),
+      padRight((s.sharedWithName || '-').slice(0, cols.name), cols.name),
+      granted,
+    ].join('  ');
+  });
+
+  return [header, ...rows].join('\n');
+}
+
+/**
+ * Formats idle status output.
+ */
+export function formatIdleStatus(status: IdleStatus): string {
+  const stateColor = status.state === 'active' ? colors.green : colors.yellow;
+  const warningColor = status.warningIssued ? colors.yellow : colors.dim;
+
+  const lines = [
+    label('Session', status.sessionId),
+    label('State', stateColor + status.state + colors.reset),
+    label('Idle for', `${status.idleSinceMinutes} minutes`),
+    label('Timeout', `${status.idleTimeoutMinutes} minutes`),
+    label('Warning at', `${status.idleTimeoutMinutes - status.warningMinutes} minutes idle`),
+    label('Warning issued', warningColor + (status.warningIssued ? 'Yes' : 'No') + colors.reset),
+  ];
+
+  if (status.suspendAt) {
+    lines.push(label('Suspend at', colors.yellow + status.suspendAt + colors.reset));
+  }
+
+  if (status.lastActivityAt) {
+    lines.push(label('Last activity', status.lastActivityAt.replace('T', ' ').slice(0, 19)));
   }
 
   return lines.join('\n');
