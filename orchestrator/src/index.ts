@@ -7,12 +7,14 @@ import { createDatabase } from './db/index.ts';
 import { runMigrations } from './db/migrator.ts';
 import {
   createAuthRoutes,
+  encryptionRoutes,
   healthRoutes,
   projectsRoutes,
   sessionsRoutes,
   createWebhookRoutes,
 } from './routes/index.ts';
 import { handleORPCRequest } from './orpc/index.ts';
+import { initializeKeyPair } from './lib/crypto.ts';
 
 const config = loadConfig();
 
@@ -27,6 +29,9 @@ const db = createDatabase(config.databasePath);
 
 // Run migrations
 await runMigrations(db);
+
+// Initialize encryption key pair for token encryption
+initializeKeyPair();
 
 // Create Hono app
 const app = new Hono();
@@ -45,6 +50,7 @@ app.use('*', async (c, next) => {
 // REST API routes under /api
 const api = new Hono();
 api.route('/auth', createAuthRoutes(db));
+api.route('/encryption', encryptionRoutes());
 api.route('/health', healthRoutes(db));
 api.route('/projects', projectsRoutes(db));
 api.route('/sessions', sessionsRoutes(db));

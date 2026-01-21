@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import type { Session } from '../lib/orpc-client';
-import { createAuthHeaders } from '../lib/auth';
+import {
+  createAuthHeaders,
+  getStoredClaudeToken,
+  setStoredClaudeToken,
+  hasStoredClaudeToken,
+} from '../lib/auth';
+import { encryptToken } from '../lib/crypto';
 
 export interface ServiceUrls {
   mastra: string;
@@ -55,6 +61,9 @@ export function SessionCard({ session, urls, onResumed }: SessionCardProps) {
     astro: ServiceStatus;
   } | null>(null);
   const [resumedUrls, setResumedUrls] = useState<ServiceUrls | null>(null);
+  const [showTokenPrompt, setShowTokenPrompt] = useState(false);
+  const [resumeToken, setResumeToken] = useState('');
+  const [rememberResumeToken, setRememberResumeToken] = useState(false);
 
   // Poll a single service and update status
   async function pollService(
@@ -80,17 +89,42 @@ export function SessionCard({ session, urls, onResumed }: SessionCardProps) {
   }
 
   async function handleResume() {
+    // Check for stored (encrypted) token first
+    const storedEncryptedToken = getStoredClaudeToken();
+
+    if (!storedEncryptedToken && !resumeToken) {
+      // No token available - show prompt
+      setShowTokenPrompt(true);
+      return;
+    }
+
     setResuming(true);
     setResumeError(null);
 
     try {
+      // Determine encrypted token to send
+      let encryptedClaudeToken: string;
+      if (resumeToken) {
+        // User entered a new token - encrypt it
+        encryptedClaudeToken = await encryptToken(resumeToken);
+        // Save if "remember" is checked
+        if (rememberResumeToken) {
+          await setStoredClaudeToken(resumeToken);
+        }
+      } else {
+        // Use stored (already encrypted) token
+        encryptedClaudeToken = storedEncryptedToken!;
+      }
+
       const res = await fetch(`${API_BASE}/sessions/${session.id}/resume`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...createAuthHeaders(),
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({
+          encryptedClaudeToken,
+        }),
       });
 
       if (!res.ok) {
@@ -108,6 +142,7 @@ export function SessionCard({ session, urls, onResumed }: SessionCardProps) {
         astro: newUrls.astro ? 'pending' : 'ready',
       });
       setResumedUrls(newUrls);
+      setShowTokenPrompt(false);
 
       // Poll services in parallel
       const checks: Promise<boolean>[] = [];
@@ -211,14 +246,49 @@ export function SessionCard({ session, urls, onResumed }: SessionCardProps) {
           {resumeError && (
             <p className="text-xs text-red-600 dark:text-red-400 mb-2">{resumeError}</p>
           )}
-          <button
-            type="button"
-            onClick={handleResume}
-            disabled={resuming}
-            className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium disabled:opacity-50"
-          >
-            {resuming ? 'Resuming...' : 'Resume session'}
-          </button>
+          {!showTokenPrompt && (
+            <button
+              type="button"
+              onClick={handleResume}
+              disabled={resuming}
+              className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium disabled:opacity-50"
+            >
+              {resuming ? 'Resuming...' : 'Resume session'}
+            </button>
+          )}
+          {showTokenPrompt && (
+            <div className="bg-gray-50 dark:bg-dark-bg-tertiary rounded p-3">
+              <label className="block text-xs font-medium text-gray-700 dark:text-dark-text-secondary mb-1">
+                Claude Code Token required
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="password"
+                  value={resumeToken}
+                  onChange={(e) => setResumeToken(e.target.value)}
+                  placeholder="sk-ant-..."
+                  className="flex-1 text-xs rounded border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg-secondary px-2 py-1 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={handleResume}
+                  disabled={!resumeToken.trim() || resuming}
+                  className="text-xs px-2 py-1 bg-primary-600 text-white rounded hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {resuming ? '...' : 'Resume'}
+                </button>
+              </div>
+              <label className="flex items-center gap-1 mt-2 text-xs text-gray-500 dark:text-dark-text-muted cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={rememberResumeToken}
+                  onChange={(e) => setRememberResumeToken(e.target.checked)}
+                  className="rounded border-gray-300 text-primary-600 text-xs"
+                />
+                Remember for future sessions
+              </label>
+            </div>
+          )}
         </div>
       )}
 

@@ -1,7 +1,15 @@
 import { useState, useEffect } from 'react';
 import { ProjectSelector } from './ProjectSelector';
 import { EnvironmentSelector } from './EnvironmentSelector';
-import { getAuthState, createAuthHeaders } from '../lib/auth';
+import {
+  getAuthState,
+  createAuthHeaders,
+  getStoredClaudeToken,
+  setStoredClaudeToken,
+  clearStoredClaudeToken,
+  hasStoredClaudeToken,
+} from '../lib/auth';
+import { encryptToken } from '../lib/crypto';
 
 export interface NewSessionFormProps {}
 
@@ -52,6 +60,16 @@ export function NewSessionForm({}: NewSessionFormProps) {
     astro: ServiceStatus;
   } | null>(null);
   const [sessionUrls, setSessionUrls] = useState<ServiceUrls | null>(null);
+  const [rememberToken, setRememberToken] = useState(false);
+  const [hasStoredToken, setHasStoredToken] = useState(false);
+
+  // Check for stored token on mount
+  useEffect(() => {
+    if (hasStoredClaudeToken()) {
+      setHasStoredToken(true);
+      setRememberToken(true);
+    }
+  }, []);
 
   // Fetch projects on mount
   useEffect(() => {
@@ -133,6 +151,21 @@ export function NewSessionForm({}: NewSessionFormProps) {
     try {
       const authState = getAuthState();
 
+      // Determine which token to use and encrypt it
+      let encryptedClaudeToken: string;
+      if (hasStoredToken && !claudeToken.trim()) {
+        // Use stored (already encrypted) token
+        encryptedClaudeToken = getStoredClaudeToken()!;
+      } else {
+        // Encrypt the newly entered token
+        encryptedClaudeToken = await encryptToken(claudeToken);
+        // Save if "remember" is checked
+        if (rememberToken) {
+          await setStoredClaudeToken(claudeToken);
+          setHasStoredToken(true);
+        }
+      }
+
       const res = await fetch(`${API_BASE}/sessions`, {
         method: 'POST',
         headers: {
@@ -143,7 +176,7 @@ export function NewSessionForm({}: NewSessionFormProps) {
           projectId: selectedProjectId,
           artifactName: sessionName,
           environment: selectedEnvironment,
-          claudeToken: claudeToken,
+          encryptedClaudeToken,
           userId: authState.user?.id,
         }),
       });
@@ -196,7 +229,9 @@ export function NewSessionForm({}: NewSessionFormProps) {
     }
   };
 
-  const isValid = Boolean(selectedProjectId && selectedEnvironment && sessionName.trim() && claudeToken.trim());
+  // Valid if we have a stored token OR user entered a new token
+  const hasValidToken = hasStoredToken || claudeToken.trim().length > 0;
+  const isValid = Boolean(selectedProjectId && selectedEnvironment && sessionName.trim() && hasValidToken);
   const noEnvironments = Boolean(selectedProjectId) && environments.length === 0 && !loadingEnvironments;
 
   // Service status indicator component
@@ -338,10 +373,35 @@ export function NewSessionForm({}: NewSessionFormProps) {
           id="claudeToken"
           value={claudeToken}
           onChange={(e) => setClaudeToken(e.target.value)}
-          placeholder="sk-ant-..."
+          placeholder={hasStoredToken ? 'Using stored token (enter new to replace)' : 'sk-ant-...'}
           className="block w-full rounded-md border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg-tertiary px-3 py-2 text-sm text-gray-900 dark:text-dark-text-primary placeholder:text-gray-400 dark:placeholder:text-dark-text-muted focus:border-primary-500 dark:focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-400 font-mono"
-          required
+          required={!hasStoredToken}
         />
+        <div className="mt-2 flex items-center justify-between">
+          <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-dark-text-secondary cursor-pointer">
+            <input
+              type="checkbox"
+              checked={rememberToken}
+              onChange={(e) => setRememberToken(e.target.checked)}
+              className="rounded border-gray-300 dark:border-dark-border text-primary-600 focus:ring-primary-500"
+            />
+            Remember token in this browser
+          </label>
+          {hasStoredToken && (
+            <button
+              type="button"
+              onClick={() => {
+                clearStoredClaudeToken();
+                setClaudeToken('');
+                setRememberToken(false);
+                setHasStoredToken(false);
+              }}
+              className="text-sm text-red-600 dark:text-red-400 hover:underline"
+            >
+              Clear stored token
+            </button>
+          )}
+        </div>
         <p className="mt-1 text-xs text-gray-500 dark:text-dark-text-muted">
           Run <code className="bg-gray-100 dark:bg-dark-bg-tertiary px-1 rounded font-mono">claude setup-token</code> to generate a token
         </p>

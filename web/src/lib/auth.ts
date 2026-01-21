@@ -4,10 +4,13 @@
  * Handles token storage, user context, and authentication state.
  */
 
+import { encryptToken } from './crypto';
+
 const API_BASE = '/api';
 const TOKEN_STORAGE_KEY = 'mastragen_access_token';
 const USER_STORAGE_KEY = 'mastragen_user';
 const AUTH_COOKIE_NAME = 'mastragen_authenticated';
+const CLAUDE_TOKEN_KEY = 'mastragen_claude_token';
 
 export interface AuthUser {
   id: string;
@@ -255,4 +258,42 @@ export function createAuthHeaders(): Record<string, string> {
   const token = getAccessToken();
   if (!token) return {};
   return { Authorization: `Bearer ${token}` };
+}
+
+// ============================================================================
+// Claude Token Storage (encrypted)
+// ============================================================================
+
+/**
+ * Store an encrypted Claude token in localStorage.
+ * The token is encrypted with the orchestrator's public key before storage.
+ */
+export async function setStoredClaudeToken(token: string): Promise<void> {
+  if (typeof window === 'undefined') return;
+  const encrypted = await encryptToken(token);
+  localStorage.setItem(CLAUDE_TOKEN_KEY, encrypted);
+}
+
+/**
+ * Get the stored encrypted Claude token from localStorage.
+ * Returns the encrypted string - backend will decrypt.
+ */
+export function getStoredClaudeToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(CLAUDE_TOKEN_KEY);
+}
+
+/**
+ * Clear the stored Claude token from localStorage.
+ */
+export function clearStoredClaudeToken(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem(CLAUDE_TOKEN_KEY);
+}
+
+/**
+ * Check if a Claude token is stored.
+ */
+export function hasStoredClaudeToken(): boolean {
+  return getStoredClaudeToken() !== null;
 }

@@ -25,6 +25,7 @@ import { getTailscaleService } from '../services/tailscale.ts';
 import { getAuthUser, optionalAuth, requireAuth, requireSessionAuth } from '../middleware/auth.ts';
 import { getAuditLogger } from '../services/audit-logger.ts';
 import { AuthService } from '../services/auth.ts';
+import { decryptToken } from '../lib/crypto.ts';
 
 /**
  * Transforms a database session to API response format.
@@ -105,6 +106,21 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
 
     const body = parseResult.output;
 
+    // Decrypt token if encrypted version provided, otherwise use plaintext
+    let claudeToken: string | undefined = body.claudeToken;
+    if (body.encryptedClaudeToken) {
+      try {
+        claudeToken = decryptToken(body.encryptedClaudeToken);
+      } catch (err) {
+        console.error('Failed to decrypt Claude token:', err);
+        return c.json({ error: 'Invalid encrypted token' }, 400);
+      }
+    }
+
+    if (!claudeToken) {
+      return c.json({ error: 'Either claudeToken or encryptedClaudeToken is required' }, 400);
+    }
+
     // Get authenticated user's GitHub token if available
     let userGithubToken: string | undefined;
     const user = getAuthUser(c);
@@ -122,7 +138,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
         projectId: body.projectId,
         artifactName: body.artifactName,
         environment: body.environment,
-        claudeToken: body.claudeToken,
+        claudeToken,
         userId: body.userId,
         userGithubToken,
       });
@@ -198,7 +214,17 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
       const rawBody = await c.req.json();
       const parseResult = v.safeParse(ResumeSessionRequestSchema, rawBody);
       if (parseResult.success) {
-        claudeToken = parseResult.output.claudeToken;
+        // Decrypt token if encrypted version provided, otherwise use plaintext
+        if (parseResult.output.encryptedClaudeToken) {
+          try {
+            claudeToken = decryptToken(parseResult.output.encryptedClaudeToken);
+          } catch (err) {
+            console.error('Failed to decrypt Claude token:', err);
+            return c.json({ error: 'Invalid encrypted token' }, 400);
+          }
+        } else {
+          claudeToken = parseResult.output.claudeToken;
+        }
       }
     } catch {
       // Empty body is fine for resume

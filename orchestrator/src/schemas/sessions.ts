@@ -24,13 +24,15 @@ export type ServiceUrls = v.InferOutput<typeof ServiceUrlsSchema>;
 
 /**
  * Create session request body.
+ * Accepts either plaintext claudeToken or encryptedClaudeToken (encrypted with orchestrator's public key).
  */
 export const CreateSessionRequestSchema = v.object({
   projectId: IdSchema,
   artifactName: ArtifactNameSchema,
   environment: EnvironmentNameSchema,
   userId: v.optional(UserIdSchema),
-  claudeToken: v.string(),
+  claudeToken: v.optional(v.string()),
+  encryptedClaudeToken: v.optional(v.string()),
 });
 export type CreateSessionRequest = v.InferOutput<typeof CreateSessionRequestSchema>;
 
@@ -48,10 +50,12 @@ export type CreateSessionWithGitRequest = v.InferOutput<typeof CreateSessionWith
 
 /**
  * Resume session request body (optional commitSha to resume from specific commit).
+ * Accepts either plaintext claudeToken or encryptedClaudeToken (encrypted with orchestrator's public key).
  */
 export const ResumeSessionRequestSchema = v.object({
   commitSha: v.optional(GitShaSchema),
   claudeToken: v.optional(v.string()),
+  encryptedClaudeToken: v.optional(v.string()),
 });
 export type ResumeSessionRequest = v.InferOutput<typeof ResumeSessionRequestSchema>;
 
