@@ -229,6 +229,7 @@ export function SessionList({
                     key={session.id}
                     session={session}
                     urls={session.state === 'active' ? generateServiceUrls(session.id) : undefined}
+                    onResumed={loadSessions}
                   />
                 ))}
               </div>
@@ -258,6 +259,7 @@ export function SessionList({
                     key={session.id}
                     session={session}
                     urls={session.state === 'active' ? generateServiceUrls(session.id) : undefined}
+                    onResumed={loadSessions}
                   />
                 ))}
               </div>

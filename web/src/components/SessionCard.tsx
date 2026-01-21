@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import type { Session } from '../lib/orpc-client';
+import { createAuthHeaders } from '../lib/auth';
 
 export interface ServiceUrls {
   mastra: string;
@@ -9,7 +11,12 @@ export interface ServiceUrls {
 export interface SessionCardProps {
   session: Session;
   urls?: ServiceUrls;
+  onResumed?: () => void;
 }
+
+type ServiceStatus = 'pending' | 'checking' | 'ready' | 'error';
+
+const API_BASE = '/api';
 
 const STATUS_STYLES: Record<Session['state'], { bg: string; text: string; label: string }> = {
   active: { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-800 dark:text-green-400', label: 'Active' },
@@ -35,9 +42,133 @@ function formatRelativeTime(dateString: string): string {
   return date.toLocaleDateString();
 }
 
-export function SessionCard({ session, urls }: SessionCardProps) {
+export function SessionCard({ session, urls, onResumed }: SessionCardProps) {
   const status = STATUS_STYLES[session.state];
   const isActive = session.state === 'active';
+  const isSuspended = session.state === 'suspended';
+
+  const [resuming, setResuming] = useState(false);
+  const [resumeError, setResumeError] = useState<string | null>(null);
+  const [serviceStatus, setServiceStatus] = useState<{
+    vscode: ServiceStatus;
+    mastra: ServiceStatus;
+    astro: ServiceStatus;
+  } | null>(null);
+  const [resumedUrls, setResumedUrls] = useState<ServiceUrls | null>(null);
+
+  // Poll a single service and update status
+  async function pollService(
+    url: string,
+    serviceName: 'vscode' | 'mastra' | 'astro',
+    maxAttempts = 30,
+    intervalMs = 2000
+  ): Promise<boolean> {
+    setServiceStatus((prev) => (prev ? { ...prev, [serviceName]: 'checking' } : prev));
+
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+        setServiceStatus((prev) => (prev ? { ...prev, [serviceName]: 'ready' } : prev));
+        return true;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      }
+    }
+
+    setServiceStatus((prev) => (prev ? { ...prev, [serviceName]: 'error' } : prev));
+    return false;
+  }
+
+  async function handleResume() {
+    setResuming(true);
+    setResumeError(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/sessions/${session.id}/resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...createAuthHeaders(),
+        },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to resume session');
+      }
+
+      const data = await res.json();
+      const newUrls: ServiceUrls = data.urls;
+
+      // Initialize status panel and store URLs
+      setServiceStatus({
+        vscode: newUrls.vscode ? 'pending' : 'ready',
+        mastra: newUrls.mastra ? 'pending' : 'ready',
+        astro: newUrls.astro ? 'pending' : 'ready',
+      });
+      setResumedUrls(newUrls);
+
+      // Poll services in parallel
+      const checks: Promise<boolean>[] = [];
+      if (newUrls.vscode) checks.push(pollService(newUrls.vscode, 'vscode'));
+      if (newUrls.mastra) checks.push(pollService(newUrls.mastra, 'mastra'));
+      if (newUrls.astro) checks.push(pollService(newUrls.astro, 'astro'));
+
+      await Promise.all(checks);
+
+      // Try to open tabs
+      if (newUrls.vscode) window.open(newUrls.vscode, '_blank');
+      if (newUrls.mastra) window.open(newUrls.mastra, '_blank');
+
+      // Notify parent to refresh
+      onResumed?.();
+    } catch (err) {
+      setResumeError(err instanceof Error ? err.message : 'Failed to resume session');
+      setResuming(false);
+    }
+  }
+
+  // Service status indicator for resume
+  function ServiceStatusItem({
+    name,
+    serviceStatus: status,
+    url,
+  }: {
+    name: string;
+    serviceStatus: ServiceStatus;
+    url: string | null;
+  }) {
+    const statusConfig = {
+      pending: { icon: '○', color: 'text-gray-400', label: 'Waiting...' },
+      checking: { icon: '◐', color: 'text-yellow-500 animate-pulse', label: 'Starting...' },
+      ready: { icon: '●', color: 'text-green-500', label: 'Ready' },
+      error: { icon: '●', color: 'text-red-500', label: 'Failed' },
+    };
+    const config = statusConfig[status];
+
+    return (
+      <div className="flex items-center justify-between py-1">
+        <div className="flex items-center gap-2">
+          <span className={`text-sm ${config.color}`}>{config.icon}</span>
+          <span className="text-xs text-gray-900 dark:text-dark-text-primary">{name}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 dark:text-dark-text-muted">{config.label}</span>
+          {status === 'ready' && url && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              Open →
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-dark-bg-secondary rounded-lg shadow-sm border border-gray-200 dark:border-dark-border p-4 hover:shadow-md dark:hover:border-dark-text-muted transition-shadow">
@@ -75,14 +206,31 @@ export function SessionCard({ session, urls }: SessionCardProps) {
         </div>
       )}
 
-      {!isActive && session.state === 'suspended' && (
+      {isSuspended && !serviceStatus && (
         <div className="mt-3">
+          {resumeError && (
+            <p className="text-xs text-red-600 dark:text-red-400 mb-2">{resumeError}</p>
+          )}
           <button
             type="button"
-            className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
+            onClick={handleResume}
+            disabled={resuming}
+            className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium disabled:opacity-50"
           >
-            Resume session
+            {resuming ? 'Resuming...' : 'Resume session'}
           </button>
+        </div>
+      )}
+
+      {serviceStatus && (
+        <div className="mt-3 bg-gray-50 dark:bg-dark-bg-tertiary rounded p-2">
+          <div className="divide-y divide-gray-200 dark:divide-dark-border">
+            <ServiceStatusItem name="VS Code" serviceStatus={serviceStatus.vscode} url={resumedUrls?.vscode ?? null} />
+            <ServiceStatusItem name="Mastra" serviceStatus={serviceStatus.mastra} url={resumedUrls?.mastra ?? null} />
+            {resumedUrls?.astro && (
+              <ServiceStatusItem name="Astro" serviceStatus={serviceStatus.astro} url={resumedUrls.astro} />
+            )}
+          </div>
         </div>
       )}
     </div>
