@@ -73,14 +73,51 @@ export function hasPublicKey(): boolean {
 }
 
 /**
+ * Ensure the public key is available, fetching from server if needed.
+ * This handles existing users who logged in before this feature.
+ */
+export async function ensurePublicKey(accessToken: string): Promise<boolean> {
+  // Already have it in memory
+  if (cachedPublicKey) return true;
+
+  // Try localStorage first
+  if (await restorePublicKey()) return true;
+
+  // Fetch from server
+  try {
+    const response = await fetch('/api/auth/me', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      credentials: 'include',
+    });
+    if (!response.ok) return false;
+
+    const data = await response.json();
+    if (data.encryptionPublicKey) {
+      await setPublicKey(data.encryptionPublicKey);
+      return true;
+    }
+  } catch {
+    // Fetch failed
+  }
+
+  return false;
+}
+
+/**
  * Encrypt a token with the orchestrator's public key.
  * Returns base64-encoded ciphertext.
- * Throws if setPublicKey() hasn't been called.
+ * Attempts to restore from localStorage if key not in memory.
  */
 export async function encryptToken(plaintext: string): Promise<string> {
+  // Try to restore from localStorage if not in memory
   if (!cachedPublicKey) {
-    throw new Error('Public key not set. Call setPublicKey() first.');
+    await restorePublicKey();
   }
+
+  if (!cachedPublicKey) {
+    throw new Error('Public key not available. User may need to re-authenticate.');
+  }
+
   const encoded = new TextEncoder().encode(plaintext);
   const encrypted = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, cachedPublicKey, encoded);
   return btoa(String.fromCharCode(...new Uint8Array(encrypted)));

@@ -4,7 +4,7 @@
  * Handles token storage, user context, and authentication state.
  */
 
-import { encryptToken, setPublicKey, clearCachedPublicKey, restorePublicKey } from './crypto';
+import { encryptToken, setPublicKey, clearCachedPublicKey, ensurePublicKey } from './crypto';
 
 const API_BASE = '/api';
 const TOKEN_STORAGE_KEY = 'mastragen_access_token';
@@ -258,13 +258,8 @@ export async function checkAuth(options?: { refresh?: boolean }): Promise<AuthSt
   if (!user) {
     user = await fetchCurrentUser();
   } else {
-    // User is cached, restore public key from localStorage
-    const hasKey = await restorePublicKey();
-    if (!hasKey) {
-      // No stored public key (user logged in before this feature existed)
-      // Fetch from server to get the key
-      await fetchCurrentUser();
-    }
+    // User is cached, ensure public key is available (restores from localStorage or fetches from server)
+    await ensurePublicKey(accessToken);
   }
 
   return {

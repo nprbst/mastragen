@@ -1,5 +1,6 @@
 ---
 import ThemeToggle from '../components/ThemeToggle';
+import UserMenu from '../components/UserMenu';
 
 interface Props {
   title: string;
@@ -41,9 +42,7 @@ const { title, description = 'Mastragen - AI-powered development platform' } = A
               New Session
             </a>
             <ThemeToggle client:load />
-            <div id="user-menu" class="relative">
-              <!-- User menu will be hydrated by React -->
-            </div>
+            <UserMenu client:load />
           </div>
         </div>
       </nav>
