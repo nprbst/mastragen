@@ -44,21 +44,21 @@
 
 ### UI Components
 
-- [ ] T011 [US1] Create SessionShareList component showing current shares with revoke buttons in web/src/components/SessionShareList.tsx
-- [ ] T012 [US1] Create SharedWithMeSection component for dashboard "Shared with me" section in web/src/components/SharedWithMeSection.tsx
-- [ ] T013 [US1] Integrate SessionShareList into session detail page in web/src/pages/sessions/[id].astro
-- [ ] T014 [US1] Integrate SharedWithMeSection into dashboard session list in web/src/pages/dashboard.astro
+- [X] T011 [US1] Create SessionShareList component showing current shares with revoke buttons in web/src/components/SessionShareList.tsx
+- [X] T012 [US1] Create SharedWithMeSection component for dashboard "Shared with me" section in web/src/components/SharedWithMeSection.tsx
+- [X] T013 [US1] Integrate SessionShareList into session detail page in web/src/pages/sessions/[id].astro
+- [X] T014 [US1] Integrate SharedWithMeSection into dashboard session list in web/src/components/SessionList.tsx
 
 ### Edge Case Handling
 
-- [ ] T015 [US1] Add warning notification when shared user is active during pending suspend in orchestrator/src/services/session-service.ts
-- [ ] T016 [US1] Implement graceful disconnect handling on share revoke in orchestrator/src/services/session-share-service.ts
+- [X] T015 [US1] Add warning notification when shared user is active during pending suspend in orchestrator/src/routes/sessions.ts
+- [X] T016 [US1] Implement graceful disconnect handling on share revoke in web/src/components/SessionDetail.tsx
 
 ### Tests
 
-- [ ] T017 [P] [US1] Create unit tests for SessionShareList component in web/tests/components/SessionShareList.test.tsx
-- [ ] T018 [P] [US1] Create unit tests for SharedWithMeSection component in web/tests/components/SharedWithMeSection.test.tsx
-- [ ] T019 [US1] Create integration test for share/unshare flow with active shared users in orchestrator/tests/integration/session-shares.test.ts
+- [ ] T017 [P] [US1] Create unit tests for SessionShareList component in web/tests/components/SessionShareList.test.tsx (needs test infra)
+- [ ] T018 [P] [US1] Create unit tests for SharedWithMeSection component in web/tests/components/SharedWithMeSection.test.tsx (needs test infra)
+- [X] T019 [US1] Create integration test for share/unshare flow with active shared users in orchestrator/tests/integration/session-shares.test.ts
 
 **Test Criteria**: Share list displays correctly; revoke works immediately; shared sessions appear in dashboard; active users warned before suspend.
 

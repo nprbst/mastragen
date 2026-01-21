@@ -219,6 +219,27 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
     }
 
     try {
+      // T015: Check for active shares and log warning before suspend
+      const activeShares = await sessionSharesRepo.getSessionShares(id);
+      if (activeShares.length > 0) {
+        const sharedWithEmails = activeShares.map((s) => s.shared_with_email).join(', ');
+        console.warn(
+          `[T015] Suspending session ${id} with ${activeShares.length} active share(s): ${sharedWithEmails}`
+        );
+
+        // Log audit event for each shared user being affected
+        for (const share of activeShares) {
+          auditLogger.logShareEvent({
+            action: 'suspend_warning',
+            sessionId: id,
+            sharedByUserId: share.shared_by_user_id,
+            sharedWithUserId: share.shared_with_user_id,
+            sharedWithEmail: share.shared_with_email,
+            shareId: share.id,
+          });
+        }
+      }
+
       const session = await sandboxService.suspend(id);
       return c.json(toSessionWithGitResponse(session), 200);
     } catch (error) {

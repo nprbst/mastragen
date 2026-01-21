@@ -1,0 +1,31 @@
+---
+/**
+ * T013: Session detail page
+ *
+ * Displays full session information with:
+ * - Session metadata (branch, environment, activity)
+ * - Service links (VS Code, Mastra, Astro)
+ * - Sharing controls (owner only)
+ * - Share list showing users with access
+ */
+import Layout from '../../layouts/Layout.astro';
+import SessionDetail from '../../components/SessionDetail';
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect('/');
+}
+---
+
+<Layout title="Session Details">
+  <div class="space-y-6">
+    <div>
+      <a href="/" class="text-sm text-gray-500 dark:text-dark-text-secondary hover:text-gray-700 dark:hover:text-dark-text-primary mb-2 block">
+        &larr; Back to Dashboard
+      </a>
+    </div>
+
+    <SessionDetail client:load sessionId={id} />
+  </div>
+</Layout>

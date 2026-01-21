@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { fetchSessions, type Session, type SessionListParams } from '../lib/orpc-client';
 import { SessionCard, type ServiceUrls } from './SessionCard';
+import { SharedWithMeSection } from './SharedWithMeSection';
 
 export interface SessionListProps {
   initialSessions?: Session[];
@@ -173,7 +174,6 @@ export function SessionList({
   }, [activeFilter]);
 
   const groupedSessions = groupSessionsByProject(sessions);
-  const groupedSharedSessions = groupSessionsByProject(sharedSessions);
 
   if (loading) {
     return <LoadingState />;
@@ -238,34 +238,12 @@ export function SessionList({
         </div>
       )}
 
-      {/* Shared with me (hidden on All tab) */}
-      {showSharedWithMe && activeFilter !== 'all' && groupedSharedSessions.length > 0 && (
-        <div className="space-y-6">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-dark-text-primary flex items-center gap-2">
-            Shared with me
-            <span className="text-xs text-gray-400 dark:text-dark-text-muted font-normal">
-              ({sharedSessions.length} session{sharedSessions.length !== 1 ? 's' : ''})
-            </span>
-          </h2>
-          {groupedSharedSessions.map((group) => (
-            <div key={group.projectId} className="space-y-3">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-dark-text-secondary flex items-center gap-2">
-                <span className="text-gray-400 dark:text-dark-text-muted">◉</span>
-                {group.projectName}
-              </h3>
-              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                {group.sessions.map((session) => (
-                  <SessionCard
-                    key={session.id}
-                    session={session}
-                    urls={session.state === 'active' ? generateServiceUrls(session.id) : undefined}
-                    onResumed={loadSessions}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Shared with me - uses collapsible SharedWithMeSection component */}
+      {showSharedWithMe && sharedSessions.length > 0 && (
+        <SharedWithMeSection
+          sessions={sharedSessions}
+          onRefresh={loadSessions}
+        />
       )}
     </div>
   );
