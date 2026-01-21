@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Session } from '../lib/orpc-client';
 import {
   createAuthHeaders,
@@ -7,6 +7,17 @@ import {
   hasStoredClaudeToken,
 } from '../lib/auth';
 import { encryptToken } from '../lib/crypto';
+import { IdleWarningBanner } from './IdleWarningBanner';
+
+interface IdleStatus {
+  sessionId: string;
+  state: string;
+  idleTimeoutMinutes: number;
+  warningMinutes: number;
+  idleSinceMinutes: number;
+  warningIssued: boolean;
+  suspendAt: string | null;
+}
 
 export interface ServiceUrls {
   mastra: string;
@@ -67,6 +78,57 @@ export function SessionCard({ session, urls, onResumed, onSuspended }: SessionCa
   const [showTokenPrompt, setShowTokenPrompt] = useState(false);
   const [resumeToken, setResumeToken] = useState('');
   const [rememberResumeToken, setRememberResumeToken] = useState(false);
+  const [idleStatus, setIdleStatus] = useState<IdleStatus | null>(null);
+  const [keepingWorking, setKeepingWorking] = useState(false);
+
+  // Poll idle status every 30 seconds for active sessions
+  useEffect(() => {
+    if (!isActive) {
+      setIdleStatus(null);
+      return;
+    }
+
+    const checkIdleStatus = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/sessions/${session.id}/idle-status`, {
+          headers: createAuthHeaders(),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setIdleStatus(data);
+        }
+      } catch {
+        // Silently ignore errors - idle status is non-critical
+      }
+    };
+
+    checkIdleStatus();
+    const interval = setInterval(checkIdleStatus, 30000);
+    return () => clearInterval(interval);
+  }, [isActive, session.id]);
+
+  // Handle "Keep Working" button - records activity to reset idle timer
+  async function handleKeepWorking() {
+    setKeepingWorking(true);
+    try {
+      const res = await fetch(`${API_BASE}/sessions/${session.id}/activity`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...createAuthHeaders(),
+        },
+        body: JSON.stringify({ activityType: 'keyboard' }),
+      });
+      if (res.ok) {
+        // Reset idle status - will be refreshed on next poll
+        setIdleStatus(null);
+      }
+    } catch {
+      // Silently ignore errors
+    } finally {
+      setKeepingWorking(false);
+    }
+  }
 
   // Poll a single service and update status
   async function pollService(
@@ -262,6 +324,19 @@ export function SessionCard({ session, urls, onResumed, onSuspended }: SessionCa
           </p>
         </div>
       </div>
+
+      {isActive && idleStatus?.warningIssued && idleStatus.suspendAt && (
+        <div className="mt-3">
+          <IdleWarningBanner
+            sessionId={session.id}
+            idleSinceMinutes={idleStatus.idleSinceMinutes}
+            idleTimeoutMinutes={idleStatus.idleTimeoutMinutes}
+            suspendAt={idleStatus.suspendAt}
+            onKeepWorking={handleKeepWorking}
+            keepingWorking={keepingWorking}
+          />
+        </div>
+      )}
 
       {isActive && urls && (
         <div className="mt-3">

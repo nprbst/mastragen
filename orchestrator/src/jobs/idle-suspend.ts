@@ -214,10 +214,13 @@ export class IdleSuspendJob {
         const warningThreshold = idleConfig.idleTimeoutMinutes - idleConfig.warningMinutes;
         warningIssued = idleSinceMinutes >= warningThreshold;
 
-        const suspendTime = new Date(
-          lastActivity.getTime() + idleConfig.idleTimeoutMinutes * 60 * 1000
-        );
-        suspendAt = suspendTime.toISOString();
+        // Only set suspendAt when warning is issued (countdown for UI)
+        if (warningIssued) {
+          const suspendTime = new Date(
+            lastActivity.getTime() + idleConfig.idleTimeoutMinutes * 60 * 1000
+          );
+          suspendAt = suspendTime.toISOString();
+        }
       }
     }
 

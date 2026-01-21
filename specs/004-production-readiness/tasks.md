@@ -93,14 +93,14 @@
 
 ### UI Components
 
-- [ ] T032 [US2] Create IdleWarningBanner component for session UI in web/src/components/IdleWarningBanner.tsx
-- [ ] T033 [US2] Integrate IdleWarningBanner into session page with 30-second polling of GET /api/sessions/:id/idle-status in web/src/pages/sessions/[id].astro
+- [X] T032 [US2] Create IdleWarningBanner component for session UI in web/src/components/IdleWarningBanner.tsx
+- [X] T033 [US2] Integrate IdleWarningBanner into SessionCard with 30-second polling of GET /api/sessions/:id/idle-status in web/src/components/SessionCard.tsx
 
 ### Tests
 
 - [X] T034 [P] [US2] Create unit tests for IdleSuspendJob in orchestrator/tests/unit/jobs/idle-suspend.test.ts
 - [X] T035 [P] [US2] Create unit tests for IdleConfigService in orchestrator/tests/unit/services/idle-config-service.test.ts
-- [ ] T036 [US2] Create integration test for idle detection and auto-suspend flow in orchestrator/tests/integration/idle-suspend.test.ts
+- [X] T036 [US2] Create integration test for idle detection and auto-suspend flow in orchestrator/tests/integration/idle-suspend.test.ts
 
 **Test Criteria**: Idle sessions detected every 5 minutes; warning sent 5 min before timeout; session suspended with reason "auto"; per-project config overrides global.
 
