@@ -55,6 +55,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'my-feature',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -78,6 +79,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'with-urls',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -98,6 +100,7 @@ describe('Sessions Routes', () => {
           projectId: 'AAAAAA', // valid hex format but doesn't exist
           artifactName: 'my-feature',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -115,6 +118,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'my-feature',
           environment: 'nonexistent',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -133,6 +137,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'duplicate',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -144,6 +149,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'duplicate',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -162,6 +168,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'INVALID_NAME!',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -184,6 +191,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'to-suspend',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
       const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
@@ -222,6 +230,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'already-suspended',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
       const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
@@ -255,6 +264,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'to-resume',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
       const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
@@ -291,6 +301,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'already-active',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
       const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
@@ -318,6 +329,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'get-test',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
       const { id } = (await createRes.json()) as Record<string, unknown>;
@@ -348,6 +360,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'suspended-get',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
       const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
@@ -404,6 +417,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'session-1',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -414,6 +428,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'session-2',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -437,6 +452,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'active-session',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -447,6 +463,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'suspended-session',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
       const { id: suspendedId, sessionToken } = (await res2.json()) as Record<string, unknown>;
@@ -478,6 +495,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'to-suspend-list',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
       const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
@@ -494,6 +512,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'active-list',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -528,6 +547,7 @@ describe('Sessions Routes', () => {
           projectId: testProjectId,
           artifactName: 'project1-session',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -538,6 +558,7 @@ describe('Sessions Routes', () => {
           projectId: project2.id,
           artifactName: 'project2-session',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 

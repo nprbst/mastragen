@@ -74,6 +74,7 @@ describe('POST /sessions with Claude config injection', () => {
           projectId: testProjectId,
           artifactName: 'test-feature',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -96,6 +97,7 @@ describe('POST /sessions with Claude config injection', () => {
           projectId: testProjectId,
           artifactName: 'test-feature',
           environment: 'staging', // Does not exist
+          claudeToken: 'test-token',
         }),
       });
 
@@ -112,6 +114,7 @@ describe('POST /sessions with Claude config injection', () => {
           projectId: 'abc123', // Valid hex format but doesn't exist
           artifactName: 'test-feature',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -127,6 +130,7 @@ describe('POST /sessions with Claude config injection', () => {
           projectId: testProjectId,
           artifactName: 'duplicate-name',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
       expect(res1.status).toBe(201);
@@ -139,6 +143,7 @@ describe('POST /sessions with Claude config injection', () => {
           projectId: testProjectId,
           artifactName: 'duplicate-name',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
       expect(res2.status).toBe(409);
@@ -182,6 +187,7 @@ describe('POST /sessions with Claude config injection', () => {
           projectId: testProjectId,
           artifactName: 'config-test',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -198,6 +204,7 @@ describe('POST /sessions with Claude config injection', () => {
           projectId: testProjectId,
           artifactName: 'default-config-test',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -225,6 +232,7 @@ describe('POST /sessions with Claude config injection', () => {
           projectId: testProjectId,
           artifactName: 'staging-session',
           environment: 'staging',
+          claudeToken: 'test-token',
         }),
       });
 
@@ -242,6 +250,7 @@ describe('POST /sessions with Claude config injection', () => {
           projectId: testProjectId,
           artifactName: 'url-test',
           environment: 'dev',
+          claudeToken: 'test-token',
         }),
       });
 

@@ -92,13 +92,17 @@ export function optionalAuth(): MiddlewareHandler {
         try {
           const payload = await verifyJwt(token);
 
-          const user: AuthUser = {
-            id: payload.sub as string,
-            email: payload.email as string,
-            name: payload.name as string | null | undefined,
-          };
+          // Only set user context for user tokens, not session tokens
+          // Session tokens have type: 'session' and should be handled by session auth fallback
+          if (payload.type !== 'session') {
+            const user: AuthUser = {
+              id: payload.sub as string,
+              email: payload.email as string,
+              name: payload.name as string | null | undefined,
+            };
 
-          c.set(AUTH_USER_KEY, user);
+            c.set(AUTH_USER_KEY, user);
+          }
         } catch {
           // Ignore auth errors in optional mode
         }

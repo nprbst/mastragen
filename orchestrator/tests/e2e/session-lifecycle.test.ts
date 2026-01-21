@@ -63,6 +63,7 @@ describe('Session Lifecycle E2E', () => {
         projectId: testProjectId,
         artifactName: 'lifecycle-test',
         environment: 'dev',
+        claudeToken: 'test-token',
       }),
     });
     expect(createRes.status).toBe(201);
@@ -156,6 +157,7 @@ describe('Session Lifecycle E2E', () => {
         projectId: testProjectId,
         artifactName: 'multi-1',
         environment: 'dev',
+        claudeToken: 'test-token',
       }),
     });
     const session1 = (await session1Res.json()) as Record<string, unknown>;
@@ -168,6 +170,7 @@ describe('Session Lifecycle E2E', () => {
         projectId: testProjectId,
         artifactName: 'multi-2',
         environment: 'dev',
+        claudeToken: 'test-token',
       }),
     });
     await session2Res.json(); // Consume response
