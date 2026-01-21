@@ -2,31 +2,67 @@
  * Browser-side encryption utilities for encrypting tokens with orchestrator's public key.
  */
 
+const PUBLIC_KEY_STORAGE_KEY = 'mastragen_encryption_public_key';
+
 let cachedPublicKey: CryptoKey | null = null;
 let cachedPemKey: string | null = null;
 
 /**
- * Set the public key from the auth response.
- * Call this after fetching /auth/me.
+ * Import a PEM key into a CryptoKey.
  */
-export async function setPublicKey(pemKey: string): Promise<void> {
-  if (cachedPemKey === pemKey) return; // Already cached
-
-  // Convert PEM to ArrayBuffer for Web Crypto
+async function importPemKey(pemKey: string): Promise<CryptoKey> {
   const pemContents = pemKey
     .replace('-----BEGIN PUBLIC KEY-----', '')
     .replace('-----END PUBLIC KEY-----', '')
     .replace(/\s/g, '');
   const binaryDer = Uint8Array.from(atob(pemContents), (c) => c.charCodeAt(0));
 
-  cachedPublicKey = await crypto.subtle.importKey(
+  return crypto.subtle.importKey(
     'spki',
     binaryDer,
     { name: 'RSA-OAEP', hash: 'SHA-256' },
     false,
     ['encrypt']
   );
+}
+
+/**
+ * Set the public key from the auth response.
+ * Persists to localStorage for use across page loads.
+ */
+export async function setPublicKey(pemKey: string): Promise<void> {
+  if (cachedPemKey === pemKey) return; // Already cached
+
+  cachedPublicKey = await importPemKey(pemKey);
   cachedPemKey = pemKey;
+
+  // Persist to localStorage
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(PUBLIC_KEY_STORAGE_KEY, pemKey);
+  }
+}
+
+/**
+ * Restore the public key from localStorage if available.
+ * Call this on page load before attempting encryption.
+ */
+export async function restorePublicKey(): Promise<boolean> {
+  if (cachedPublicKey) return true; // Already have it
+
+  if (typeof window === 'undefined') return false;
+
+  const storedPemKey = localStorage.getItem(PUBLIC_KEY_STORAGE_KEY);
+  if (!storedPemKey) return false;
+
+  try {
+    cachedPublicKey = await importPemKey(storedPemKey);
+    cachedPemKey = storedPemKey;
+    return true;
+  } catch {
+    // Invalid stored key, clear it
+    localStorage.removeItem(PUBLIC_KEY_STORAGE_KEY);
+    return false;
+  }
 }
 
 /**
@@ -51,9 +87,12 @@ export async function encryptToken(plaintext: string): Promise<string> {
 }
 
 /**
- * Clear cached public key.
+ * Clear cached public key from memory and localStorage.
  */
 export function clearCachedPublicKey(): void {
   cachedPublicKey = null;
   cachedPemKey = null;
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(PUBLIC_KEY_STORAGE_KEY);
+  }
 }
