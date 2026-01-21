@@ -13,6 +13,9 @@ import type {
   ProjectWithEnvironments,
 } from '../schemas/index.ts';
 import { AddEnvironmentRequestSchema, CreateProjectRequestSchema } from '../schemas/index.ts';
+import { IdleConfigService } from '../services/idle-config-service.ts';
+import { SetProjectIdleConfigRequestSchema } from '../schemas/idle-config.ts';
+import { requireAuth } from '../middleware/auth.ts';
 
 /**
  * Fetch user's accessible GitHub App installations.
@@ -229,6 +232,93 @@ export function projectsRoutes(db: Kysely<Database>): Hono {
     }));
 
     return c.json(response, 200);
+  });
+
+  // =========================================================================
+  // Idle Configuration Endpoints (T029-T031)
+  // =========================================================================
+
+  const idleConfigService = new IdleConfigService(db);
+
+  // GET /projects/:id/idle-config - Get project idle configuration (T029)
+  app.get('/:id/idle-config', requireAuth(), async (c) => {
+    const projectId = c.req.param('id');
+
+    // Verify project exists
+    const project = await projectsRepo.findById(projectId);
+    if (!project) {
+      return c.json({ error: `Project not found: ${projectId}` }, 404);
+    }
+
+    // Get project-specific config, or null if using global defaults
+    const config = await idleConfigService.getProjectConfig(projectId);
+
+    if (config) {
+      return c.json(config, 200);
+    }
+
+    // Return global config with indication that it's the fallback
+    const globalConfig = await idleConfigService.getGlobalConfig();
+    return c.json({
+      ...globalConfig,
+      isGlobalFallback: true,
+    }, 200);
+  });
+
+  // PUT /projects/:id/idle-config - Set project idle configuration (T030)
+  app.put('/:id/idle-config', requireAuth(), async (c) => {
+    const projectId = c.req.param('id');
+
+    // Verify project exists
+    const project = await projectsRepo.findById(projectId);
+    if (!project) {
+      return c.json({ error: `Project not found: ${projectId}` }, 404);
+    }
+
+    const rawBody = await c.req.json();
+
+    // Validate request body
+    const parseResult = v.safeParse(SetProjectIdleConfigRequestSchema, rawBody);
+    if (!parseResult.success) {
+      const issues = parseResult.issues.map((i) => {
+        const path = i.path?.map((p) => p.key).join('.') || 'input';
+        return `${path}: ${i.message}`;
+      });
+      return c.json({ error: 'Validation failed', issues }, 400);
+    }
+
+    const input = parseResult.output;
+
+    // Validate warning_minutes is less than idle_timeout_minutes
+    if (input.warningMinutes >= input.idleTimeoutMinutes) {
+      return c.json(
+        { error: 'Warning time must be less than idle timeout' },
+        400
+      );
+    }
+
+    try {
+      const config = await idleConfigService.setProjectConfig(projectId, input);
+      return c.json(config, 200);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to set config';
+      return c.json({ error: message }, 500);
+    }
+  });
+
+  // DELETE /projects/:id/idle-config - Delete project idle configuration (T031)
+  app.delete('/:id/idle-config', requireAuth(), async (c) => {
+    const projectId = c.req.param('id');
+
+    // Verify project exists
+    const project = await projectsRepo.findById(projectId);
+    if (!project) {
+      return c.json({ error: `Project not found: ${projectId}` }, 404);
+    }
+
+    await idleConfigService.deleteProjectConfig(projectId);
+
+    return c.json({ success: true, message: 'Project idle config deleted, now using global defaults' }, 200);
   });
 
   return app;

@@ -11,11 +11,11 @@
 
 **Goal**: Initialize database schema changes needed for all user stories
 
-- [ ] T001 Create migration 006_add_suspension_reason.ts in orchestrator/src/db/migrations/006_add_suspension_reason.ts
-- [ ] T002 Create migration 007_create_alert_tables.ts in orchestrator/src/db/migrations/007_create_alert_tables.ts
-- [ ] T003 Create migration 008_create_idle_config.ts in orchestrator/src/db/migrations/008_create_idle_config.ts
-- [ ] T004 Update schema.ts with new types for suspension_reason, alert_rules, alert_events, idle_config in orchestrator/src/db/schema.ts
-- [ ] T005 Run migrations via `cd orchestrator && bun run db:migrate` and verify schema with `bun run db:status`
+- [X] T001 Create migration 006_add_suspension_reason.ts in orchestrator/src/db/migrations/006_add_suspension_reason.ts
+- [X] T002 Create migration 007_create_alert_tables.ts in orchestrator/src/db/migrations/007_create_alert_tables.ts
+- [X] T003 Create migration 008_create_idle_config.ts in orchestrator/src/db/migrations/008_create_idle_config.ts
+- [X] T004 Update schema.ts with new types for suspension_reason, alert_rules, alert_events, idle_config in orchestrator/src/db/types.ts
+- [X] T005 Run migrations via `cd orchestrator && bun run db:migrate` and verify schema with `bun run db:status`
 
 **Test Criteria**: Migrations run without errors; tables exist with correct columns and indexes.
 
@@ -25,12 +25,12 @@
 
 **Goal**: Core services and schemas that multiple user stories depend on
 
-- [ ] T006 Create Valibot schemas for idle config validation in orchestrator/src/schemas/idle-config.ts
-- [ ] T007 Create Valibot schemas for alert rule/event validation in orchestrator/src/schemas/alerts.ts
-- [ ] T008 Create Valibot schemas for session activity validation in orchestrator/src/schemas/session-activity.ts
-- [ ] T009 Create IdleConfigService for global and project-level config management in orchestrator/src/services/idle-config-service.ts
-- [ ] T010 [P] Add seed data for global default idle config (30 min timeout, 5 min warning) in migration 008
-- [ ] T010a [P] Add seed data for default alert rules (pod_creation_failed, tailscale_timeout, database_failed, orphaned_pod) in migration 007
+- [X] T006 Create Valibot schemas for idle config validation in orchestrator/src/schemas/idle-config.ts
+- [X] T007 Create Valibot schemas for alert rule/event validation in orchestrator/src/schemas/alerts.ts
+- [X] T008 Create Valibot schemas for session activity validation in orchestrator/src/schemas/session-activity.ts
+- [X] T009 Create IdleConfigService for global and project-level config management in orchestrator/src/services/idle-config-service.ts
+- [X] T010 [P] Add seed data for global default idle config (30 min timeout, 5 min warning) in migration 008
+- [X] T010a [P] Add seed data for default alert rules (pod_creation_failed, tailscale_timeout, database_failed, orphaned_pod) in migration 007
 
 **Test Criteria**: Schemas validate correctly; IdleConfigService can read/write config; default idle config exists after migration; default alert rules exist after migration.
 
@@ -72,24 +72,24 @@
 
 ### Core Service
 
-- [ ] T020 [US2] Create IdleSuspendJob class following SessionCleanupJob pattern in orchestrator/src/jobs/idle-suspend.ts
-- [ ] T021 [US2] Implement idle session detection query (state=active AND last_activity_at < threshold) in idle-suspend.ts
-- [ ] T022 [US2] Implement warning notification 5 minutes before suspension in idle-suspend.ts
-- [ ] T023 [US2] Implement auto-suspend with suspension_reason='auto' in idle-suspend.ts
-- [ ] T024 [US2] Register IdleSuspendJob in job scheduler startup in orchestrator/src/index.ts
+- [X] T020 [US2] Create IdleSuspendJob class following SessionCleanupJob pattern in orchestrator/src/jobs/idle-suspend.ts
+- [X] T021 [US2] Implement idle session detection query (state=active AND last_activity_at < threshold) in idle-suspend.ts
+- [X] T022 [US2] Implement warning notification 5 minutes before suspension in idle-suspend.ts
+- [X] T023 [US2] Implement auto-suspend with suspension_reason='auto' in idle-suspend.ts
+- [X] T024 [US2] Register IdleSuspendJob in job scheduler startup in orchestrator/src/index.ts
 
 ### Activity Tracking API
 
-- [ ] T025 [US2] Enhance POST /api/sessions/:id/activity endpoint with activity types in orchestrator/src/routes/sessions.ts
-- [ ] T026 [US2] Create GET /api/sessions/:id/idle-status endpoint in orchestrator/src/routes/sessions.ts
+- [X] T025 [US2] Enhance POST /api/sessions/:id/activity endpoint with activity types in orchestrator/src/routes/sessions.ts
+- [X] T026 [US2] Create GET /api/sessions/:id/idle-status endpoint in orchestrator/src/routes/sessions.ts
 
 ### Idle Configuration API
 
-- [ ] T027 [US2] Create GET /api/config/idle endpoint for global config in orchestrator/src/routes/config.ts
-- [ ] T028 [US2] Create PATCH /api/config/idle endpoint for updating global config in orchestrator/src/routes/config.ts
-- [ ] T029 [US2] Create GET /api/projects/:projectId/idle-config endpoint in orchestrator/src/routes/projects.ts
-- [ ] T030 [US2] Create PUT /api/projects/:projectId/idle-config endpoint in orchestrator/src/routes/projects.ts
-- [ ] T031 [US2] Create DELETE /api/projects/:projectId/idle-config endpoint in orchestrator/src/routes/projects.ts
+- [X] T027 [US2] Create GET /api/config/idle endpoint for global config in orchestrator/src/routes/config.ts
+- [X] T028 [US2] Create PATCH /api/config/idle endpoint for updating global config in orchestrator/src/routes/config.ts
+- [X] T029 [US2] Create GET /api/projects/:projectId/idle-config endpoint in orchestrator/src/routes/projects.ts
+- [X] T030 [US2] Create PUT /api/projects/:projectId/idle-config endpoint in orchestrator/src/routes/projects.ts
+- [X] T031 [US2] Create DELETE /api/projects/:projectId/idle-config endpoint in orchestrator/src/routes/projects.ts
 
 ### UI Components
 
@@ -98,8 +98,8 @@
 
 ### Tests
 
-- [ ] T034 [P] [US2] Create unit tests for IdleSuspendJob in orchestrator/tests/unit/jobs/idle-suspend.test.ts
-- [ ] T035 [P] [US2] Create unit tests for IdleConfigService in orchestrator/tests/unit/services/idle-config-service.test.ts
+- [X] T034 [P] [US2] Create unit tests for IdleSuspendJob in orchestrator/tests/unit/jobs/idle-suspend.test.ts
+- [X] T035 [P] [US2] Create unit tests for IdleConfigService in orchestrator/tests/unit/services/idle-config-service.test.ts
 - [ ] T036 [US2] Create integration test for idle detection and auto-suspend flow in orchestrator/tests/integration/idle-suspend.test.ts
 
 **Test Criteria**: Idle sessions detected every 5 minutes; warning sent 5 min before timeout; session suspended with reason "auto"; per-project config overrides global.
@@ -114,30 +114,30 @@
 
 ### Metrics Service
 
-- [ ] T037 [US3] Create MetricsService with metric collectors in orchestrator/src/services/metrics-service.ts
-- [ ] T038 [US3] Implement session count metrics (by project, state) in metrics-service.ts
-- [ ] T039 [US3] Implement session creation/suspension counters in metrics-service.ts
-- [ ] T040 [US3] Implement alert fired counter in metrics-service.ts
-- [ ] T041 [US3] Implement build info metric in metrics-service.ts
+- [X] T037 [US3] Create MetricsService with metric collectors in orchestrator/src/services/metrics-service.ts
+- [X] T038 [US3] Implement session count metrics (by project, state) in metrics-service.ts
+- [X] T039 [US3] Implement session creation/suspension counters in metrics-service.ts
+- [X] T040 [US3] Implement alert fired counter in metrics-service.ts
+- [X] T041 [US3] Implement build info metric in metrics-service.ts
 - [ ] T041a [US3] Implement pod resource metrics collection (CPU, memory) via Kubernetes metrics API in orchestrator/src/services/metrics-service.ts
 - [ ] T041b [US3] Add mastragen_pod_cpu_usage_ratio and mastragen_pod_memory_usage_bytes gauges in metrics-service.ts
 
 ### Metrics Middleware
 
-- [ ] T042 [US3] Create metrics middleware to track request count, duration, and error status in orchestrator/src/middleware/metrics-middleware.ts
-- [ ] T043 [US3] Implement histogram for API request duration with endpoint labels in metrics-middleware.ts
-- [ ] T044 [US3] Register metrics middleware in app startup in orchestrator/src/index.ts
+- [X] T042 [US3] Create metrics middleware to track request count, duration, and error status in orchestrator/src/middleware/metrics-middleware.ts
+- [X] T043 [US3] Implement histogram for API request duration with endpoint labels in metrics-middleware.ts
+- [X] T044 [US3] Register metrics middleware in app startup in orchestrator/src/index.ts
 
 ### Metrics Endpoint
 
-- [ ] T045 [US3] Create GET /metrics endpoint with Prometheus text format in orchestrator/src/routes/metrics.ts
-- [ ] T046 [US3] Add rate limiting (10 req/min) to metrics endpoint in metrics.ts
-- [ ] T047 [US3] Exclude metrics endpoint from access logs in orchestrator/src/middleware/logging.ts
+- [X] T045 [US3] Create GET /metrics endpoint with Prometheus text format in orchestrator/src/routes/metrics.ts
+- [X] T046 [US3] Add rate limiting (10 req/min) to metrics endpoint in metrics.ts
+- [X] T047 [US3] Exclude metrics endpoint from access logs in orchestrator/src/index.ts
 
 ### Tests
 
-- [ ] T048 [P] [US3] Create unit tests for MetricsService in orchestrator/tests/unit/services/metrics-service.test.ts
-- [ ] T049 [US3] Create integration test verifying Prometheus format and metrics values in orchestrator/tests/integration/metrics.test.ts
+- [X] T048 [P] [US3] Create unit tests for MetricsService in orchestrator/tests/unit/services/metrics-service.test.ts
+- [X] T049 [US3] Create integration test verifying Prometheus format and metrics values in orchestrator/tests/integration/metrics.test.ts
 
 **Test Criteria**: /metrics returns valid Prometheus format; session gauges reflect actual state; request histograms track latency percentiles; response time <500ms.
 

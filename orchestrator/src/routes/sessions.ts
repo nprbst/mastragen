@@ -12,6 +12,8 @@ import {
   type SessionWithUrlsAndGitResponse,
   type SessionWithUrlsResponse,
 } from '../schemas/index.ts';
+import { RecordActivityRequestSchema } from '../schemas/session-activity.ts';
+import { IdleSuspendJob } from '../jobs/idle-suspend.ts';
 import {
   EnvironmentNotFoundError,
   ProjectNotFoundError,
@@ -575,7 +577,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
     return c.json({ success: true, shareId, revokedAt: new Date().toISOString() }, 200);
   });
 
-  // POST /sessions/:id/activity - Record session activity (T102)
+  // POST /sessions/:id/activity - Record session activity (T025, T102)
   app.post('/:id/activity', requireSessionAuth(), async (c) => {
     const id = c.req.param('id');
 
@@ -584,22 +586,43 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
       return c.json({ error: `Session not found: ${id}` }, 404);
     }
 
-    let body: { type?: string; data?: unknown };
+    let rawBody: unknown;
     try {
-      body = await c.req.json();
+      rawBody = await c.req.json();
     } catch {
-      return c.json({ error: 'Invalid JSON body' }, 400);
+      rawBody = {};
     }
 
-    // Update session's updated_at timestamp
-    await sessionsRepo.update(id, { updated_at: new Date().toISOString() });
+    // Validate request body with Valibot (T025)
+    const parseResult = v.safeParse(RecordActivityRequestSchema, rawBody);
+    const activityType = parseResult.success ? parseResult.output.type : 'heartbeat';
 
-    // TODO: Implement activity logging/audit service
+    // Update session's last_activity_at and updated_at timestamps
+    const now = new Date().toISOString();
+    await sessionsRepo.update(id, {
+      last_activity_at: now,
+      updated_at: now,
+    });
+
     return c.json({
       sessionId: id,
-      activityType: body.type || 'heartbeat',
-      recordedAt: new Date().toISOString(),
+      lastActivityAt: now,
+      activityType,
     }, 200);
+  });
+
+  // GET /sessions/:id/idle-status - Get idle status for session (T026)
+  app.get('/:id/idle-status', requireSessionAuth(), async (c) => {
+    const id = c.req.param('id');
+
+    const idleSuspendJob = new IdleSuspendJob(db);
+    const status = await idleSuspendJob.getIdleStatus(id);
+
+    if (!status) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    return c.json(status, 200);
   });
 
   return app;

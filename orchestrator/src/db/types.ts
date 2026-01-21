@@ -4,6 +4,7 @@ import type { Generated, Insertable, Selectable, Updateable } from 'kysely';
  * Database schema definition for Kysely.
  * Matches the data model from specs/001-core-platform-foundation/data-model.md
  * Extended with Phase 3 tables from specs/003-cui-config-landing-page/data-model.md
+ * Extended with Phase 4 tables from specs/004-production-readiness/data-model.md
  */
 export interface Database {
   projects: ProjectsTable;
@@ -16,6 +17,10 @@ export interface Database {
   project_commands: ProjectCommandsTable;
   project_skills: ProjectSkillsTable;
   session_shares: SessionSharesTable;
+  // Phase 4 tables
+  alert_rules: AlertRulesTable;
+  alert_events: AlertEventsTable;
+  idle_config: IdleConfigTable;
 }
 
 /**
@@ -52,9 +57,16 @@ export interface ProjectEnvironmentsTable {
 export type SessionStateType = 'active' | 'suspended' | 'pr_open' | 'merged' | 'archived' | 'closed';
 
 /**
+ * Suspension reason type for session suspension tracking.
+ * Added in Phase 4 for idle auto-suspend feature.
+ */
+export type SuspensionReasonType = 'manual' | 'auto' | 'share_revoke';
+
+/**
  * Sessions table - active or suspended development session.
  * Extended with git-related fields per specs/002-git-multi-project/data-model.md
  * Extended with last_activity_at per specs/003-cui-config-landing-page/data-model.md
+ * Extended with suspension_reason per specs/004-production-readiness/data-model.md
  */
 export interface SessionsTable {
   id: Generated<string>;
@@ -71,6 +83,7 @@ export interface SessionsTable {
   pr_number: number | null;
   pr_url: string | null;
   last_activity_at: string | null;
+  suspension_reason: SuspensionReasonType | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }
@@ -212,3 +225,86 @@ export type ProjectSkillUpdate = Updateable<ProjectSkillsTable>;
 export type SessionShare = Selectable<SessionSharesTable>;
 export type NewSessionShare = Insertable<SessionSharesTable>;
 export type SessionShareUpdate = Updateable<SessionSharesTable>;
+
+// ============================================================================
+// Phase 4 tables - Production Readiness
+// ============================================================================
+
+/**
+ * Alert condition types for monitoring.
+ */
+export type AlertConditionType =
+  | 'pod_creation_failed'
+  | 'tailscale_timeout'
+  | 'database_failed'
+  | 'orphaned_pod';
+
+/**
+ * Alert severity levels.
+ */
+export type AlertSeverityType = 'warning' | 'error' | 'critical';
+
+/**
+ * Alert event status types.
+ */
+export type AlertEventStatusType = 'pending' | 'delivered' | 'failed' | 'acknowledged';
+
+/**
+ * Alert rules table - configuration for alert conditions.
+ */
+export interface AlertRulesTable {
+  id: Generated<string>;
+  name: string;
+  condition_type: AlertConditionType;
+  threshold: number | null;
+  severity: Generated<AlertSeverityType>;
+  enabled: Generated<number>; // SQLite boolean: 1 = true, 0 = false
+  destinations: Generated<string>; // JSON array of AlertDestination
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+/**
+ * Alert events table - triggered alert instances.
+ */
+export interface AlertEventsTable {
+  id: Generated<string>;
+  rule_id: string;
+  triggered_at: Generated<string>;
+  context: Generated<string>; // JSON object with alert context
+  status: Generated<AlertEventStatusType>;
+  delivery_attempts: Generated<number>;
+  last_delivery_at: string | null;
+  delivered_at: string | null;
+  acknowledged_at: string | null;
+  acknowledged_by: string | null;
+}
+
+/**
+ * Idle config table - per-project idle timeout configuration.
+ * Row with project_id = null is the global default.
+ */
+export interface IdleConfigTable {
+  id: Generated<string>;
+  project_id: string | null;
+  idle_timeout_minutes: Generated<number>;
+  warning_minutes: Generated<number>;
+  enabled: Generated<number>; // SQLite boolean: 1 = true, 0 = false
+  created_at: Generated<string>;
+  updated_at: Generated<string>;
+}
+
+// Convenience types for AlertRules
+export type AlertRule = Selectable<AlertRulesTable>;
+export type NewAlertRule = Insertable<AlertRulesTable>;
+export type AlertRuleUpdate = Updateable<AlertRulesTable>;
+
+// Convenience types for AlertEvents
+export type AlertEvent = Selectable<AlertEventsTable>;
+export type NewAlertEvent = Insertable<AlertEventsTable>;
+export type AlertEventUpdate = Updateable<AlertEventsTable>;
+
+// Convenience types for IdleConfig
+export type IdleConfig = Selectable<IdleConfigTable>;
+export type NewIdleConfig = Insertable<IdleConfigTable>;
+export type IdleConfigUpdate = Updateable<IdleConfigTable>;
