@@ -1,7 +1,14 @@
 import crypto from 'crypto';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 // Key pair stored in memory, generated at startup or loaded from env
 let keyPair: { publicKey: string; privateKey: string } | null = null;
+
+// File paths for persistent key storage in development
+const DATA_DIR = '/app/data';
+const PUBLIC_KEY_PATH = join(DATA_DIR, 'encryption.public.pem');
+const PRIVATE_KEY_PATH = join(DATA_DIR, 'encryption.private.pem');
 
 export function initializeKeyPair(): void {
   const envPublicKey = process.env.ENCRYPTION_PUBLIC_KEY;
@@ -14,17 +21,29 @@ export function initializeKeyPair(): void {
       privateKey: envPrivateKey,
     };
     console.log('Loaded RSA key pair from environment variables');
+  } else if (existsSync(PUBLIC_KEY_PATH) && existsSync(PRIVATE_KEY_PATH)) {
+    // Load from persistent files (development)
+    keyPair = {
+      publicKey: readFileSync(PUBLIC_KEY_PATH, 'utf8'),
+      privateKey: readFileSync(PRIVATE_KEY_PATH, 'utf8'),
+    };
+    console.log('Loaded RSA key pair from persistent files');
   } else {
-    // Generate new key pair (development)
+    // Generate and persist key pair (first-time development setup)
     const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', {
       modulusLength: 2048,
       publicKeyEncoding: { type: 'spki', format: 'pem' },
       privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
     });
     keyPair = { publicKey, privateKey };
-    console.warn(
-      'Generated ephemeral RSA key pair. Set ENCRYPTION_PUBLIC_KEY and ENCRYPTION_PRIVATE_KEY for persistence.'
-    );
+
+    // Persist to disk for future restarts
+    if (!existsSync(DATA_DIR)) {
+      mkdirSync(DATA_DIR, { recursive: true });
+    }
+    writeFileSync(PUBLIC_KEY_PATH, publicKey, { mode: 0o644 });
+    writeFileSync(PRIVATE_KEY_PATH, privateKey, { mode: 0o600 });
+    console.log(`Generated and persisted RSA key pair to ${DATA_DIR}/`);
   }
 }
 

@@ -296,9 +296,9 @@ export function SessionCard({ session, urls, onResumed, onSuspended }: SessionCa
               type="button"
               onClick={handleResume}
               disabled={resuming}
-              className="text-sm text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium disabled:opacity-50"
+              className="text-xs px-2 py-1 text-primary-700 dark:text-primary-400 bg-primary-100 dark:bg-primary-900/30 hover:bg-primary-200 dark:hover:bg-primary-900/50 rounded font-medium disabled:opacity-50 transition-colors"
             >
-              {resuming ? 'Resuming...' : 'Resume session'}
+              {resuming ? 'Resuming...' : 'Resume'}
             </button>
           )}
           {showTokenPrompt && (

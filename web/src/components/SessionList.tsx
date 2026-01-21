@@ -238,8 +238,8 @@ export function SessionList({
         </div>
       )}
 
-      {/* Shared with me */}
-      {showSharedWithMe && groupedSharedSessions.length > 0 && (
+      {/* Shared with me (hidden on All tab) */}
+      {showSharedWithMe && activeFilter !== 'all' && groupedSharedSessions.length > 0 && (
         <div className="space-y-6">
           <h2 className="text-lg font-medium text-gray-900 dark:text-dark-text-primary flex items-center gap-2">
             Shared with me
