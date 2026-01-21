@@ -15,9 +15,11 @@ import {
 import { configRoutes } from './routes/config.ts';
 import { metricsRoutes } from './routes/metrics.ts';
 import { tailscaleRoutes } from './routes/tailscale.ts';
+import { alertsRoutes } from './routes/alerts.ts';
 import { handleORPCRequest } from './orpc/index.ts';
 import { initializeKeyPair } from './lib/crypto.ts';
 import { createIdleSuspendScheduler } from './jobs/idle-suspend.ts';
+import { createAlertCheckerScheduler } from './jobs/alert-checker.ts';
 import { initializeMetricsService } from './services/metrics-service.ts';
 import { metricsMiddleware } from './middleware/metrics-middleware.ts';
 
@@ -71,6 +73,7 @@ api.route('/projects', projectsRoutes(db));
 api.route('/sessions', sessionsRoutes(db));
 api.route('/config', configRoutes(db));
 api.route('/tailscale', tailscaleRoutes());
+api.route('/alerts', alertsRoutes(db));
 
 // GitHub webhook handler
 const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || 'development-webhook-secret';
@@ -79,6 +82,10 @@ api.route('/webhooks', createWebhookRoutes(db, webhookSecret));
 // Start idle suspend scheduler (T024)
 const idleSuspendScheduler = createIdleSuspendScheduler(db);
 idleSuspendScheduler.start();
+
+// Start alert checker scheduler (T059-T060)
+const alertCheckerScheduler = createAlertCheckerScheduler(db);
+alertCheckerScheduler.start();
 
 // API info route
 api.get('/', (c) => {
