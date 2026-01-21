@@ -34,24 +34,33 @@ export function ProjectSelector({ projects, selectedId, onChange, loading }: Pro
 
   return (
     <div>
-      <label htmlFor="project" className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-1">
+      <label className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-1">
         Project
       </label>
-      <select
-        id="project"
-        value={selectedId}
-        onChange={(e) => onChange(e.target.value)}
-        className="block w-full rounded-md border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg-tertiary px-3 py-2 text-sm text-gray-900 dark:text-dark-text-primary focus:border-primary-500 dark:focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-400"
-        required
-      >
-        <option value="">Select a project...</option>
+      <div className="flex flex-wrap gap-2">
         {projects.map((project) => (
-          <option key={project.id} value={project.id}>
-            {project.name}
-            {project.githubRepo && ` (${project.githubRepo})`}
-          </option>
+          <button
+            key={project.id}
+            type="button"
+            onClick={() => onChange(project.id)}
+            className={`
+              px-4 py-2 text-sm font-medium rounded-md border transition-colors
+              ${
+                selectedId === project.id
+                  ? 'bg-primary-100 dark:bg-primary-900/30 border-primary-500 text-primary-700 dark:text-primary-300'
+                  : 'bg-white dark:bg-dark-bg-tertiary border-gray-300 dark:border-dark-border text-gray-700 dark:text-dark-text-secondary hover:bg-gray-50 dark:hover:bg-dark-bg-secondary'
+              }
+            `}
+          >
+            <span>{project.name}</span>
+            {project.githubRepo && (
+              <span className="ml-1 text-xs text-gray-500 dark:text-dark-text-muted">
+                ({project.githubRepo})
+              </span>
+            )}
+          </button>
         ))}
-      </select>
+      </div>
     </div>
   );
 }

@@ -25,6 +25,14 @@ interface CreateSessionResponse {
   };
 }
 
+type ServiceStatus = 'pending' | 'checking' | 'ready' | 'error';
+
+interface ServiceUrls {
+  mastra: string;
+  astro: string | null;
+  vscode: string;
+}
+
 const API_BASE = '/api';
 
 export function NewSessionForm({}: NewSessionFormProps) {
@@ -38,6 +46,12 @@ export function NewSessionForm({}: NewSessionFormProps) {
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingEnvironments, setLoadingEnvironments] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [serviceStatus, setServiceStatus] = useState<{
+    vscode: ServiceStatus;
+    mastra: ServiceStatus;
+    astro: ServiceStatus;
+  } | null>(null);
+  const [sessionUrls, setSessionUrls] = useState<ServiceUrls | null>(null);
 
   // Fetch projects on mount
   useEffect(() => {
@@ -47,6 +61,10 @@ export function NewSessionForm({}: NewSessionFormProps) {
         if (!res.ok) throw new Error('Failed to fetch projects');
         const data = await res.json();
         setProjects(data);
+        // Auto-select if only one project
+        if (data.length === 1) {
+          setSelectedProjectId(data[0].id);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load projects');
       } finally {
@@ -84,6 +102,29 @@ export function NewSessionForm({}: NewSessionFormProps) {
     fetchEnvironments();
   }, [selectedProjectId]);
 
+  // Poll a single service and update status
+  async function pollService(
+    url: string,
+    serviceName: 'vscode' | 'mastra' | 'astro',
+    maxAttempts = 30,
+    intervalMs = 2000
+  ): Promise<boolean> {
+    setServiceStatus((prev) => (prev ? { ...prev, [serviceName]: 'checking' } : prev));
+
+    for (let i = 0; i < maxAttempts; i++) {
+      try {
+        await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+        setServiceStatus((prev) => (prev ? { ...prev, [serviceName]: 'ready' } : prev));
+        return true;
+      } catch {
+        await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      }
+    }
+
+    setServiceStatus((prev) => (prev ? { ...prev, [serviceName]: 'error' } : prev));
+    return false;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -113,22 +154,127 @@ export function NewSessionForm({}: NewSessionFormProps) {
       }
 
       const session: CreateSessionResponse = await res.json();
+      const urls = session.urls;
 
-      // Redirect to VS Code URL
-      if (session.urls?.vscode) {
-        window.location.href = session.urls.vscode;
+      if (urls) {
+        // Initialize status panel and store URLs
+        setServiceStatus({
+          vscode: urls.vscode ? 'pending' : 'ready',
+          mastra: urls.mastra ? 'pending' : 'ready',
+          astro: urls.astro ? 'pending' : 'ready',
+        });
+        setSessionUrls(urls);
+
+        // Poll services in parallel
+        const checks: Promise<boolean>[] = [];
+        if (urls.vscode) checks.push(pollService(urls.vscode, 'vscode'));
+        if (urls.mastra) checks.push(pollService(urls.mastra, 'mastra'));
+        if (urls.astro) checks.push(pollService(urls.astro, 'astro'));
+
+        await Promise.all(checks);
+
+        // Try to open tabs (may be blocked by popup blocker)
+        const vscodeOpened = urls.vscode ? window.open(urls.vscode, '_blank') : null;
+        const mastraOpened = urls.mastra ? window.open(urls.mastra, '_blank') : null;
+
+        // Check if popups were blocked
+        const popupsBlocked = (urls.vscode && !vscodeOpened) || (urls.mastra && !mastraOpened);
+
+        if (!popupsBlocked) {
+          // Both opened successfully, redirect to dashboard
+          window.location.href = '/';
+        }
+        // If popups blocked, stay on page with service status panel showing links
       } else {
-        // Fallback to dashboard
+        // No URLs, redirect to dashboard
         window.location.href = '/';
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create session');
+    } finally {
       setLoading(false);
     }
   };
 
   const isValid = Boolean(selectedProjectId && selectedEnvironment && sessionName.trim() && claudeToken.trim());
   const noEnvironments = Boolean(selectedProjectId) && environments.length === 0 && !loadingEnvironments;
+
+  // Service status indicator component
+  function ServiceStatusItem({
+    name,
+    status,
+    url,
+  }: {
+    name: string;
+    status: ServiceStatus;
+    url: string | null;
+  }) {
+    const statusConfig = {
+      pending: { icon: '○', color: 'text-gray-400', label: 'Waiting...' },
+      checking: { icon: '◐', color: 'text-yellow-500 animate-pulse', label: 'Starting...' },
+      ready: { icon: '●', color: 'text-green-500', label: 'Ready' },
+      error: { icon: '●', color: 'text-red-500', label: 'Failed' },
+    };
+    const config = statusConfig[status];
+
+    return (
+      <div className="flex items-center justify-between py-2">
+        <div className="flex items-center gap-3">
+          <span className={`text-lg ${config.color}`}>{config.icon}</span>
+          <span className="font-medium text-gray-900 dark:text-dark-text-primary">{name}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500 dark:text-dark-text-muted">{config.label}</span>
+          {status === 'ready' && url && (
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary-600 dark:text-primary-400 hover:underline"
+            >
+              Open →
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // If we have service status, show the stoplight panel instead of form
+  if (serviceStatus) {
+    const allReady =
+      serviceStatus.vscode === 'ready' &&
+      serviceStatus.mastra === 'ready' &&
+      serviceStatus.astro === 'ready';
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-gray-50 dark:bg-dark-bg-tertiary border border-gray-200 dark:border-dark-border rounded-lg p-4">
+          <h3 className="text-sm font-medium text-gray-700 dark:text-dark-text-secondary mb-3">
+            {allReady ? 'Session Ready!' : 'Starting Services...'}
+          </h3>
+          <div className="divide-y divide-gray-200 dark:divide-dark-border">
+            <ServiceStatusItem name="VS Code" status={serviceStatus.vscode} url={sessionUrls?.vscode ?? null} />
+            <ServiceStatusItem name="Mastra" status={serviceStatus.mastra} url={sessionUrls?.mastra ?? null} />
+            {sessionUrls?.astro && (
+              <ServiceStatusItem name="Astro" status={serviceStatus.astro} url={sessionUrls.astro} />
+            )}
+          </div>
+        </div>
+
+        {allReady && (
+          <div className="flex justify-end gap-3">
+            <a
+              href="/"
+              className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-md hover:bg-primary-700"
+            >
+              Go to Dashboard
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
