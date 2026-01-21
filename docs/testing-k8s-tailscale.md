@@ -2,6 +2,22 @@
 
 Manual testing guide for exercising the Mastragen Kubernetes deployment with Tailscale networking using local minikube.
 
+## Hostname Convention
+
+All services are exposed via HTTPS using Caddy with automatic TLS certificates from Tailscale:
+
+| Component | Pattern | Example |
+|-----------|---------|---------|
+| **Orchestrator** | `mastragen-{env}.{tailnet}.ts.net` | `mastragen-local.mynet.ts.net` |
+| **Sandbox** | `{id}-mastragen-{env}.{tailnet}.ts.net:{port}` | `cuid123-mastragen-local.mynet.ts.net:4111` |
+
+**Environments**: `local` (minikube), `staging`, `production`
+
+**Sandbox Ports**:
+- `:4111` - Mastra Studio
+- `:4321` - Astro dev server
+- `:8080` - VS Code Server
+
 ## Prerequisites
 
 ### Required Tools
@@ -342,16 +358,23 @@ mgen tailscale devices --json
 
 Look for devices with `mastragen` in the name.
 
-#### Access via Tailscale IP
+#### Access via Tailscale Hostname
 
-Once the orchestrator pod registers with Tailscale:
+Once the orchestrator pod registers with Tailscale, it's accessible via its hostname:
 
 ```bash
-# Get Tailscale IP from device list
-ORCHESTRATOR_TS_IP=$(tailscale status --json | jq -r '.Peer[] | select(.HostName | contains("orchestrator")) | .TailscaleIPs[0]')
+# Hostname convention: mastragen-{env}.{tailnet}.ts.net
+# For local testing: mastragen-local.{your-tailnet}.ts.net
 
-# Access directly via Tailscale
-curl http://$ORCHESTRATOR_TS_IP:3000/health
+# Get your tailnet domain
+TAILNET=$(tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.[^.]*$//')
+
+# Access orchestrator via HTTPS (Caddy handles TLS)
+curl https://mastragen-local.$TAILNET/health
+
+# Or get the Tailscale IP directly
+ORCHESTRATOR_TS_IP=$(tailscale status --json | jq -r '.Peer[] | select(.HostName | contains("mastragen-local")) | .TailscaleIPs[0]')
+curl https://$ORCHESTRATOR_TS_IP/health
 ```
 
 ---
@@ -385,8 +408,8 @@ kubectl logs -l session-id=$SESSION_ID -c tailscale-sidecar
 #### Verify Tailscale Sidecar Connection
 
 ```bash
-# Check device using mgen CLI
-mgen tailscale device session-$SESSION_ID
+# Check device using mgen CLI (device name: {id}-mastragen-{env})
+mgen tailscale device ${SESSION_ID}-mastragen-local
 
 # Or list all and filter
 mgen tailscale devices --filter $SESSION_ID
@@ -394,20 +417,24 @@ mgen tailscale devices --filter $SESSION_ID
 
 #### Access Sandbox Services
 
-Once connected, access sandbox services via Tailscale:
+Once connected, access sandbox services via Tailscale hostname:
 
 ```bash
-# Get sandbox Tailscale IP
-SANDBOX_TS_IP=$(tailscale status --json | jq -r '.Peer[] | select(.HostName | contains("'$SESSION_ID'")) | .TailscaleIPs[0]')
+# Hostname convention: {id}-mastragen-{env}.{tailnet}.ts.net
+# For local testing: {SESSION_ID}-mastragen-local.{your-tailnet}.ts.net
 
-# Access Mastra service
-curl http://$SANDBOX_TS_IP:4111/health
+# Get your tailnet domain
+TAILNET=$(tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.[^.]*$//')
+
+# Access Mastra Studio (HTTPS via Caddy)
+curl https://${SESSION_ID}-mastragen-local.$TAILNET:4111/health
+open https://${SESSION_ID}-mastragen-local.$TAILNET:4111
 
 # Access Code Server
-open http://$SANDBOX_TS_IP:8080
+open https://${SESSION_ID}-mastragen-local.$TAILNET:8080
 
 # Access Astro dev server
-open http://$SANDBOX_TS_IP:4321
+open https://${SESSION_ID}-mastragen-local.$TAILNET:4321
 ```
 
 ---
@@ -434,8 +461,8 @@ mgen session shares $SESSION_ID
 #### Verify ACL Tag Applied
 
 ```bash
-# Check device tags using mgen CLI
-mgen tailscale device session-$SESSION_ID --json | jq '.tags'
+# Check device tags using mgen CLI (device name: {id}-mastragen-{env})
+mgen tailscale device ${SESSION_ID}-mastragen-local --json | jq '.tags'
 ```
 
 Expected: `["tag:mastragen-sandbox", "tag:session-{sessionId}-share"]`
@@ -445,11 +472,14 @@ Expected: `["tag:mastragen-sandbox", "tag:session-{sessionId}-share"]`
 On the shared user's device (must be on same Tailnet):
 
 ```bash
-# Get sandbox Tailscale IP
-SANDBOX_TS_IP=$(mgen tailscale device session-$SESSION_ID --json | jq -r '.addresses[0]')
+# Get tailnet domain
+TAILNET=$(tailscale status --json | jq -r '.Self.DNSName' | sed 's/\.[^.]*$//')
 
-# They should now be able to access the sandbox
-curl http://$SANDBOX_TS_IP:4111/health
+# They should now be able to access the sandbox via HTTPS
+curl https://${SESSION_ID}-mastragen-local.$TAILNET:4111/health
+
+# Or open Mastra Studio
+open https://${SESSION_ID}-mastragen-local.$TAILNET:4111
 ```
 
 #### Revoke Access
@@ -463,7 +493,7 @@ mgen session unshare $SESSION_ID colleague@example.com
 
 ```bash
 # Check tags again - share tag should be gone
-mgen tailscale device session-$SESSION_ID --json | jq '.tags'
+mgen tailscale device ${SESSION_ID}-mastragen-local --json | jq '.tags'
 ```
 
 ---
@@ -716,6 +746,9 @@ Per the Phase 4 specification:
 | SC-004: Warning 4+ min before suspend | Check warningIssued flag | [ ] |
 | SC-005: Metrics responds < 500ms | Time `/metrics` endpoint | [ ] |
 | SC-013: Minikube integration passes | Complete sections A-E | [ ] |
+| HTTPS: Valid TLS certificates | Verify `https://` access without warnings | [ ] |
+| HTTPS: Orchestrator accessible | `curl https://mastragen-local.{tailnet}/health` | [ ] |
+| HTTPS: Sandbox accessible | `curl https://{id}-mastragen-local.{tailnet}:4111/health` | [ ] |
 
 ---
 

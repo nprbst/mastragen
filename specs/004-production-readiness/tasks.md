@@ -237,6 +237,23 @@
 - [X] T094 Add Tailscale ACL configuration support via Helm values in values.yaml
 - [ ] T095 Document token rotation procedure in operator docs
 
+### HTTPS Termination (Caddy + Tailscale)
+
+**Hostname Convention**:
+- Orchestrator: `mastragen-{env}.{tailnet}.ts.net`
+- Sandboxes: `{id}-mastragen-{env}.{tailnet}.ts.net`
+
+- [ ] T095a Build Caddy container image with standard TLS support in .github/workflows/docker-publish.yml
+- [ ] T095b Add Tailscale sidecar to orchestrator deployment template in helm/mastragen/templates/orchestrator/deployment.yaml
+- [ ] T095c Add Caddy sidecar to orchestrator deployment with Caddyfile ConfigMap
+- [ ] T095d Configure TS_PERMIT_CERT_UID=caddy in orchestrator Tailscale sidecar environment
+- [ ] T095e Create orchestrator Caddyfile ConfigMap in helm/mastragen/templates/orchestrator/caddy-config.yaml
+- [ ] T095f Add Caddy sidecar to sandbox pod template in orchestrator/src/services/k8s-sandbox.ts
+- [ ] T095g Create dynamic Caddyfile ConfigMap generation for per-session proxy config
+- [ ] T095h Configure TS_PERMIT_CERT_UID=caddy in sandbox Tailscale sidecar environment
+- [ ] T095i Update sandbox pod template to use Caddy for HTTPS on ports 4111, 4321, 8080
+- [ ] T095j Document Caddy + Tailscale HTTPS setup in docs/operator/tailscale-configuration.md
+
 ### Minikube Testing
 
 - [X] T096 Create minikube test script in scripts/minikube-test.sh
@@ -386,11 +403,11 @@ This MVP delivers idle auto-suspend and monitoring - the most operationally crit
 | 4 | US2 - Idle Auto-Suspend | P1 | 17 | 2 |
 | 5 | US3 - Platform Monitoring | P1 | 15 | 1 |
 | 6 | US4 - Alerting | P2 | 26 | 7 |
-| 7 | Kubernetes Deployment | P1 | 22 | 3 |
+| 7 | Kubernetes Deployment | P1 | 32 | 10 |
 | 8 | US5 - User Documentation | P2 | 4 | 4 |
 | 9 | US6 - Operator Documentation | P2 | 6 | 6 |
 | 10 | Polish | - | 6 | 0 |
-| **Total** | | | **116** | **35** |
+| **Total** | | | **126** | **42** |
 
 ---
 

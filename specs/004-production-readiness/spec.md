@@ -224,6 +224,14 @@ A platform operator wants to deploy and maintain Mastragen for their team. They 
 - **FR-050**: System MUST document required secrets (Tailscale auth key, GitHub App credentials, API keys)
 - **FR-051**: Secrets configuration MUST be abstracted to support future External Secrets Operator integration
 
+**HTTPS Termination**:
+
+- **FR-052**: System MUST serve orchestrator API over HTTPS via Tailnet with valid TLS certificates
+- **FR-053**: System MUST serve sandbox services (Mastra, Astro, VS Code) over HTTPS via Tailnet
+- **FR-054**: Helm charts MUST include Caddy reverse proxy configuration for HTTPS termination
+- **FR-055**: Caddy MUST obtain TLS certificates automatically from the local Tailscale daemon
+- **FR-056**: Tailscale sidecar MUST be configured with TS_PERMIT_CERT_UID to allow Caddy cert access
+
 ### Key Entities
 
 - **SessionShare**: Record of a session being shared with another user (session_id, user_id, granted_at, granted_by)
