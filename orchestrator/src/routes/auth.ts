@@ -44,12 +44,22 @@ export function createAuthRoutes(db: Kysely<Database>): Hono {
   /**
    * GET /auth/callback
    * Handles OIDC callback with authorization code.
+   * Also handles post-installation redirects from GitHub App installation.
    */
   app.get('/callback', async (c) => {
     const code = c.req.query('code');
     const state = c.req.query('state');
     const error = c.req.query('error');
     const errorDescription = c.req.query('error_description');
+    const setupAction = c.req.query('setup_action');
+
+    // Handle GitHub App installation callback (no state parameter)
+    // When a user installs the app from GitHub, they're redirected here with setup_action=install
+    // but no state since they didn't go through our OAuth initiation flow.
+    // Redirect them to start a proper login flow.
+    if (setupAction === 'install' && !state) {
+      return c.redirect('/api/auth/login', 302);
+    }
 
     // Handle OIDC errors
     if (error) {

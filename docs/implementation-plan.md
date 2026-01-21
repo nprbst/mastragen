@@ -15,7 +15,7 @@ Mastragen is a platform for Mastra-based AI development that enables developers 
 - **Multi-project support**: One Mastragen instance serves many Mastra projects
 - **Git-native persistence**: Branches store code + session history; PRs for promotion
 - **Session isolation**: Secure sandboxes accessible only via Tailscale
-- **Multi-service sandboxes**: Each sandbox exposes cui, Mastra Studio, Astro, and VS Code
+- **Multi-service sandboxes**: Each sandbox exposes Mastra Studio, Astro, and VS Code (with Claude Code)
 
 ### Implementation Approach
 
@@ -25,14 +25,14 @@ The platform is built in 4 phases, each delivering a working increment:
 |-------|-------|-------------|
 | 1 | Core Platform Foundation | Single sandbox running locally |
 | 2 | Git & Multi-Project Support | Sessions persist as branches, PRs work |
-| 3 | cui Configuration & Landing Page | Full self-service workflow |
+| 3 | Claude Configuration & Web UI | Full self-service workflow |
 | 4 | Production Readiness | Production-ready platform |
 
 ---
 
 ## Phase 1: Core Platform Foundation
 
-**Goal**: Get a single sandbox running locally with all four services.
+**Goal**: Get a single sandbox running locally with core services.
 
 ### Components
 
@@ -44,7 +44,7 @@ Create the core data model supporting projects, sessions, and configurations.
 - `projects` - Project configuration (github_repo, mastra_path, ui_sandbox_path, branch_prefix)
 - `project_environments` - Environment configs (env_vars, secret_refs)
 - `project_members` - User access control
-- `project_cui_configs` - MCP servers, CLAUDE.md, auto-approve patterns
+- `project_claude_configs` - MCP servers, CLAUDE.md, auto-approve patterns
 - `project_commands` - Custom slash commands
 - `project_skills` - Custom skills
 - `sessions` - Session state (branch_name, pod_name, state, commit info)
@@ -72,32 +72,30 @@ Lightweight service managing sandbox lifecycle.
 
 #### 1.3 Sandbox Container Image
 
-Multi-service container with cui, Mastra, Astro, and code-server.
+Multi-service container with Mastra, Astro, and VS Code (with Claude Code).
 
 **Services**:
 | Port | Service | Purpose |
 |------|---------|---------|
-| 3001 | cui | Claude chat interface |
 | 4111 | Mastra | Tool/agent runtime + Studio |
-| 4321 | Astro | UI prototyping (optional) |
-| 8080 | VS Code | IDE escape hatch (lazy-start) |
+| 4321 | Astro | UI prototyping sandbox |
+| 8080 | VS Code | IDE with Claude Code |
 
 **Files**:
 - `sandbox/Dockerfile` - Main container image
-- `sandbox/scripts/entrypoint.sh` - cui startup with config injection
+- `sandbox/scripts/entrypoint.sh` - Startup with config injection
 - `sandbox/scripts/suspend.sh` - Commit and push on suspend
-- `sandbox/code-server/Dockerfile` - Lazy-start VS Code wrapper
+- `sandbox/code-server/Dockerfile` - VS Code with Claude Code extension
 
 #### 1.4 Kubernetes Pod Template
 
 Dynamic pod specification based on project configuration.
 
 **Components**:
-- Init container: git clone + cui config injection
-- cui container: Claude chat + file editing
+- Init container: git clone + Claude config injection
+- VS Code container: code-server with Claude Code extension
 - Mastra container: `bun run mastra dev`
 - Astro container: UI sandbox (conditional on uiSandboxPath)
-- code-server container: VS Code (lazy-start)
 - Tailscale sidecar: Secure networking
 
 **Files**:
@@ -115,9 +113,9 @@ Run the platform locally without Kubernetes.
 ### Phase 1 Deliverable
 
 - Create session via API call
-- Pod spins up with all 4 services
-- Connect via Tailscale to cui (:3001), Mastra (:4111), Astro (:4321), VS Code (:8080)
-- Changes in any service visible to others via shared volume
+- Pod spins up with services
+- Connect via Tailscale to Mastra (:4111), Astro (:4321), VS Code (:8080)
+- Changes visible across services via shared volume
 
 ---
 
@@ -164,7 +162,7 @@ Init container respects project configuration for monorepo support.
 Suspend operation commits all changes including session history.
 
 **Process**:
-1. Copy cui session data to `{mastraPath}/.cui/`
+1. Copy Claude session data to `{mastraPath}/.claude/`
 2. Stage all changes
 3. Commit with session metadata
 4. Push to remote branch
@@ -176,10 +174,10 @@ Create PRs from session branches.
 **Features**:
 - Auto-generated PR title and description
 - Links back to session for context
-- Squash merge recommended (excludes `.cui/` via `.gitattributes`)
+- Squash merge recommended (excludes `.claude/` via `.gitattributes`)
 
 **Files**:
-- `.gitattributes` template with `.cui/ export-ignore`
+- `.gitattributes` template with `.claude/ export-ignore`
 
 ### Phase 2 Deliverable
 
@@ -190,21 +188,20 @@ Create PRs from session branches.
 
 ---
 
-## Phase 3: cui Configuration & Landing Page
+## Phase 3: Claude Configuration & Web UI
 
-**Goal**: Full self-service workflow from landing page to PR.
+**Goal**: Full self-service workflow from web UI to PR.
 
 ### Components
 
-#### 3.1 cui Config Injection
+#### 3.1 Claude Config Injection
 
-Configure cui per-project without modifying the project repository.
+Configure Claude Code per-project without modifying the project repository.
 
 **Injected Config**:
-- `~/.claude/settings.json` - MCP servers, auto-approve patterns
-- `~/.claude/commands/*.md` - Custom slash commands
-- `/mnt/skills/project/` - Custom skills
-- `/workspace/CLAUDE.md` - Project context
+- `/home/coder/.claude/settings.json` - MCP servers, auto-approve patterns
+- `/home/coder/.claude/commands/*.md` - Custom slash commands
+- `/home/coder/.claude/CLAUDE.md` - Project context and skills
 
 #### 3.2 Built-in Commands
 
@@ -219,11 +216,11 @@ Mastragen-provided commands available in all sessions.
 | `/env` | Show current environment info |
 
 **Files**:
-- `builtin/commands/suspend.md`
-- `builtin/commands/pr.md`
-- `builtin/commands/share.md`
-- `builtin/commands/extract.md`
-- `builtin/commands/env.md`
+- `claude-commands/suspend.md`
+- `claude-commands/pr.md`
+- `claude-commands/share.md`
+- `claude-commands/extract.md`
+- `claude-commands/env.md`
 
 #### 3.3 Built-in Skills
 
@@ -236,31 +233,31 @@ Knowledge and instructions for effective Mastra development.
 | `session-management` | Checkpointing, PRs, collaboration patterns |
 
 **Files**:
-- `builtin/skills/mastra-development/SKILL.md`
-- `builtin/skills/artifact-extraction/SKILL.md`
-- `builtin/skills/session-management/SKILL.md`
+- `claude-skills/mastra-development/SKILL.md`
+- `claude-skills/artifact-extraction/SKILL.md`
+- `claude-skills/session-management/SKILL.md`
 
-#### 3.4 Landing Page (Astro + React)
+#### 3.4 Web UI (Astro + React, SSR via Orchestrator)
 
-Web interface for session and project management.
+Web interface for session and project management, served via SSR through the orchestrator using `hono-astro-adapter`.
 
 **Pages**:
 - `/` - Dashboard with session list grouped by project
 - `/new` - Create new session (project selector, environment, name)
-- `/projects/:id` - Project admin (Git, Environments, cui Config, Access)
+- `/projects/:id` - Project admin (Git, Environments, Claude Config, Access)
 
 **Features**:
-- Service links for active sessions (cui, Mastra, Astro, VS Code)
+- Service links for active sessions (Mastra, VS Code)
 - Session actions (Suspend, Create PR, Share, Resume)
 - "Shared with me" section
 
 **Files**:
-- `landing/src/pages/index.astro` - Dashboard
-- `landing/src/pages/new.astro` - New session form
-- `landing/src/pages/projects/[id].astro` - Project admin
-- `landing/src/components/SessionList.tsx` - React component
-- `landing/src/components/NewSessionForm.tsx` - React component
-- `landing/src/lib/api.ts` - Orchestrator API client
+- `web/src/pages/index.astro` - Dashboard
+- `web/src/pages/new.astro` - New session form
+- `web/src/pages/projects/[id].astro` - Project admin
+- `web/src/components/SessionList.tsx` - React component
+- `web/src/components/NewSessionForm.tsx` - React component
+- `web/src/lib/api.ts` - Orchestrator API client
 
 #### 3.5 Authentication (OIDC/SSO)
 
@@ -273,8 +270,8 @@ Integrate with existing identity provider.
 
 ### Phase 3 Deliverable
 
-- Users access landing page, create sessions for their projects
-- cui fully configured per-project (MCP servers, commands, skills)
+- Users access web UI, create sessions for their projects
+- Claude Code fully configured per-project (MCP servers, commands, skills)
 - Built-in commands work (/suspend, /pr, /share)
 - Complete workflow from idea to PR
 
@@ -331,7 +328,7 @@ Comprehensive documentation for users and operators.
 **User Docs**:
 - Getting started guide
 - Project configuration reference
-- cui commands reference
+- Claude commands reference
 - Troubleshooting guide
 
 **Operator Docs**:
@@ -357,8 +354,8 @@ Each phase adheres to the Mastragen constitution principles:
 |-----------|---------|---------|---------|---------|
 | **Git-Native Persistence** | - | Branches, commits, PRs | - | - |
 | **Session Isolation** | Pod per session, Tailscale | - | - | ACL-based sharing |
-| **Multi-Service Architecture** | 4 services on ports | - | - | - |
-| **Project-First Configuration** | Schema supports it | Path handling | cui injection, landing page | - |
+| **Multi-Service Architecture** | 3 services on ports | - | - | - |
+| **Project-First Configuration** | Schema supports it | Path handling | Claude injection, web UI | - |
 | **Simplicity First** | SQLite, Docker Compose | Standard git workflow | Astro (not Next.js) | Minimal monitoring |
 
 ---
@@ -372,8 +369,8 @@ Each phase adheres to the Mastragen constitution principles:
 | ORM | Kysely | Type-safe SQL, supports both DBs |
 | Containers | Kubernetes | Industry standard, scalable |
 | Networking | Tailscale | Secure, identity-based access |
-| Landing Page | Astro + React | Simple, fast, React for interactivity |
-| Sandbox Services | cui, Mastra, Astro, code-server | Per architecture spec |
+| Web UI | Astro + React (SSR via Orchestrator) | Simple, fast, React for interactivity |
+| Sandbox Services | Mastra, Astro, VS Code (code-server + Claude Code) | Per architecture spec |
 
 ---
 

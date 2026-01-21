@@ -902,12 +902,7 @@
               </ul>
             </div>
             
-            <div class="arch-main">
-              <div class="arch-service" style="border-color: var(--accent-primary);">
-                <div class="port">:3001</div>
-                <h5>cui</h5>
-                <span>Claude chat + files</span>
-              </div>
+            <div class="arch-main" style="grid-template-columns: repeat(3, 1fr);">
               <div class="arch-service" style="border-color: var(--accent-green);">
                 <div class="port">:4111</div>
                 <h5>Mastra Studio</h5>
@@ -921,7 +916,7 @@
               <div class="arch-service" style="border-color: var(--accent-cyan);">
                 <div class="port">:8080</div>
                 <h5>VS Code</h5>
-                <span>On-demand IDE</span>
+                <span>IDE + Claude Code</span>
               </div>
             </div>
           </div>
@@ -946,7 +941,7 @@
                 <span class="icon" style="background: rgba(34, 197, 94, 0.2); color: var(--accent-green);">✓</span>
                 <div>
                   <strong>Leverage existing tools</strong><br>
-                  <span style="color: var(--text-muted);">cui, Mastra, Tailscale—not custom infrastructure</span>
+                  <span style="color: var(--text-muted);">Claude Code, Mastra, Tailscale—not custom infrastructure</span>
                 </div>
               </li>
               <li>
@@ -983,8 +978,8 @@ CustomSandboxManager
 
 <span class="comment">// This:</span>
 <span class="type">K8s Pod</span> + <span class="type">Tailscale Sidecar</span>
-├── cui container
-├── Mastra container  
+├── VS Code + Claude Code
+├── Mastra container
 ├── Astro container <span class="comment">(optional)</span>
 └── <span class="string">~50 lines YAML</span>
           </div>
@@ -1138,13 +1133,13 @@ CustomSandboxManager
           </div>
           <div class="card">
             <h4 style="color: var(--accent-amber);">Phase 4</h4>
-            <p style="font-size: 0.95rem; margin-bottom: 12px;"><strong>cui Config</strong></p>
+            <p style="font-size: 0.95rem; margin-bottom: 12px;"><strong>Claude Config</strong></p>
             <p style="font-size: 0.85rem;">MCP injection, built-in commands, skills, auto-approve patterns</p>
           </div>
           <div class="card">
             <h4 style="color: var(--accent-cyan);">Phase 5</h4>
-            <p style="font-size: 0.95rem; margin-bottom: 12px;"><strong>Landing Page</strong></p>
-            <p style="font-size: 0.85rem;">Next.js UI, project selector, admin pages, SSO integration</p>
+            <p style="font-size: 0.95rem; margin-bottom: 12px;"><strong>Web UI</strong></p>
+            <p style="font-size: 0.85rem;">Astro SSR, project selector, admin pages, SSO integration</p>
           </div>
           <div class="card">
             <h4 style="color: var(--accent-rose);">Phase 6</h4>

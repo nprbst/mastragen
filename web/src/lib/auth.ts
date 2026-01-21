@@ -178,15 +178,18 @@ export async function refreshAccessToken(): Promise<string | null> {
 export function login(redirectUri?: string): void {
   if (typeof window === 'undefined') return;
 
-  const loginUrl = new URL(`${API_BASE}/auth/login`, window.location.origin);
-  // Use the callback page as redirect, storing the final destination
-  const callbackUrl = new URL('/auth/callback', window.location.origin);
-  if (redirectUri) {
-    callbackUrl.searchParams.set('redirect', redirectUri);
-  }
-  loginUrl.searchParams.set('redirect_uri', callbackUrl.toString());
+  const origin = window.location.origin;
 
-  window.location.href = loginUrl.toString();
+  // Build callback URL - this is where GitHub will redirect after OAuth
+  let callbackUrl = `${origin}/auth/callback`;
+  if (redirectUri) {
+    callbackUrl += `?redirect=${encodeURIComponent(redirectUri)}`;
+  }
+
+  // Build login URL with callback as redirect_uri
+  const loginUrl = `${API_BASE}/auth/login?redirect_uri=${encodeURIComponent(callbackUrl)}`;
+
+  window.location.href = loginUrl;
 }
 
 /**
