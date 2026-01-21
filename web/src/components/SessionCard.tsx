@@ -18,6 +18,7 @@ export interface SessionCardProps {
   session: Session;
   urls?: ServiceUrls;
   onResumed?: () => void;
+  onSuspended?: () => void;
 }
 
 type ServiceStatus = 'pending' | 'checking' | 'ready' | 'error';
@@ -48,13 +49,15 @@ function formatRelativeTime(dateString: string): string {
   return date.toLocaleDateString();
 }
 
-export function SessionCard({ session, urls, onResumed }: SessionCardProps) {
+export function SessionCard({ session, urls, onResumed, onSuspended }: SessionCardProps) {
   const status = STATUS_STYLES[session.state];
   const isActive = session.state === 'active';
   const isSuspended = session.state === 'suspended';
 
   const [resuming, setResuming] = useState(false);
   const [resumeError, setResumeError] = useState<string | null>(null);
+  const [suspending, setSuspending] = useState(false);
+  const [suspendError, setSuspendError] = useState<string | null>(null);
   const [serviceStatus, setServiceStatus] = useState<{
     vscode: ServiceStatus;
     mastra: ServiceStatus;
@@ -86,6 +89,33 @@ export function SessionCard({ session, urls, onResumed }: SessionCardProps) {
 
     setServiceStatus((prev) => (prev ? { ...prev, [serviceName]: 'error' } : prev));
     return false;
+  }
+
+  async function handleSuspend() {
+    setSuspending(true);
+    setSuspendError(null);
+
+    try {
+      const res = await fetch(`${API_BASE}/sessions/${session.id}/suspend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...createAuthHeaders(),
+        },
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to suspend session');
+      }
+
+      // Notify parent to refresh
+      onSuspended?.();
+    } catch (err) {
+      setSuspendError(err instanceof Error ? err.message : 'Failed to suspend session');
+    } finally {
+      setSuspending(false);
+    }
   }
 
   async function handleResume() {
@@ -234,10 +264,25 @@ export function SessionCard({ session, urls, onResumed }: SessionCardProps) {
       </div>
 
       {isActive && urls && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <ServiceLink href={urls.vscode} label="VS Code" icon="code" />
-          <ServiceLink href={urls.mastra} label="Mastra" icon="api" />
-          {urls.astro && <ServiceLink href={urls.astro} label="Astro" icon="web" />}
+        <div className="mt-3">
+          <div className="flex flex-wrap gap-2">
+            <ServiceLink href={urls.vscode} label="VS Code" icon="code" />
+            <ServiceLink href={urls.mastra} label="Mastra" icon="api" />
+            {urls.astro && <ServiceLink href={urls.astro} label="Astro" icon="web" />}
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            {suspendError && (
+              <p className="text-xs text-red-600 dark:text-red-400">{suspendError}</p>
+            )}
+            <button
+              type="button"
+              onClick={handleSuspend}
+              disabled={suspending}
+              className="text-xs px-2 py-1 text-orange-700 dark:text-orange-400 bg-orange-100 dark:bg-orange-900/30 hover:bg-orange-200 dark:hover:bg-orange-900/50 rounded font-medium disabled:opacity-50 transition-colors"
+            >
+              {suspending ? 'Suspending...' : 'Suspend'}
+            </button>
+          </div>
         </div>
       )}
 

@@ -183,8 +183,38 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
   });
 
   // POST /sessions/:id/suspend - Suspend an active session
-  app.post('/:id/suspend', requireSessionAuth(), async (c) => {
+  // Accepts either user auth (web UI) or session auth (sandbox)
+  app.post('/:id/suspend', optionalAuth(), async (c) => {
     const id = c.req.param('id');
+    const user = getAuthUser(c);
+
+    // Check authorization: either user auth or session auth required
+    if (!user) {
+      // Try session auth as fallback (for sandbox calling back)
+      const authHeader = c.req.header('Authorization');
+      if (!authHeader) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+
+      // Verify session token
+      const token = authHeader.replace('Bearer ', '');
+      const authService = new AuthService(db);
+      const sessionAuth = await authService.verifySessionToken(token);
+
+      if (!sessionAuth || sessionAuth.sessionId !== id) {
+        return c.json({ error: 'Unauthorized' }, 401);
+      }
+    } else {
+      // User auth - verify user created this session or session has no owner
+      const session = await sessionsRepo.findById(id);
+      if (!session) {
+        return c.json({ error: `Session not found: ${id}` }, 404);
+      }
+      // Allow if: session has no owner (legacy) OR user owns the session
+      if (session.user_id && session.user_id !== user.id) {
+        return c.json({ error: 'Access denied' }, 403);
+      }
+    }
 
     try {
       const session = await sandboxService.suspend(id);
