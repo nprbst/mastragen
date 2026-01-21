@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ProjectSelector } from './ProjectSelector';
 import { EnvironmentSelector } from './EnvironmentSelector';
+import { getAuthState, createAuthHeaders } from '../lib/auth';
 
 export interface NewSessionFormProps {}
 
@@ -89,14 +90,20 @@ export function NewSessionForm({}: NewSessionFormProps) {
     setLoading(true);
 
     try {
+      const authState = getAuthState();
+
       const res = await fetch(`${API_BASE}/sessions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...createAuthHeaders(),
+        },
         body: JSON.stringify({
           projectId: selectedProjectId,
           artifactName: sessionName,
           environment: selectedEnvironment,
           claudeToken: claudeToken,
+          userId: authState.user?.id,
         }),
       });
 

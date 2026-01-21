@@ -104,6 +104,8 @@ export interface CreateSandboxInput {
   artifactName: string;
   environment: string;
   claudeToken?: string;
+  userId?: string;
+  userGithubToken?: string;
 }
 
 export interface CreateSandboxWithGitInput extends CreateSandboxInput {
@@ -250,7 +252,7 @@ export class SandboxService {
    * Creates a new sandbox session.
    */
   async create(input: CreateSandboxInput): Promise<CreateSandboxResult> {
-    const { projectId, artifactName, environment, claudeToken } = input;
+    const { projectId, artifactName, environment, claudeToken, userId, userGithubToken } = input;
 
     // Validate project exists
     const project = await this.projectsRepo.findById(projectId);
@@ -293,7 +295,7 @@ export class SandboxService {
     if (this.dockerEnabled) {
       console.log('[SandboxService] create() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars, claudeToken);
+        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken);
         console.log('[SandboxService] create() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] create() - startContainers failed:', err);
@@ -332,7 +334,7 @@ export class SandboxService {
     input: CreateSandboxWithGitInput,
     gitHubService: GitHubServiceCreateInterface
   ): Promise<CreateSandboxResult> {
-    const { projectId, artifactName, environment, userId, claudeToken } = input;
+    const { projectId, artifactName, environment, userId, claudeToken, userGithubToken } = input;
 
     // Validate project exists
     const project = await this.projectsRepo.findById(projectId);
@@ -399,7 +401,7 @@ export class SandboxService {
     if (this.dockerEnabled) {
       console.log('[SandboxService] createWithGit() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars, claudeToken, userId);
+        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken);
         console.log('[SandboxService] createWithGit() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] createWithGit() - startContainers failed:', err);
@@ -943,7 +945,8 @@ export class SandboxService {
     project: Project,
     envVars: string,
     claudeToken?: string,
-    userId?: string
+    userId?: string,
+    userGithubToken?: string
   ): Promise<void> {
     console.log(`[SandboxService] startContainers called for session ${session.id}`);
     console.log(`[SandboxService] dockerEnabled: ${this.dockerEnabled}`);
@@ -984,6 +987,7 @@ export class SandboxService {
     // Build environment array for containers
     const baseEnv = [
       `GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`,
+      `GH_TOKEN=${userGithubToken || ''}`,
       `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY || ''}`,
       ...Object.entries(parsedEnvVars).map(([k, v]) => `${k}=${v}`),
     ];

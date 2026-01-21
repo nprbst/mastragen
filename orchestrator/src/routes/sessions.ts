@@ -22,7 +22,7 @@ import {
   SessionNotFoundError,
 } from '../services/sandbox.ts';
 import { getTailscaleService } from '../services/tailscale.ts';
-import { getAuthUser, requireAuth, requireSessionAuth } from '../middleware/auth.ts';
+import { getAuthUser, optionalAuth, requireAuth, requireSessionAuth } from '../middleware/auth.ts';
 import { getAuditLogger } from '../services/audit-logger.ts';
 import { AuthService } from '../services/auth.ts';
 
@@ -83,7 +83,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
   });
 
   // POST /sessions - Create a new session
-  app.post('/', async (c) => {
+  app.post('/', optionalAuth(), async (c) => {
     const rawBody = await c.req.json();
 
     // Validate request body with Valibot
@@ -105,12 +105,26 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
 
     const body = parseResult.output;
 
+    // Get authenticated user's GitHub token if available
+    let userGithubToken: string | undefined;
+    const user = getAuthUser(c);
+    if (user) {
+      const dbUser = await db
+        .selectFrom('users')
+        .select(['github_access_token'])
+        .where('id', '=', user.id)
+        .executeTakeFirst();
+      userGithubToken = dbUser?.github_access_token ?? undefined;
+    }
+
     try {
       const result = await sandboxService.create({
         projectId: body.projectId,
         artifactName: body.artifactName,
         environment: body.environment,
         claudeToken: body.claudeToken,
+        userId: body.userId,
+        userGithubToken,
       });
 
       // Generate session-scoped token for API authentication
