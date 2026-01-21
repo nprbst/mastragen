@@ -52,7 +52,7 @@ function generateServiceUrls(sessionId: string): ServiceUrls {
 function EmptyState() {
   return (
     <div className="text-center py-12">
-      <div className="mx-auto h-12 w-12 text-gray-400">
+      <div className="mx-auto h-12 w-12 text-gray-400 dark:text-dark-text-muted">
         <svg
           fill="none"
           viewBox="0 0 24 24"
@@ -67,8 +67,8 @@ function EmptyState() {
           />
         </svg>
       </div>
-      <h3 className="mt-2 text-sm font-semibold text-gray-900">No sessions yet</h3>
-      <p className="mt-1 text-sm text-gray-500">
+      <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-dark-text-primary">No sessions yet</h3>
+      <p className="mt-1 text-sm text-gray-500 dark:text-dark-text-secondary">
         Get started by creating your first development session.
       </p>
       <div className="mt-6">
@@ -89,10 +89,10 @@ function LoadingState() {
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 animate-pulse"
+          className="bg-white dark:bg-dark-bg-secondary rounded-lg shadow-sm border border-gray-200 dark:border-dark-border p-4 animate-pulse"
         >
-          <div className="h-4 bg-gray-200 rounded w-1/4 mb-2" />
-          <div className="h-3 bg-gray-200 rounded w-1/2" />
+          <div className="h-4 bg-gray-200 dark:bg-dark-bg-tertiary rounded w-1/4 mb-2" />
+          <div className="h-3 bg-gray-200 dark:bg-dark-bg-tertiary rounded w-1/2" />
         </div>
       ))}
     </div>
@@ -102,7 +102,7 @@ function LoadingState() {
 function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
     <div className="text-center py-12">
-      <div className="mx-auto h-12 w-12 text-red-400">
+      <div className="mx-auto h-12 w-12 text-red-400 dark:text-red-500">
         <svg
           fill="none"
           viewBox="0 0 24 24"
@@ -117,13 +117,13 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
           />
         </svg>
       </div>
-      <h3 className="mt-2 text-sm font-semibold text-gray-900">Failed to load sessions</h3>
-      <p className="mt-1 text-sm text-gray-500">{message}</p>
+      <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-dark-text-primary">Failed to load sessions</h3>
+      <p className="mt-1 text-sm text-gray-500 dark:text-dark-text-secondary">{message}</p>
       <div className="mt-6">
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-dark-border text-sm font-medium rounded-md text-gray-700 dark:text-dark-text-secondary bg-white dark:bg-dark-bg-tertiary hover:bg-gray-50 dark:hover:bg-dark-bg-secondary focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
         >
           Try again
         </button>
@@ -190,7 +190,7 @@ export function SessionList({
   return (
     <div className="space-y-8">
       {/* Filter tabs */}
-      <div className="border-b border-gray-200">
+      <div className="border-b border-gray-200 dark:border-dark-border">
         <nav className="-mb-px flex space-x-8" aria-label="Session filters">
           {(['all', 'active', 'suspended', 'pr_open'] as const).map((filter) => (
             <button
@@ -201,8 +201,8 @@ export function SessionList({
                 whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium
                 ${
                   activeFilter === filter
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 dark:text-dark-text-secondary hover:border-gray-300 dark:hover:border-dark-border hover:text-gray-700 dark:hover:text-dark-text-primary'
                 }
               `}
             >
@@ -215,13 +215,13 @@ export function SessionList({
       {/* My Sessions */}
       {groupedSessions.length > 0 && (
         <div className="space-y-6">
-          <h2 className="text-lg font-medium text-gray-900">My Sessions</h2>
+          <h2 className="text-lg font-medium text-gray-900 dark:text-dark-text-primary">My Sessions</h2>
           {groupedSessions.map((group) => (
             <div key={group.projectId} className="space-y-3">
-              <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <span className="text-gray-400">◉</span>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-dark-text-secondary flex items-center gap-2">
+                <span className="text-gray-400 dark:text-dark-text-muted">◉</span>
                 {group.projectName}
-                <span className="text-xs text-gray-400">({group.sessions.length})</span>
+                <span className="text-xs text-gray-400 dark:text-dark-text-muted">({group.sessions.length})</span>
               </h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {group.sessions.map((session) => (
@@ -240,16 +240,16 @@ export function SessionList({
       {/* Shared with me */}
       {showSharedWithMe && groupedSharedSessions.length > 0 && (
         <div className="space-y-6">
-          <h2 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+          <h2 className="text-lg font-medium text-gray-900 dark:text-dark-text-primary flex items-center gap-2">
             Shared with me
-            <span className="text-xs text-gray-400 font-normal">
+            <span className="text-xs text-gray-400 dark:text-dark-text-muted font-normal">
               ({sharedSessions.length} session{sharedSessions.length !== 1 ? 's' : ''})
             </span>
           </h2>
           {groupedSharedSessions.map((group) => (
             <div key={group.projectId} className="space-y-3">
-              <h3 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                <span className="text-gray-400">◉</span>
+              <h3 className="text-sm font-medium text-gray-700 dark:text-dark-text-secondary flex items-center gap-2">
+                <span className="text-gray-400 dark:text-dark-text-muted">◉</span>
                 {group.projectName}
               </h3>
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

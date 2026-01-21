@@ -1,4 +1,6 @@
 ---
+import ThemeToggle from '../components/ThemeToggle';
+
 interface Props {
   title: string;
   description?: string;
@@ -15,20 +17,30 @@ const { title, description = 'Mastragen - AI-powered development platform' } = A
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title} | Mastragen</title>
+    <script is:inline>
+      (function() {
+        const stored = localStorage.getItem('mastragen_theme');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (stored === 'dark' || (!stored && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
   </head>
-  <body class="min-h-screen bg-gray-50 text-gray-900">
-    <header class="bg-white shadow-sm border-b border-gray-200">
+  <body class="min-h-screen bg-gray-50 text-gray-900 dark:bg-dark-bg-primary dark:text-dark-text-primary">
+    <header class="bg-white shadow-sm border-b border-gray-200 dark:bg-dark-bg-secondary dark:border-dark-border">
       <nav class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div class="flex h-16 justify-between items-center">
           <div class="flex items-center">
-            <a href="/" class="text-xl font-bold text-primary-600">
+            <a href="/" class="text-xl font-bold text-primary-600 dark:text-primary-400">
               Mastragen
             </a>
           </div>
           <div class="flex items-center gap-4">
-            <a href="/sessions/new" class="text-sm text-gray-600 hover:text-gray-900">
+            <a href="/sessions/new" class="text-sm text-gray-600 hover:text-gray-900 dark:text-dark-text-secondary dark:hover:text-dark-text-primary">
               New Session
             </a>
+            <ThemeToggle client:load />
             <div id="user-menu" class="relative">
               <!-- User menu will be hydrated by React -->
             </div>
@@ -39,9 +51,9 @@ const { title, description = 'Mastragen - AI-powered development platform' } = A
     <main class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
       <slot />
     </main>
-    <footer class="border-t border-gray-200 mt-auto">
+    <footer class="border-t border-gray-200 mt-auto dark:border-dark-border">
       <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-4">
-        <p class="text-center text-sm text-gray-500">
+        <p class="text-center text-sm text-gray-500 dark:text-dark-text-muted">
           Mastragen - AI-powered development platform
         </p>
       </div>

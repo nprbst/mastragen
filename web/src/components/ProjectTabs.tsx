@@ -66,17 +66,17 @@ export default function ProjectTabs({ projectId }: ProjectTabsProps) {
   if (loading) {
     return (
       <div className="animate-pulse">
-        <div className="h-10 bg-gray-200 rounded w-1/3 mb-6"></div>
-        <div className="h-64 bg-gray-200 rounded"></div>
+        <div className="h-10 bg-gray-200 dark:bg-dark-bg-tertiary rounded w-1/3 mb-6"></div>
+        <div className="h-64 bg-gray-200 dark:bg-dark-bg-tertiary rounded"></div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-700">{error}</p>
-        <a href="/" className="text-red-600 hover:text-red-800 text-sm mt-2 inline-block">
+      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
+        <p className="text-red-700 dark:text-red-400">{error}</p>
+        <a href="/" className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 text-sm mt-2 inline-block">
           &larr; Back to Dashboard
         </a>
       </div>
@@ -91,14 +91,14 @@ export default function ProjectTabs({ projectId }: ProjectTabsProps) {
     <div>
       {/* Project header */}
       <div className="mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">{project.name}</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-dark-text-primary">{project.name}</h2>
         {project.githubRepo && (
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 dark:text-dark-text-secondary mt-1">
             <a
               href={`https://github.com/${project.githubRepo}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-gray-700"
+              className="hover:text-gray-700 dark:hover:text-dark-text-primary"
             >
               {project.githubRepo}
             </a>
@@ -107,7 +107,7 @@ export default function ProjectTabs({ projectId }: ProjectTabsProps) {
       </div>
 
       {/* Tab navigation */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-gray-200 dark:border-dark-border mb-6">
         <nav className="-mb-px flex space-x-8">
           {tabs.map((tab) => (
             <button
@@ -117,8 +117,8 @@ export default function ProjectTabs({ projectId }: ProjectTabsProps) {
                 py-4 px-1 border-b-2 font-medium text-sm
                 ${
                   activeTab === tab.id
-                    ? 'border-primary-500 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 dark:text-dark-text-secondary hover:text-gray-700 dark:hover:text-dark-text-primary hover:border-gray-300 dark:hover:border-dark-border'
                 }
               `}
             >
@@ -129,7 +129,7 @@ export default function ProjectTabs({ projectId }: ProjectTabsProps) {
       </div>
 
       {/* Tab content */}
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className="bg-white dark:bg-dark-bg-secondary rounded-lg shadow dark:shadow-none dark:border dark:border-dark-border p-6">
         {activeTab === 'overview' && (
           <OverviewTab
             project={project}

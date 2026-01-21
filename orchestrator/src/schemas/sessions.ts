@@ -30,7 +30,7 @@ export const CreateSessionRequestSchema = v.object({
   artifactName: ArtifactNameSchema,
   environment: EnvironmentNameSchema,
   userId: v.optional(UserIdSchema),
-  claudeToken: v.optional(v.string()),
+  claudeToken: v.string(),
 });
 export type CreateSessionRequest = v.InferOutput<typeof CreateSessionRequestSchema>;
 
@@ -42,7 +42,7 @@ export const CreateSessionWithGitRequestSchema = v.object({
   artifactName: ArtifactNameSchema,
   environment: EnvironmentNameSchema,
   userId: UserIdSchema,
-  claudeToken: v.optional(v.string()),
+  claudeToken: v.string(),
 });
 export type CreateSessionWithGitRequest = v.InferOutput<typeof CreateSessionWithGitRequestSchema>;
 

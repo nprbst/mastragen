@@ -32,6 +32,7 @@ export function NewSessionForm({}: NewSessionFormProps) {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('');
   const [selectedEnvironment, setSelectedEnvironment] = useState<string>('');
   const [sessionName, setSessionName] = useState<string>('');
+  const [claudeToken, setClaudeToken] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [loadingProjects, setLoadingProjects] = useState(true);
   const [loadingEnvironments, setLoadingEnvironments] = useState(false);
@@ -95,6 +96,7 @@ export function NewSessionForm({}: NewSessionFormProps) {
           projectId: selectedProjectId,
           artifactName: sessionName,
           environment: selectedEnvironment,
+          claudeToken: claudeToken,
         }),
       });
 
@@ -118,13 +120,13 @@ export function NewSessionForm({}: NewSessionFormProps) {
     }
   };
 
-  const isValid = Boolean(selectedProjectId && selectedEnvironment && sessionName.trim());
+  const isValid = Boolean(selectedProjectId && selectedEnvironment && sessionName.trim() && claudeToken.trim());
   const noEnvironments = Boolean(selectedProjectId) && environments.length === 0 && !loadingEnvironments;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-md text-sm">
           {error}
         </div>
       )}
@@ -139,9 +141,9 @@ export function NewSessionForm({}: NewSessionFormProps) {
       {selectedProjectId && (
         <>
           {noEnvironments ? (
-            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-md text-sm">
+            <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 text-yellow-800 dark:text-yellow-400 px-4 py-3 rounded-md text-sm">
               <p className="font-medium">No environments configured</p>
-              <p className="mt-1 text-yellow-700">
+              <p className="mt-1 text-yellow-700 dark:text-yellow-500">
                 This project has no environments. Please configure an environment before creating a session.
               </p>
             </div>
@@ -157,7 +159,7 @@ export function NewSessionForm({}: NewSessionFormProps) {
       )}
 
       <div>
-        <label htmlFor="sessionName" className="block text-sm font-medium text-gray-700 mb-1">
+        <label htmlFor="sessionName" className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-1">
           Session Name
         </label>
         <input
@@ -166,18 +168,36 @@ export function NewSessionForm({}: NewSessionFormProps) {
           value={sessionName}
           onChange={(e) => setSessionName(e.target.value)}
           placeholder="feature-auth-improvements"
-          className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+          className="block w-full rounded-md border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg-tertiary px-3 py-2 text-sm text-gray-900 dark:text-dark-text-primary placeholder:text-gray-400 dark:placeholder:text-dark-text-muted focus:border-primary-500 dark:focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-400"
           required
         />
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-gray-500 dark:text-dark-text-muted">
           A descriptive name for your session (used for branch naming)
+        </p>
+      </div>
+
+      <div>
+        <label htmlFor="claudeToken" className="block text-sm font-medium text-gray-700 dark:text-dark-text-primary mb-1">
+          Claude Code Token
+        </label>
+        <input
+          type="password"
+          id="claudeToken"
+          value={claudeToken}
+          onChange={(e) => setClaudeToken(e.target.value)}
+          placeholder="sk-ant-..."
+          className="block w-full rounded-md border border-gray-300 dark:border-dark-border bg-white dark:bg-dark-bg-tertiary px-3 py-2 text-sm text-gray-900 dark:text-dark-text-primary placeholder:text-gray-400 dark:placeholder:text-dark-text-muted focus:border-primary-500 dark:focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:focus:ring-primary-400 font-mono"
+          required
+        />
+        <p className="mt-1 text-xs text-gray-500 dark:text-dark-text-muted">
+          Run <code className="bg-gray-100 dark:bg-dark-bg-tertiary px-1 rounded font-mono">claude setup-token</code> to generate a token
         </p>
       </div>
 
       <div className="flex justify-end gap-3 pt-4">
         <a
           href="/"
-          className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+          className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-dark-text-secondary bg-white dark:bg-dark-bg-tertiary border border-gray-300 dark:border-dark-border rounded-md hover:bg-gray-50 dark:hover:bg-dark-bg-secondary"
         >
           Cancel
         </a>
