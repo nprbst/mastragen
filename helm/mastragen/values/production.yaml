@@ -1,0 +1,78 @@
+# T089: Production environment values
+# Usage: helm install mastragen ./helm/mastragen -f ./helm/mastragen/values/production.yaml
+
+orchestrator:
+  replicaCount: 3
+
+  image:
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: "2"
+      memory: "2Gi"
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+
+  probes:
+    liveness:
+      enabled: true
+      initialDelaySeconds: 30
+      periodSeconds: 30
+      failureThreshold: 5
+    readiness:
+      enabled: true
+      initialDelaySeconds: 10
+      periodSeconds: 15
+      failureThreshold: 5
+
+  env:
+    LOG_LEVEL: "warn"
+    NODE_ENV: "production"
+
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: "fast-ssd"
+
+  # Anti-affinity to spread pods across nodes
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/component: orchestrator
+            topologyKey: kubernetes.io/hostname
+
+# Enable Tailscale with production tags
+tailscale:
+  enabled: true
+  aclTags:
+    - "tag:mastragen-production"
+  resources:
+    limits:
+      cpu: "200m"
+      memory: "256Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+# Enable RBAC
+rbac:
+  create: true
+
+# Enable PDB for high availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Enable HPA for auto-scaling
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80

@@ -1,0 +1,128 @@
+# T078: Orchestrator deployment
+# T085-T086: Liveness and readiness probes
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "mastragen.fullname" . }}-orchestrator
+  labels:
+    {{- include "mastragen.orchestrator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.orchestrator.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "mastragen.orchestrator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.orchestrator.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "mastragen.orchestrator.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.orchestrator.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "mastragen.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.orchestrator.podSecurityContext | nindent 8 }}
+      containers:
+        - name: orchestrator
+          securityContext:
+            {{- toYaml .Values.orchestrator.securityContext | nindent 12 }}
+          image: {{ include "mastragen.orchestrator.image" . }}
+          imagePullPolicy: {{ .Values.orchestrator.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 4000
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "4000"
+            - name: HOST
+              value: "0.0.0.0"
+            {{- range $key, $value := .Values.orchestrator.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}
+            {{- if .Values.tailscale.enabled }}
+            - name: TAILSCALE_ENABLED
+              value: "true"
+            {{- end }}
+          {{- with .Values.orchestrator.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.orchestrator.probes.liveness.enabled }}
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.orchestrator.probes.liveness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.orchestrator.probes.liveness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.orchestrator.probes.liveness.periodSeconds }}
+            timeoutSeconds: {{ .Values.orchestrator.probes.liveness.timeoutSeconds }}
+            failureThreshold: {{ .Values.orchestrator.probes.liveness.failureThreshold }}
+            successThreshold: {{ .Values.orchestrator.probes.liveness.successThreshold }}
+          {{- end }}
+          {{- if .Values.orchestrator.probes.readiness.enabled }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.orchestrator.probes.readiness.path }}
+              port: http
+            initialDelaySeconds: {{ .Values.orchestrator.probes.readiness.initialDelaySeconds }}
+            periodSeconds: {{ .Values.orchestrator.probes.readiness.periodSeconds }}
+            timeoutSeconds: {{ .Values.orchestrator.probes.readiness.timeoutSeconds }}
+            failureThreshold: {{ .Values.orchestrator.probes.readiness.failureThreshold }}
+            successThreshold: {{ .Values.orchestrator.probes.readiness.successThreshold }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.orchestrator.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.orchestrator.persistence.enabled }}
+            - name: data
+              mountPath: /app/data
+            {{- end }}
+        {{- if .Values.tailscale.enabled }}
+        - name: tailscale
+          image: {{ include "mastragen.tailscale.image" . }}
+          imagePullPolicy: {{ .Values.tailscale.image.pullPolicy }}
+          securityContext:
+            capabilities:
+              add:
+                - NET_ADMIN
+          env:
+            - name: TS_AUTHKEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.tailscale.authKeySecretName }}
+                  key: {{ .Values.tailscale.authKeySecretKey }}
+            - name: TS_KUBE_SECRET
+              value: ""
+            - name: TS_USERSPACE
+              value: "false"
+            {{- if .Values.tailscale.aclTags }}
+            - name: TS_EXTRA_ARGS
+              value: {{ printf "--advertise-tags=%s" (join "," .Values.tailscale.aclTags) | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.tailscale.resources | nindent 12 }}
+        {{- end }}
+      volumes:
+        {{- if .Values.orchestrator.persistence.enabled }}
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "mastragen.fullname" . }}-data
+        {{- end }}
+      {{- with .Values.orchestrator.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.orchestrator.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.orchestrator.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

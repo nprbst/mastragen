@@ -1,0 +1,36 @@
+# T087: Development environment values
+# Usage: helm install mastragen ./helm/mastragen -f ./helm/mastragen/values/development.yaml
+
+orchestrator:
+  replicaCount: 1
+
+  image:
+    pullPolicy: Always
+
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+
+  env:
+    LOG_LEVEL: "debug"
+    NODE_ENV: "development"
+
+  persistence:
+    enabled: true
+    size: 1Gi
+
+# Disable Tailscale for local development
+tailscale:
+  enabled: false
+
+# Disable RBAC for local development (minikube admin access)
+rbac:
+  create: true
+
+# Disable PDB for single replica
+podDisruptionBudget:
+  enabled: false

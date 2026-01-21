@@ -56,8 +56,8 @@
 
 ### Tests
 
-- [ ] T017 [P] [US1] Create unit tests for SessionShareList component in web/tests/components/SessionShareList.test.tsx (needs test infra)
-- [ ] T018 [P] [US1] Create unit tests for SharedWithMeSection component in web/tests/components/SharedWithMeSection.test.tsx (needs test infra)
+- [X] T017 [P] [US1] Create unit tests for SessionShareList component in web/tests/components/SessionShareList.test.tsx
+- [X] T018 [P] [US1] Create unit tests for SharedWithMeSection component in web/tests/components/SharedWithMeSection.test.tsx
 - [X] T019 [US1] Create integration test for share/unshare flow with active shared users in orchestrator/tests/integration/session-shares.test.ts
 
 **Test Criteria**: Share list displays correctly; revoke works immediately; shared sessions appear in dashboard; active users warned before suspend.
@@ -153,44 +153,44 @@
 
 ### Alert Service
 
-- [ ] T050 [US4] Create AlertService with condition checking in orchestrator/src/services/alert-service.ts
-- [ ] T051 [US4] Implement checkCondition for pod_creation_failed in alert-service.ts
-- [ ] T052 [US4] Implement checkCondition for tailscale_timeout in alert-service.ts
-- [ ] T053 [US4] Implement checkCondition for database_failed in alert-service.ts
-- [ ] T054 [US4] Implement checkCondition for orphaned_pod in alert-service.ts
-- [ ] T055 [US4] Implement fireAlert to create alert event in alert-service.ts
-- [ ] T056 [US4] Implement deliverAlert with webhook delivery in alert-service.ts
-- [ ] T057 [US4] Implement deliverAlert with email delivery in alert-service.ts
-- [ ] T058 [US4] Implement retry logic with exponential backoff (3 attempts) in alert-service.ts
+- [X] T050 [US4] Create AlertService with condition checking in orchestrator/src/services/alert-service.ts
+- [X] T051 [US4] Implement checkCondition for pod_creation_failed in alert-service.ts
+- [X] T052 [US4] Implement checkCondition for tailscale_timeout in alert-service.ts
+- [X] T053 [US4] Implement checkCondition for database_failed in alert-service.ts
+- [X] T054 [US4] Implement checkCondition for orphaned_pod in alert-service.ts
+- [X] T055 [US4] Implement fireAlert to create alert event in alert-service.ts
+- [X] T056 [US4] Implement deliverAlert with webhook delivery in alert-service.ts
+- [X] T057 [US4] Implement deliverAlert with email delivery in alert-service.ts
+- [X] T058 [US4] Implement retry logic with exponential backoff (3 attempts) in alert-service.ts
 
 ### Alert Checker Job
 
-- [ ] T059 [US4] Create AlertCheckerJob to poll conditions every minute in orchestrator/src/jobs/alert-checker.ts
-- [ ] T060 [US4] Register AlertCheckerJob in job scheduler startup in orchestrator/src/index.ts
+- [X] T059 [US4] Create AlertCheckerJob to poll conditions every minute in orchestrator/src/jobs/alert-checker.ts
+- [X] T060 [US4] Register AlertCheckerJob in job scheduler startup in orchestrator/src/index.ts
 
 ### Alert API Routes
 
-- [ ] T061 [US4] Create GET /api/alerts/rules endpoint in orchestrator/src/routes/alerts.ts
-- [ ] T062 [US4] Create GET /api/alerts/rules/:id endpoint in alerts.ts
-- [ ] T063 [US4] Create POST /api/alerts/rules endpoint in alerts.ts
-- [ ] T064 [US4] Create PATCH /api/alerts/rules/:id endpoint in alerts.ts
-- [ ] T065 [US4] Create DELETE /api/alerts/rules/:id endpoint in alerts.ts
-- [ ] T066 [US4] Create GET /api/alerts/events endpoint with filtering in alerts.ts
-- [ ] T067 [US4] Create GET /api/alerts/events/:id endpoint in alerts.ts
-- [ ] T068 [US4] Create POST /api/alerts/events/:id/acknowledge endpoint in alerts.ts
+- [X] T061 [US4] Create GET /api/alerts/rules endpoint in orchestrator/src/routes/alerts.ts
+- [X] T062 [US4] Create GET /api/alerts/rules/:id endpoint in alerts.ts
+- [X] T063 [US4] Create POST /api/alerts/rules endpoint in alerts.ts
+- [X] T064 [US4] Create PATCH /api/alerts/rules/:id endpoint in alerts.ts
+- [X] T065 [US4] Create DELETE /api/alerts/rules/:id endpoint in alerts.ts
+- [X] T066 [US4] Create GET /api/alerts/events endpoint with filtering in alerts.ts
+- [X] T067 [US4] Create GET /api/alerts/events/:id endpoint in alerts.ts
+- [X] T068 [US4] Create POST /api/alerts/events/:id/acknowledge endpoint in alerts.ts
 
 ### Admin UI
 
-- [ ] T069 [US4] Create alerts admin page in web/src/pages/admin/alerts.astro
-- [ ] T070 [US4] Create alert rules list component in web/src/components/admin/AlertRulesList.tsx
-- [ ] T071 [US4] Create alert events list component in web/src/components/admin/AlertEventsList.tsx
-- [ ] T072 [US4] Create alert rule form component in web/src/components/admin/AlertRuleForm.tsx
+- [X] T069 [US4] Create alerts admin page in web/src/pages/admin/alerts.astro
+- [X] T070 [US4] Create alert rules list component in web/src/components/admin/AlertRulesList.tsx
+- [X] T071 [US4] Create alert events list component in web/src/components/admin/AlertEventsList.tsx
+- [X] T072 [US4] Create alert rule form component in web/src/components/admin/AlertRuleForm.tsx
 
 ### Tests
 
-- [ ] T073 [P] [US4] Create unit tests for AlertService in orchestrator/tests/unit/services/alert-service.test.ts
-- [ ] T074 [P] [US4] Create unit tests for AlertCheckerJob in orchestrator/tests/unit/jobs/alert-checker.test.ts
-- [ ] T075 [US4] Create integration test for alert creation and delivery in orchestrator/tests/integration/alerts.test.ts
+- [X] T073 [P] [US4] Create unit tests for AlertService in orchestrator/tests/unit/services/alert-service.test.ts
+- [X] T074 [P] [US4] Create unit tests for AlertCheckerJob in orchestrator/tests/unit/jobs/alert-checker.test.ts
+- [X] T075 [US4] Create integration test for alert creation and delivery in orchestrator/tests/integration/alerts.test.ts
 
 **Test Criteria**: Alert rules CRUD works; conditions detected within 60s; webhooks delivered within 30s; failed deliveries retry with backoff.
 
@@ -204,43 +204,43 @@
 
 ### Helm Chart Structure
 
-- [ ] T076 Create Helm chart structure with Chart.yaml in helm/mastragen/Chart.yaml
-- [ ] T077 Create default values.yaml with resource limits, replicas, and registry configuration (supports ghcr.io default and AWS ECR override) in helm/mastragen/values.yaml
-- [ ] T078 Create orchestrator deployment template in helm/mastragen/templates/orchestrator/deployment.yaml
-- [ ] T079 Create orchestrator service template in helm/mastragen/templates/orchestrator/service.yaml
-- [ ] T080 Create orchestrator configmap template in helm/mastragen/templates/orchestrator/configmap.yaml
-- [ ] T081 Create orchestrator serviceaccount template in helm/mastragen/templates/orchestrator/serviceaccount.yaml
-- [ ] T082 Create sandbox PVC template in helm/mastragen/templates/sandbox/pvc.yaml
-- [ ] T083 Create secrets reference template in helm/mastragen/templates/secrets.yaml
-- [ ] T084 Create RBAC configuration template in helm/mastragen/templates/rbac.yaml
+- [X] T076 Create Helm chart structure with Chart.yaml in helm/mastragen/Chart.yaml
+- [X] T077 Create default values.yaml with resource limits, replicas, and registry configuration (supports ghcr.io default and AWS ECR override) in helm/mastragen/values.yaml
+- [X] T078 Create orchestrator deployment template in helm/mastragen/templates/orchestrator/deployment.yaml
+- [X] T079 Create orchestrator service template in helm/mastragen/templates/orchestrator/service.yaml
+- [X] T080 Create orchestrator configmap template in helm/mastragen/templates/orchestrator/configmap.yaml
+- [X] T081 Create orchestrator serviceaccount template in helm/mastragen/templates/orchestrator/serviceaccount.yaml
+- [X] T082 Create sandbox PVC template in helm/mastragen/templates/sandbox/pvc.yaml
+- [X] T083 Create secrets reference template in helm/mastragen/templates/secrets.yaml
+- [X] T084 Create RBAC configuration template in helm/mastragen/templates/rbac.yaml
 
 ### Probes and Health
 
-- [ ] T085 Add liveness probe to orchestrator deployment in deployment.yaml
-- [ ] T086 Add readiness probe with Tailscale connectivity check to orchestrator deployment in deployment.yaml
+- [X] T085 Add liveness probe to orchestrator deployment in deployment.yaml
+- [X] T086 Add readiness probe with Tailscale connectivity check to orchestrator deployment in deployment.yaml
 
 ### Environment Values
 
-- [ ] T087 [P] Create development values override in helm/mastragen/values/development.yaml
-- [ ] T088 [P] Create staging values override in helm/mastragen/values/staging.yaml
-- [ ] T089 [P] Create production values override in helm/mastragen/values/production.yaml
+- [X] T087 [P] Create development values override in helm/mastragen/values/development.yaml
+- [X] T088 [P] Create staging values override in helm/mastragen/values/staging.yaml
+- [X] T089 [P] Create production values override in helm/mastragen/values/production.yaml
 
 ### CI/CD
 
-- [ ] T090 Create GitHub Actions workflow for Docker image builds in .github/workflows/docker-publish.yml
-- [ ] T091 Configure workflow to push to ghcr.io on merge to main in docker-publish.yml
-- [ ] T092 Configure workflow to push versioned tags on release in docker-publish.yml
+- [X] T090 Create GitHub Actions workflow for Docker image builds in .github/workflows/docker-publish.yml
+- [X] T091 Configure workflow to push to ghcr.io on merge to main in docker-publish.yml
+- [X] T092 Configure workflow to push versioned tags on release in docker-publish.yml
 
 ### Tailscale Integration
 
-- [ ] T093 Add Tailscale auth key secret reference to Helm values in values.yaml
-- [ ] T094 Add Tailscale ACL configuration support via Helm values in values.yaml
+- [X] T093 Add Tailscale auth key secret reference to Helm values in values.yaml
+- [X] T094 Add Tailscale ACL configuration support via Helm values in values.yaml
 - [ ] T095 Document token rotation procedure in operator docs
 
 ### Minikube Testing
 
-- [ ] T096 Create minikube test script in scripts/minikube-test.sh
-- [ ] T097 Create minikube integration test script that validates: (1) helm install succeeds, (2) orchestrator pod reaches Ready state within 120s, (3) POST /api/sessions creates session, (4) sandbox pod reaches Ready state with Tailscale connected in scripts/minikube-test.sh
+- [X] T096 Create minikube test script in scripts/minikube-test.sh
+- [X] T097 Create minikube integration test script that validates: (1) helm install succeeds, (2) orchestrator pod reaches Ready state within 120s, (3) POST /api/sessions creates session, (4) sandbox pod reaches Ready state with Tailscale connected in scripts/minikube-test.sh
 
 **Test Criteria**: Helm chart installs without errors; probes pass; secrets referenced correctly; minikube test passes end-to-end.
 

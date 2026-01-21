@@ -1,0 +1,195 @@
+# T077: Default values for mastragen
+# T093-T094: Tailscale configuration
+
+# Global settings
+nameOverride: ""
+fullnameOverride: ""
+
+# Orchestrator configuration
+orchestrator:
+  # Replica count
+  replicaCount: 1
+
+  # Image configuration
+  image:
+    repository: ghcr.io/nprbst/mastragen-orchestrator
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  # Image pull secrets (for private registries)
+  imagePullSecrets: []
+
+  # Service account
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+
+  # Pod annotations
+  podAnnotations: {}
+
+  # Pod security context
+  podSecurityContext:
+    fsGroup: 1000
+
+  # Container security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    readOnlyRootFilesystem: false
+    allowPrivilegeEscalation: false
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 4000
+    annotations: {}
+
+  # Resource limits and requests
+  resources:
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+
+  # T085-T086: Probes configuration
+  probes:
+    liveness:
+      enabled: true
+      path: /health
+      initialDelaySeconds: 15
+      periodSeconds: 20
+      timeoutSeconds: 5
+      failureThreshold: 3
+      successThreshold: 1
+    readiness:
+      enabled: true
+      path: /health
+      initialDelaySeconds: 5
+      periodSeconds: 10
+      timeoutSeconds: 5
+      failureThreshold: 3
+      successThreshold: 1
+
+  # Node selector
+  nodeSelector: {}
+
+  # Tolerations
+  tolerations: []
+
+  # Affinity
+  affinity: {}
+
+  # Environment variables
+  env:
+    LOG_LEVEL: "info"
+    NODE_ENV: "production"
+
+  # Extra environment variables from secrets/configmaps
+  envFrom: []
+
+  # Persistence for SQLite database
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 10Gi
+    annotations: {}
+
+# T093-T094: Tailscale configuration
+tailscale:
+  # Enable Tailscale sidecar
+  enabled: true
+
+  # Auth key secret reference
+  authKeySecretName: tailscale-auth
+  authKeySecretKey: key
+
+  # ACL tags for the orchestrator
+  aclTags:
+    - "tag:mastragen-orchestrator"
+
+  # Tailscale image
+  image:
+    repository: tailscale/tailscale
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  # Tailscale container resources
+  resources:
+    limits:
+      cpu: "100m"
+      memory: "128Mi"
+    requests:
+      cpu: "50m"
+      memory: "64Mi"
+
+# Sandbox pod configuration
+sandbox:
+  # Storage class for sandbox volumes
+  storageClass: ""
+
+  # Default storage size per sandbox
+  storageSize: 5Gi
+
+# Secrets configuration
+secrets:
+  # GitHub App credentials
+  github:
+    # Secret name containing GitHub credentials
+    existingSecret: ""
+    # Or create a new secret (not recommended for production)
+    appId: ""
+    privateKey: ""
+    webhookSecret: ""
+
+  # Database credentials (if using external database)
+  database:
+    existingSecret: ""
+
+# RBAC configuration
+rbac:
+  create: true
+  rules:
+    # Allow orchestrator to manage pods for sandboxes
+    - apiGroups: [""]
+      resources: ["pods"]
+      verbs: ["get", "list", "watch", "create", "delete"]
+    - apiGroups: [""]
+      resources: ["pods/exec"]
+      verbs: ["create"]
+    - apiGroups: [""]
+      resources: ["persistentvolumeclaims"]
+      verbs: ["get", "list", "watch", "create", "delete"]
+    - apiGroups: [""]
+      resources: ["services"]
+      verbs: ["get", "list", "watch", "create", "delete"]
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: mastragen.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# Horizontal Pod Autoscaler
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80

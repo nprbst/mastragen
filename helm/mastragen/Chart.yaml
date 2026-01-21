@@ -1,0 +1,15 @@
+# T076: Helm chart metadata
+apiVersion: v2
+name: mastragen
+description: AI-powered development platform with compounding knowledge
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - ai
+  - development
+  - claude
+  - mastra
+maintainers:
+  - name: Mastragen Team
+    email: ops@mastragen.dev

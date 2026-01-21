@@ -1,0 +1,26 @@
+# T084: RBAC configuration for orchestrator
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "mastragen.fullname" . }}-orchestrator
+  labels:
+    {{- include "mastragen.orchestrator.labels" . | nindent 4 }}
+rules:
+  {{- toYaml .Values.rbac.rules | nindent 2 }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "mastragen.fullname" . }}-orchestrator
+  labels:
+    {{- include "mastragen.orchestrator.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "mastragen.fullname" . }}-orchestrator
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "mastragen.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
