@@ -121,16 +121,20 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
       return c.json({ error: 'Either claudeToken or encryptedClaudeToken is required' }, 400);
     }
 
-    // Get authenticated user's GitHub token if available
+    // Get authenticated user's GitHub token and identity if available
     let userGithubToken: string | undefined;
+    let userGitName: string | undefined;
+    let userGitEmail: string | undefined;
     const user = getAuthUser(c);
     if (user) {
       const dbUser = await db
         .selectFrom('users')
-        .select(['github_access_token'])
+        .select(['github_access_token', 'name', 'email'])
         .where('id', '=', user.id)
         .executeTakeFirst();
       userGithubToken = dbUser?.github_access_token ?? undefined;
+      userGitName = dbUser?.name ?? undefined;
+      userGitEmail = dbUser?.email ?? undefined;
     }
 
     try {
@@ -141,6 +145,8 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
         claudeToken,
         userId: body.userId,
         userGithubToken,
+        userGitName,
+        userGitEmail,
       });
 
       // Generate session-scoped token for API authentication
@@ -261,7 +267,27 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
     }
 
     try {
-      const result = await sandboxService.resume(id, claudeToken);
+      // Look up session to get user_id for fetching user info
+      const session = await sessionsRepo.findById(id);
+      let userGithubToken: string | undefined;
+      let userGitName: string | undefined;
+      let userGitEmail: string | undefined;
+      if (session?.user_id) {
+        const dbUser = await db
+          .selectFrom('users')
+          .select(['github_access_token', 'name', 'email'])
+          .where('id', '=', session.user_id)
+          .executeTakeFirst();
+        userGithubToken = dbUser?.github_access_token ?? undefined;
+        userGitName = dbUser?.name ?? undefined;
+        userGitEmail = dbUser?.email ?? undefined;
+      }
+
+      const result = await sandboxService.resume(id, claudeToken, {
+        userGithubToken,
+        userGitName,
+        userGitEmail,
+      });
 
       // Generate session-scoped token for API authentication
       const authService = new AuthService(db);

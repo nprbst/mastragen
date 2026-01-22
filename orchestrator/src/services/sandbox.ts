@@ -91,6 +91,9 @@ export interface ResumeWithGitOptions {
   checkLock?: boolean;
   claudeHistoryService?: ClaudeHistoryServiceInterface;
   claudeToken?: string;
+  userGithubToken?: string;
+  userGitName?: string;
+  userGitEmail?: string;
 }
 
 export interface ServiceUrls {
@@ -106,6 +109,8 @@ export interface CreateSandboxInput {
   claudeToken?: string;
   userId?: string;
   userGithubToken?: string;
+  userGitName?: string;
+  userGitEmail?: string;
 }
 
 export interface CreateSandboxWithGitInput extends CreateSandboxInput {
@@ -120,6 +125,12 @@ export interface CreateSandboxResult {
 export interface ResumeSandboxResult {
   session: Session;
   urls: ServiceUrls;
+}
+
+export interface ResumeOptions {
+  userGithubToken?: string;
+  userGitName?: string;
+  userGitEmail?: string;
 }
 
 export interface SandboxServiceOptions {
@@ -252,7 +263,7 @@ export class SandboxService {
    * Creates a new sandbox session.
    */
   async create(input: CreateSandboxInput): Promise<CreateSandboxResult> {
-    const { projectId, artifactName, environment, claudeToken, userId, userGithubToken } = input;
+    const { projectId, artifactName, environment, claudeToken, userId, userGithubToken, userGitName, userGitEmail } = input;
 
     // Validate project exists
     const project = await this.projectsRepo.findById(projectId);
@@ -295,7 +306,7 @@ export class SandboxService {
     if (this.dockerEnabled) {
       console.log('[SandboxService] create() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken);
+        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken, userGitName, userGitEmail);
         console.log('[SandboxService] create() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] create() - startContainers failed:', err);
@@ -334,7 +345,7 @@ export class SandboxService {
     input: CreateSandboxWithGitInput,
     gitHubService: GitHubServiceCreateInterface
   ): Promise<CreateSandboxResult> {
-    const { projectId, artifactName, environment, userId, claudeToken, userGithubToken } = input;
+    const { projectId, artifactName, environment, userId, claudeToken, userGithubToken, userGitName, userGitEmail } = input;
 
     // Validate project exists
     const project = await this.projectsRepo.findById(projectId);
@@ -401,7 +412,7 @@ export class SandboxService {
     if (this.dockerEnabled) {
       console.log('[SandboxService] createWithGit() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken);
+        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken, userGitName, userGitEmail);
         console.log('[SandboxService] createWithGit() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] createWithGit() - startContainers failed:', err);
@@ -569,7 +580,7 @@ export class SandboxService {
   /**
    * Resumes a suspended session.
    */
-  async resume(sessionId: string, claudeToken?: string): Promise<ResumeSandboxResult> {
+  async resume(sessionId: string, claudeToken?: string, options?: ResumeOptions): Promise<ResumeSandboxResult> {
     const session = await this.sessionsRepo.findById(sessionId);
     if (!session) {
       throw new SessionNotFoundError(sessionId);
@@ -602,7 +613,16 @@ export class SandboxService {
 
     // Start Docker containers if enabled
     if (this.dockerEnabled && env) {
-      await this.startContainers(updatedSession, project, env.env_vars, claudeToken);
+      await this.startContainers(
+        updatedSession,
+        project,
+        env.env_vars,
+        claudeToken,
+        session.user_id ?? undefined,
+        options?.userGithubToken,
+        options?.userGitName,
+        options?.userGitEmail
+      );
     }
 
     return {
@@ -671,7 +691,16 @@ export class SandboxService {
 
     // Start Docker containers if enabled
     if (this.dockerEnabled && env) {
-      await this.startContainers(updatedSession, project, env.env_vars, options.claudeToken);
+      await this.startContainers(
+        updatedSession,
+        project,
+        env.env_vars,
+        options.claudeToken,
+        session.user_id ?? undefined,
+        options.userGithubToken,
+        options.userGitName,
+        options.userGitEmail
+      );
     }
 
     // Restore Claude conversation history to container after containers start (T038)
@@ -887,7 +916,8 @@ export class SandboxService {
     sessionId: string,
     volumeName: string,
     githubRepo: string,
-    branch?: string
+    branch?: string,
+    userGithubToken?: string
   ): Promise<void> {
     const containerName = `${sessionId}-init`;
     console.log(`[SandboxService] Running init container to clone ${githubRepo}${branch ? ` (branch: ${branch})` : ''}...`);
@@ -898,6 +928,7 @@ export class SandboxService {
         Image: SandboxService.IMAGES.init,
         Env: [
           `GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`,
+          `GH_TOKEN=${userGithubToken || ''}`,
           `GITHUB_REPO=${githubRepo}`,
           ...(branch ? [`BRANCH=${branch}`] : []),
         ],
@@ -946,7 +977,9 @@ export class SandboxService {
     envVars: string,
     claudeToken?: string,
     userId?: string,
-    userGithubToken?: string
+    userGithubToken?: string,
+    userGitName?: string,
+    userGitEmail?: string
   ): Promise<void> {
     console.log(`[SandboxService] startContainers called for session ${session.id}`);
     console.log(`[SandboxService] dockerEnabled: ${this.dockerEnabled}`);
@@ -974,7 +1007,7 @@ export class SandboxService {
     }
 
     // Run init container to clone the repo (using session branch if available)
-    await this.runInitContainer(session.id, volumeName, project.github_repo, session.branch_name ?? undefined);
+    await this.runInitContainer(session.id, volumeName, project.github_repo, session.branch_name ?? undefined, userGithubToken);
 
     // Parse environment variables from JSON string
     let parsedEnvVars: Record<string, string> = {};
@@ -988,6 +1021,8 @@ export class SandboxService {
     const baseEnv = [
       `GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`,
       `GH_TOKEN=${userGithubToken || ''}`,
+      `GIT_USER_NAME=${userGitName || ''}`,
+      `GIT_USER_EMAIL=${userGitEmail || ''}`,
       `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY || ''}`,
       ...Object.entries(parsedEnvVars).map(([k, v]) => `${k}=${v}`),
     ];

@@ -12,11 +12,12 @@ if ! echo "$REPO_URL" | grep -q "://"; then
     REPO_URL="https://github.com/${GITHUB_REPO}.git"
 fi
 
-# Configure git credentials from GITHUB_TOKEN if provided
-if [ -n "$GITHUB_TOKEN" ]; then
+# Configure git credentials - prefer user token (GH_TOKEN) over orchestrator token (GITHUB_TOKEN)
+EFFECTIVE_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
+if [ -n "$EFFECTIVE_TOKEN" ]; then
     echo "Configuring git credentials..."
     git config --global credential.helper store
-    echo "https://x-access-token:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
+    echo "https://x-access-token:${EFFECTIVE_TOKEN}@github.com" > ~/.git-credentials
 fi
 
 # Check if workspace is empty (ignore hidden files)
