@@ -90,8 +90,6 @@ services:
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - ASTRO_PREVIEW_URL=${ASTRO_PREVIEW_URL:-http://localhost:4321}
-      # Use Microsoft VS Code Marketplace for up-to-date extensions (Open VSX versions are outdated)
-      - EXTENSIONS_GALLERY={"serviceUrl":"https://marketplace.visualstudio.com/_apis/public/gallery","cacheUrl":"https://vscode.blob.core.windows.net/gallery/index","itemUrl":"https://marketplace.visualstudio.com/items"}
     networks:
       - mastragen
     depends_on:

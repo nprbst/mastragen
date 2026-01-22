@@ -57,8 +57,13 @@ EOF
 # Install/update extensions (always get latest)
 code-server --install-extension oven.bun-vscode --force 2>/dev/null || true
 code-server --install-extension astro-build.astro-vscode --force 2>/dev/null || true
-code-server --install-extension Anthropic.claude-code --force 2>/dev/null || true
 code-server --install-extension synedra.auto-run-command --force 2>/dev/null || true
+
+# Download Claude Code extension directly from Microsoft Marketplace (Open VSX version is outdated)
+CLAUDE_VSIX="/tmp/claude-code.vsix"
+curl -sL "https://anthropic.gallery.vsassets.io/_apis/public/gallery/publisher/anthropic/extension/claude-code/latest/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage" -o "$CLAUDE_VSIX"
+code-server --install-extension "$CLAUDE_VSIX" --force 2>/dev/null || true
+rm -f "$CLAUDE_VSIX"
 
 # Generate tasks.json with Astro preview URL (enables auto-open on folder open)
 mkdir -p /workspace/.vscode
