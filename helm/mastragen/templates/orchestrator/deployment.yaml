@@ -84,6 +84,7 @@ spec:
               mountPath: /app/data
             {{- end }}
         {{- if .Values.tailscale.enabled }}
+        # Tailscale sidecar for private networking
         - name: tailscale
           image: {{ include "mastragen.tailscale.image" . }}
           imagePullPolicy: {{ .Values.tailscale.image.pullPolicy }}
@@ -101,18 +102,65 @@ spec:
               value: ""
             - name: TS_USERSPACE
               value: "false"
+            - name: TS_HOSTNAME
+              value: {{ printf "mastragen-%s" .Values.global.environment | quote }}
+            {{- if .Values.caddy.enabled }}
+            # T095d: Allow Caddy to fetch TLS certificates from Tailscale
+            - name: TS_PERMIT_CERT_UID
+              value: "caddy"
+            {{- end }}
             {{- if .Values.tailscale.aclTags }}
             - name: TS_EXTRA_ARGS
               value: {{ printf "--advertise-tags=%s" (join "," .Values.tailscale.aclTags) | quote }}
             {{- end }}
+          volumeMounts:
+            - name: tailscale-state
+              mountPath: /var/lib/tailscale
+            {{- if .Values.caddy.enabled }}
+            - name: tailscale-socket
+              mountPath: /var/run/tailscale
+            {{- end }}
           resources:
             {{- toYaml .Values.tailscale.resources | nindent 12 }}
+        {{- end }}
+        {{- if and .Values.tailscale.enabled .Values.caddy.enabled }}
+        # T095c: Caddy sidecar for HTTPS termination via Tailscale
+        - name: caddy
+          image: {{ include "mastragen.caddy.image" . }}
+          imagePullPolicy: {{ .Values.caddy.image.pullPolicy }}
+          securityContext:
+            runAsUser: 1000
+            runAsGroup: 1000
+          ports:
+            - name: https
+              containerPort: 443
+              protocol: TCP
+          volumeMounts:
+            - name: caddy-config
+              mountPath: /etc/caddy
+              readOnly: true
+            - name: tailscale-socket
+              mountPath: /var/run/tailscale
+              readOnly: true
+          resources:
+            {{- toYaml .Values.caddy.resources | nindent 12 }}
         {{- end }}
       volumes:
         {{- if .Values.orchestrator.persistence.enabled }}
         - name: data
           persistentVolumeClaim:
             claimName: {{ include "mastragen.fullname" . }}-data
+        {{- end }}
+        {{- if .Values.tailscale.enabled }}
+        - name: tailscale-state
+          emptyDir: {}
+        {{- end }}
+        {{- if and .Values.tailscale.enabled .Values.caddy.enabled }}
+        - name: tailscale-socket
+          emptyDir: {}
+        - name: caddy-config
+          configMap:
+            name: {{ include "mastragen.fullname" . }}-caddy-config
         {{- end }}
       {{- with .Values.orchestrator.nodeSelector }}
       nodeSelector:

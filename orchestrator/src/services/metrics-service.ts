@@ -30,6 +30,16 @@ export interface DurationHistogram {
   count: number;
 }
 
+/**
+ * Pod resource metrics for Kubernetes sandbox pods (T041a-b)
+ */
+export interface PodMetrics {
+  pod: string;
+  namespace: string;
+  cpuRatio: number;
+  memoryBytes: number;
+}
+
 // Histogram bucket boundaries in seconds
 const HISTOGRAM_BUCKETS = [
   { value: 0.1, label: '0.1' },
@@ -49,6 +59,9 @@ export class MetricsService {
     string,
     { buckets: Map<string, number>; sum: number; count: number }
   >();
+
+  // Pod resource metrics (T041a-b)
+  private podMetrics: PodMetrics[] = [];
 
   constructor(db: Kysely<Database>) {
     this.db = db;
@@ -125,6 +138,28 @@ export class MetricsService {
       version: process.env.npm_package_version ?? '0.1.0',
       commit: process.env.GIT_COMMIT ?? 'unknown',
     };
+  }
+
+  /**
+   * Set pod resource metrics (T041a-b).
+   * Called by the K8s metrics collector to update pod CPU/memory usage.
+   */
+  setPodMetrics(metrics: PodMetrics[]): void {
+    this.podMetrics = metrics;
+  }
+
+  /**
+   * Get current pod resource metrics.
+   */
+  getPodMetrics(): PodMetrics[] {
+    return this.podMetrics;
+  }
+
+  /**
+   * Clear pod resource metrics.
+   */
+  clearPodMetrics(): void {
+    this.podMetrics = [];
   }
 
   /**
@@ -282,6 +317,29 @@ export class MetricsService {
       `mastragen_build_info{version="${buildInfo.version}",commit="${buildInfo.commit}"} 1`
     );
     lines.push('');
+
+    // Pod resource metrics (T041a-b)
+    if (this.podMetrics.length > 0) {
+      // CPU usage ratio
+      lines.push('# HELP mastragen_pod_cpu_usage_ratio Pod CPU usage as ratio of limit');
+      lines.push('# TYPE mastragen_pod_cpu_usage_ratio gauge');
+      for (const pod of this.podMetrics) {
+        lines.push(
+          `mastragen_pod_cpu_usage_ratio{pod="${pod.pod}",namespace="${pod.namespace}"} ${pod.cpuRatio}`
+        );
+      }
+      lines.push('');
+
+      // Memory usage bytes
+      lines.push('# HELP mastragen_pod_memory_usage_bytes Pod memory usage in bytes');
+      lines.push('# TYPE mastragen_pod_memory_usage_bytes gauge');
+      for (const pod of this.podMetrics) {
+        lines.push(
+          `mastragen_pod_memory_usage_bytes{pod="${pod.pod}",namespace="${pod.namespace}"} ${pod.memoryBytes}`
+        );
+      }
+      lines.push('');
+    }
 
     return lines.join('\n');
   }

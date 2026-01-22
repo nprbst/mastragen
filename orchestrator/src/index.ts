@@ -20,6 +20,7 @@ import { handleORPCRequest } from './orpc/index.ts';
 import { initializeKeyPair } from './lib/crypto.ts';
 import { createIdleSuspendScheduler } from './jobs/idle-suspend.ts';
 import { createAlertCheckerScheduler } from './jobs/alert-checker.ts';
+import { createK8sMetricsScheduler } from './jobs/k8s-metrics.ts';
 import { initializeMetricsService } from './services/metrics-service.ts';
 import { metricsMiddleware } from './middleware/metrics-middleware.ts';
 
@@ -86,6 +87,10 @@ idleSuspendScheduler.start();
 // Start alert checker scheduler (T059-T060)
 const alertCheckerScheduler = createAlertCheckerScheduler(db);
 alertCheckerScheduler.start();
+
+// Start K8s metrics collector (T041a-b) - collects pod CPU/memory for Prometheus
+const k8sMetricsScheduler = createK8sMetricsScheduler();
+k8sMetricsScheduler.start();
 
 // API info route
 api.get('/', (c) => {

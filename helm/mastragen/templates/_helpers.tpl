@@ -90,3 +90,10 @@ Tailscale image
 {{- define "mastragen.tailscale.image" -}}
 {{- printf "%s:%s" .Values.tailscale.image.repository .Values.tailscale.image.tag }}
 {{- end }}
+
+{{/*
+Caddy image (T095c)
+*/}}
+{{- define "mastragen.caddy.image" -}}
+{{- printf "%s:%s" .Values.caddy.image.repository .Values.caddy.image.tag }}
+{{- end }}

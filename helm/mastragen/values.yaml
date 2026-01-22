@@ -1,7 +1,12 @@
 # T077: Default values for mastragen
 # T093-T094: Tailscale configuration
+# T095c-e: Caddy HTTPS configuration
 
 # Global settings
+global:
+  # Environment name (used in hostnames: mastragen-{environment}.{tailnet}.ts.net)
+  environment: "dev"
+
 nameOverride: ""
 fullnameOverride: ""
 
@@ -104,6 +109,9 @@ tailscale:
   # Enable Tailscale sidecar
   enabled: true
 
+  # Your Tailscale tailnet name (e.g., "example" for example.ts.net)
+  tailnet: "your-tailnet"
+
   # Auth key secret reference
   authKeySecretName: tailscale-auth
   authKeySecretKey: key
@@ -126,6 +134,26 @@ tailscale:
     requests:
       cpu: "50m"
       memory: "64Mi"
+
+# T095c-e: Caddy HTTPS configuration
+caddy:
+  # Enable Caddy sidecar for HTTPS termination
+  enabled: true
+
+  # Caddy image (built with Tailscale module)
+  image:
+    repository: ghcr.io/nprbst/mastragen-caddy
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  # Caddy container resources
+  resources:
+    limits:
+      cpu: "100m"
+      memory: "64Mi"
+    requests:
+      cpu: "50m"
+      memory: "32Mi"
 
 # Sandbox pod configuration
 sandbox:

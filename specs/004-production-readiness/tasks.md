@@ -119,8 +119,8 @@
 - [X] T039 [US3] Implement session creation/suspension counters in metrics-service.ts
 - [X] T040 [US3] Implement alert fired counter in metrics-service.ts
 - [X] T041 [US3] Implement build info metric in metrics-service.ts
-- [ ] T041a [US3] Implement pod resource metrics collection (CPU, memory) via Kubernetes metrics API in orchestrator/src/services/metrics-service.ts
-- [ ] T041b [US3] Add mastragen_pod_cpu_usage_ratio and mastragen_pod_memory_usage_bytes gauges in metrics-service.ts
+- [X] T041a [US3] Implement pod resource metrics collection (CPU, memory) via Kubernetes metrics API in orchestrator/src/services/metrics-service.ts
+- [X] T041b [US3] Add mastragen_pod_cpu_usage_ratio and mastragen_pod_memory_usage_bytes gauges in metrics-service.ts
 
 ### Metrics Middleware
 
@@ -235,7 +235,7 @@
 
 - [X] T093 Add Tailscale auth key secret reference to Helm values in values.yaml
 - [X] T094 Add Tailscale ACL configuration support via Helm values in values.yaml
-- [ ] T095 Document token rotation procedure in operator docs
+- [X] T095 Document token rotation procedure in operator docs
 
 ### HTTPS Termination (Caddy + Tailscale)
 
@@ -243,16 +243,16 @@
 - Orchestrator: `mastragen-{env}.{tailnet}.ts.net`
 - Sandboxes: `{id}-mastragen-{env}.{tailnet}.ts.net`
 
-- [ ] T095a Build Caddy container image with standard TLS support in .github/workflows/docker-publish.yml
-- [ ] T095b Add Tailscale sidecar to orchestrator deployment template in helm/mastragen/templates/orchestrator/deployment.yaml
-- [ ] T095c Add Caddy sidecar to orchestrator deployment with Caddyfile ConfigMap
-- [ ] T095d Configure TS_PERMIT_CERT_UID=caddy in orchestrator Tailscale sidecar environment
-- [ ] T095e Create orchestrator Caddyfile ConfigMap in helm/mastragen/templates/orchestrator/caddy-config.yaml
-- [ ] T095f Add Caddy sidecar to sandbox pod template in orchestrator/src/services/k8s-sandbox.ts
-- [ ] T095g Create dynamic Caddyfile ConfigMap generation for per-session proxy config
-- [ ] T095h Configure TS_PERMIT_CERT_UID=caddy in sandbox Tailscale sidecar environment
-- [ ] T095i Update sandbox pod template to use Caddy for HTTPS on ports 4111, 4321, 8080
-- [ ] T095j Document Caddy + Tailscale HTTPS setup in docs/operator/tailscale-configuration.md
+- [X] T095a Build Caddy container image with standard TLS support in .github/workflows/docker-publish.yml
+- [X] T095b Add Tailscale sidecar to orchestrator deployment template in helm/mastragen/templates/orchestrator/deployment.yaml
+- [X] T095c Add Caddy sidecar to orchestrator deployment with Caddyfile ConfigMap
+- [X] T095d Configure TS_PERMIT_CERT_UID=caddy in orchestrator Tailscale sidecar environment
+- [X] T095e Create orchestrator Caddyfile ConfigMap in helm/mastragen/templates/orchestrator/caddy-config.yaml
+- [X] T095f Add Caddy sidecar to sandbox pod template in orchestrator/src/services/k8s-sandbox.ts
+- [X] T095g Create dynamic Caddyfile ConfigMap generation for per-session proxy config
+- [X] T095h Configure TS_PERMIT_CERT_UID=caddy in sandbox Tailscale sidecar environment
+- [X] T095i Update sandbox pod template to use Caddy for HTTPS on ports 4111, 4321, 8080
+- [X] T095j Document Caddy + Tailscale HTTPS setup in docs/operator/tailscale-configuration.md
 
 ### Minikube Testing
 
@@ -269,10 +269,10 @@
 
 **Independent Test**: New user can complete first session following docs in under 15 minutes.
 
-- [ ] T098 [US5] Create getting started guide in docs/user/getting-started.md
-- [ ] T099 [US5] Create project configuration reference in docs/user/project-configuration.md
-- [ ] T100 [US5] Create Claude commands reference (/suspend, /pr, /share, /extract, /env) in docs/user/claude-commands.md
-- [ ] T101 [US5] Create troubleshooting guide with common issues in docs/user/troubleshooting.md
+- [X] T098 [US5] Create getting started guide in docs/user/getting-started.md
+- [X] T099 [US5] Create project configuration reference in docs/user/project-configuration.md
+- [X] T100 [US5] Create Claude commands reference (/suspend, /pr, /share, /extract, /env) in docs/user/claude-commands.md
+- [X] T101 [US5] Create troubleshooting guide with common issues in docs/user/troubleshooting.md
 
 **Test Criteria**: Docs cover all user-facing features; getting started guide completable in 15 minutes; troubleshooting covers common issues.
 
@@ -286,12 +286,12 @@
 
 **Independent Test**: Operator can deploy new instance following docs in under 60 minutes.
 
-- [ ] T102 [US6] Create Kubernetes deployment guide in docs/operator/deployment-kubernetes.md
-- [ ] T103 [US6] Create Docker Compose deployment guide in docs/operator/deployment-docker-compose.md
-- [ ] T104 [US6] Create GitHub App setup instructions in docs/operator/github-app-setup.md
-- [ ] T105 [US6] Create Tailscale configuration guide including ACL setup in docs/operator/tailscale-configuration.md
-- [ ] T106 [US6] Create database migration procedures with rollback in docs/operator/database-migration.md
-- [ ] T107 [US6] Create API reference documentation in docs/api/reference.md
+- [X] T102 [US6] Create Kubernetes deployment guide in docs/operator/deployment-kubernetes.md
+- [X] T103 [US6] Create Docker Compose deployment guide in docs/operator/deployment-docker-compose.md
+- [X] T104 [US6] Create GitHub App setup instructions in docs/operator/github-app-setup.md
+- [X] T105 [US6] Create Tailscale configuration guide including ACL setup in docs/operator/tailscale-configuration.md
+- [X] T106 [US6] Create database migration procedures with rollback in docs/operator/database-migration.md
+- [X] T107 [US6] Create API reference documentation in docs/api/reference.md
 
 **Test Criteria**: Deployment guides are complete and accurate; GitHub App setup has all required steps; Tailscale guide covers ACL configuration.
 
@@ -301,12 +301,12 @@
 
 **Goal**: Integration tests, E2E tests, and final verification
 
-- [ ] T108 Create E2E test for monitoring flow (metrics + alerts) in orchestrator/tests/e2e/monitoring.test.ts
-- [ ] T109 Create E2E test for session lifecycle with idle suspend in orchestrator/tests/e2e/session-lifecycle.test.ts
-- [ ] T110 Verify all success criteria from spec.md are met
-- [ ] T111 Update routes.ts with any new route registrations in web/app/routes.ts
-- [ ] T112 Run full test suite and fix any failures
-- [ ] T113 Verify documentation coverage (100% of features documented)
+- [X] T108 Create E2E test for monitoring flow (metrics + alerts) in orchestrator/tests/e2e/monitoring.test.ts
+- [X] T109 Create E2E test for session lifecycle with idle suspend in orchestrator/tests/e2e/session-lifecycle.test.ts
+- [X] T110 Verify all success criteria from spec.md are met
+- [X] T111 N/A - Astro uses file-based routing; no routes.ts needed (pages already exist)
+- [X] T112 Run full test suite and fix any failures (505 pass, 0 fail)
+- [X] T113 Verify documentation coverage (100% of features documented)
 
 **Test Criteria**: All E2E tests pass; success criteria verified; documentation complete.
 

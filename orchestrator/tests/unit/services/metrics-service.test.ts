@@ -267,5 +267,86 @@ describe('MetricsService', () => {
       expect(output).toContain('# HELP mastragen_api_request_duration_seconds');
       expect(output).toContain('# TYPE mastragen_api_request_duration_seconds histogram');
     });
+
+    test('should include pod resource metrics when available', async () => {
+      const { MetricsService } = await import('../../../src/services/metrics-service.ts');
+
+      const mockDb = createMockDb({ sessionCounts: [] });
+      const service = new MetricsService(mockDb as never);
+
+      // Inject mock pod metrics
+      service.setPodMetrics([
+        { pod: 'sandbox-abc123', namespace: 'mastragen', cpuRatio: 0.25, memoryBytes: 268435456 },
+        { pod: 'sandbox-def456', namespace: 'mastragen', cpuRatio: 0.5, memoryBytes: 536870912 },
+      ]);
+
+      const output = await service.formatPrometheus();
+
+      // Check CPU gauge format
+      expect(output).toContain('# HELP mastragen_pod_cpu_usage_ratio Pod CPU usage as ratio of limit');
+      expect(output).toContain('# TYPE mastragen_pod_cpu_usage_ratio gauge');
+      expect(output).toContain(
+        'mastragen_pod_cpu_usage_ratio{pod="sandbox-abc123",namespace="mastragen"} 0.25'
+      );
+      expect(output).toContain(
+        'mastragen_pod_cpu_usage_ratio{pod="sandbox-def456",namespace="mastragen"} 0.5'
+      );
+
+      // Check memory gauge format
+      expect(output).toContain('# HELP mastragen_pod_memory_usage_bytes Pod memory usage in bytes');
+      expect(output).toContain('# TYPE mastragen_pod_memory_usage_bytes gauge');
+      expect(output).toContain(
+        'mastragen_pod_memory_usage_bytes{pod="sandbox-abc123",namespace="mastragen"} 268435456'
+      );
+      expect(output).toContain(
+        'mastragen_pod_memory_usage_bytes{pod="sandbox-def456",namespace="mastragen"} 536870912'
+      );
+    });
+  });
+
+  describe('Pod Resource Metrics (T041a-b)', () => {
+    test('should store and retrieve pod metrics', async () => {
+      const { MetricsService } = await import('../../../src/services/metrics-service.ts');
+
+      const mockDb = createMockDb({});
+      const service = new MetricsService(mockDb as never);
+
+      const testMetrics = [
+        { pod: 'sandbox-test1', namespace: 'mastragen', cpuRatio: 0.3, memoryBytes: 134217728 },
+      ];
+
+      service.setPodMetrics(testMetrics);
+      const metrics = service.getPodMetrics();
+
+      expect(metrics).toHaveLength(1);
+      expect(metrics[0].pod).toBe('sandbox-test1');
+      expect(metrics[0].cpuRatio).toBe(0.3);
+      expect(metrics[0].memoryBytes).toBe(134217728);
+    });
+
+    test('should return empty array when no pod metrics set', async () => {
+      const { MetricsService } = await import('../../../src/services/metrics-service.ts');
+
+      const mockDb = createMockDb({});
+      const service = new MetricsService(mockDb as never);
+
+      const metrics = service.getPodMetrics();
+      expect(metrics).toHaveLength(0);
+    });
+
+    test('should clear pod metrics', async () => {
+      const { MetricsService } = await import('../../../src/services/metrics-service.ts');
+
+      const mockDb = createMockDb({});
+      const service = new MetricsService(mockDb as never);
+
+      service.setPodMetrics([
+        { pod: 'sandbox-test', namespace: 'mastragen', cpuRatio: 0.5, memoryBytes: 1000 },
+      ]);
+      service.clearPodMetrics();
+
+      const metrics = service.getPodMetrics();
+      expect(metrics).toHaveLength(0);
+    });
   });
 });
