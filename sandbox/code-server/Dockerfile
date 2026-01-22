@@ -18,6 +18,11 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | d
     && apt-get install -y gh \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js v22 from NodeSource (required for Claude Code extension)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install Bun as coder user and symlink to /usr/local/bin for global availability
 USER coder
 RUN curl -fsSL https://bun.sh/install | bash
