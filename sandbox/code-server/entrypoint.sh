@@ -1,11 +1,10 @@
 #!/bin/bash
 set -e
 
-# Configure git credentials - prefer user token (GH_TOKEN) over orchestrator token (GITHUB_TOKEN)
-EFFECTIVE_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
-if [ -n "$EFFECTIVE_TOKEN" ]; then
+# Configure git credentials using user's GitHub token
+if [ -n "$GH_TOKEN" ]; then
     git config --global credential.helper store
-    echo "https://x-access-token:${EFFECTIVE_TOKEN}@github.com" > ~/.git-credentials
+    echo "https://x-access-token:${GH_TOKEN}@github.com" > ~/.git-credentials
 fi
 
 # Configure git user identity - use provided values or fall back to placeholders

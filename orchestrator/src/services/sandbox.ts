@@ -927,7 +927,6 @@ export class SandboxService {
         name: containerName,
         Image: SandboxService.IMAGES.init,
         Env: [
-          `GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`,
           `GH_TOKEN=${userGithubToken || ''}`,
           `GITHUB_REPO=${githubRepo}`,
           ...(branch ? [`BRANCH=${branch}`] : []),
@@ -1018,8 +1017,8 @@ export class SandboxService {
     }
 
     // Build environment array for containers
+    // Note: Only user's token (GH_TOKEN) is passed - orchestrator's GITHUB_TOKEN is never exposed to containers
     const baseEnv = [
-      `GITHUB_TOKEN=${process.env.GITHUB_TOKEN || ''}`,
       `GH_TOKEN=${userGithubToken || ''}`,
       `GIT_USER_NAME=${userGitName || ''}`,
       `GIT_USER_EMAIL=${userGitEmail || ''}`,
