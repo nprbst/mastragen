@@ -101,9 +101,10 @@ describe('K8sSandboxService', () => {
 
       const urls = service.getServiceUrls('abc123def456');
 
-      expect(urls.mastra).toBe('https://abc123de-mastragen-dev.example.ts.net/mastra');
-      expect(urls.astro).toBe('https://abc123de-mastragen-dev.example.ts.net/astro');
-      expect(urls.vscode).toBe('https://abc123de-mastragen-dev.example.ts.net/');
+      // Port-based routing: each service on its native port
+      expect(urls.mastra).toBe('https://abc123de-mastragen-dev.example.ts.net:4111');
+      expect(urls.astro).toBe('https://abc123de-mastragen-dev.example.ts.net:4321');
+      expect(urls.vscode).toBe('https://abc123de-mastragen-dev.example.ts.net');
     });
   });
 
