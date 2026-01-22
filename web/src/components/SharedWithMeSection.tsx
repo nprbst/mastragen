@@ -26,7 +26,7 @@ function groupSessionsByProject(sessions: Session[]): GroupedSessions[] {
       groups.set(projectId, {
         projectId,
         projectName,
-        ownerName: session.user?.name || session.user?.email || null,
+        ownerName: null,
         sessions: [],
       });
     }

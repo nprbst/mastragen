@@ -6,6 +6,7 @@ export interface Session {
   artifactName: string;
   environment: string;
   state: 'active' | 'suspended' | 'pr_open' | 'merged' | 'archived' | 'closed';
+  suspensionReason?: 'manual' | 'auto' | 'share_revoke' | null;
   createdAt: string;
   updatedAt: string;
   // Git fields (present in extended responses)

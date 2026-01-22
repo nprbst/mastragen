@@ -39,6 +39,7 @@ function toSessionResponse(session: Session): SessionResponse {
     artifactName: session.artifact_name,
     environment: session.environment,
     state: session.state,
+    suspensionReason: session.suspension_reason,
     createdAt: session.created_at,
     updatedAt: session.updated_at,
   };

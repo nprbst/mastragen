@@ -165,24 +165,11 @@ minikube addons enable metrics-server
 minikube addons list | grep enabled
 ```
 
-### Configure Docker Environment
-
-To build images directly into minikube's Docker daemon:
-
-```bash
-# Point shell to minikube's Docker
-eval $(minikube docker-env)
-
-# Verify you're using minikube's Docker
-docker info | grep "Name:"
-# Should show: Name: minikube
-```
-
 ---
 
-## 3. Build Local Images
+## 3. Build and Load Local Images
 
-From the repository root, with minikube's Docker environment active:
+Build images with Docker Desktop, then load them into minikube.
 
 ### Build Orchestrator
 
@@ -193,6 +180,9 @@ docker build -t mastragen-orchestrator:local -f orchestrator/Dockerfile .
 ### Build Sandbox Images
 
 ```bash
+# Init container
+docker build -t mastragen-init:local -f sandbox/init/Dockerfile ./sandbox/init
+
 # Mastra service
 docker build -t mastragen-mastra:local -f sandbox/mastra/Dockerfile ./sandbox
 
@@ -201,9 +191,19 @@ docker build -t mastragen-code-server:local -f sandbox/code-server/Dockerfile ./
 
 # Astro service
 docker build -t mastragen-astro:local -f sandbox/astro/Dockerfile ./sandbox
+```
 
-# Init container
-docker build -t mastragen-init:local -f sandbox/init/Dockerfile ./sandbox/init
+### Load Images into Minikube
+
+After building with Docker Desktop, load the images into minikube's container runtime:
+
+```bash
+# Load all mastragen images into minikube
+minikube image load mastragen-orchestrator:local
+minikube image load mastragen-init:local
+minikube image load mastragen-mastra:local
+minikube image load mastragen-code-server:local
+minikube image load mastragen-astro:local
 ```
 
 ### Verify Images
@@ -216,10 +216,10 @@ minikube image ls | grep mastragen
 Expected output:
 ```
 docker.io/library/mastragen-orchestrator:local
+docker.io/library/mastragen-init:local
 docker.io/library/mastragen-mastra:local
 docker.io/library/mastragen-code-server:local
 docker.io/library/mastragen-astro:local
-docker.io/library/mastragen-init:local
 ```
 
 ---
