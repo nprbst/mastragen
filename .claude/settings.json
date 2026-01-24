@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cut:*)",
+      "Bash(bun run preflight:*)",
+      "Bash(helm template:*)"
+    ]
+  }
+}

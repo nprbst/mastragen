@@ -24,6 +24,12 @@
       "specId": "004-production-readiness",
       "createdAt": "2026-01-21T17:06:11.395Z",
       "updatedAt": "2026-01-21T17:06:11.395Z"
+    },
+    {
+      "name": "005-phoenix-observability",
+      "specId": "005-phoenix-observability",
+      "createdAt": "2026-01-24T05:58:28.962Z",
+      "updatedAt": "2026-01-24T05:58:28.962Z"
     }
   ],
   "specIndex": {
@@ -38,6 +44,9 @@
     ],
     "004-production-readiness": [
       "004-production-readiness"
+    ],
+    "005-phoenix-observability": [
+      "005-phoenix-observability"
     ]
   }
 }
