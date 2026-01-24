@@ -52,6 +52,7 @@ describe('K8sSandboxService', () => {
         tailscaleSecretKey: 'key',
         imageRegistry: 'ghcr.io/test',
         imageTag: 'latest',
+        imagePullPolicy: 'IfNotPresent',
       });
 
       const sessionId = 'abc123def456';
@@ -97,6 +98,7 @@ describe('K8sSandboxService', () => {
         tailscaleSecretKey: 'key',
         imageRegistry: 'ghcr.io/test',
         imageTag: 'latest',
+        imagePullPolicy: 'IfNotPresent',
       });
 
       const urls = service.getServiceUrls('abc123def456');
@@ -144,6 +146,7 @@ describe('K8sSandboxService', () => {
         tailscaleSecretKey: 'key',
         imageRegistry: 'ghcr.io/test',
         imageTag: 'latest',
+        imagePullPolicy: 'IfNotPresent',
       });
 
       // Access private methods via any type for testing

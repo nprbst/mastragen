@@ -47,6 +47,8 @@ export interface K8sSandboxConfig {
   imageRegistry: string;
   /** Image tag (e.g., "latest" or specific version) */
   imageTag: string;
+  /** Image pull policy (e.g., "Always", "IfNotPresent", "Never") */
+  imagePullPolicy: string;
 }
 
 export interface PodStatus {
@@ -374,6 +376,7 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
           {
             name: 'vscode',
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.vscode}:${this.config.imageTag}`,
+            imagePullPolicy: this.config.imagePullPolicy,
             ports: [{ containerPort: SANDBOX_PORTS.vscode }],
             env: baseEnv,
             volumeMounts: [{ name: 'workspace', mountPath: '/workspace' }],
@@ -386,6 +389,7 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
           {
             name: 'mastra',
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.mastra}:${this.config.imageTag}`,
+            imagePullPolicy: this.config.imagePullPolicy,
             ports: [{ containerPort: SANDBOX_PORTS.mastra }],
             env: baseEnv,
             volumeMounts: [{ name: 'workspace', mountPath: '/workspace' }],
@@ -398,6 +402,7 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
           {
             name: 'astro',
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.astro}:${this.config.imageTag}`,
+            imagePullPolicy: this.config.imagePullPolicy,
             ports: [{ containerPort: SANDBOX_PORTS.astro }],
             env: baseEnv,
             volumeMounts: [{ name: 'workspace', mountPath: '/workspace' }],
@@ -463,6 +468,7 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
           {
             name: 'caddy',
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.caddy}:${this.config.imageTag}`,
+            imagePullPolicy: this.config.imagePullPolicy,
             securityContext: {
               runAsUser: 1000,
               runAsGroup: 1000,
@@ -488,6 +494,7 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
           {
             name: 'init',
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.init}:${this.config.imageTag}`,
+            imagePullPolicy: this.config.imagePullPolicy,
             env: baseEnv,
             volumeMounts: [{ name: 'workspace', mountPath: '/workspace' }],
             resources: {
@@ -523,6 +530,7 @@ export function createK8sSandboxService(): K8sSandboxService | null {
   const environment = process.env.MASTRAGEN_ENVIRONMENT ?? 'dev';
   const imageRegistry = process.env.IMAGE_REGISTRY ?? 'ghcr.io/nprbst';
   const imageTag = process.env.IMAGE_TAG ?? 'latest';
+  const imagePullPolicy = process.env.IMAGE_PULL_POLICY ?? 'IfNotPresent';
 
   if (!namespace || !tailnet) {
     console.warn('K8s sandbox service not configured (missing MASTRAGEN_NAMESPACE or TAILSCALE_TAILNET)');
@@ -537,5 +545,6 @@ export function createK8sSandboxService(): K8sSandboxService | null {
     tailscaleSecretKey: process.env.TAILSCALE_SECRET_KEY ?? 'key',
     imageRegistry,
     imageTag,
+    imagePullPolicy,
   });
 }

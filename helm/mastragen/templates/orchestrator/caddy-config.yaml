@@ -14,13 +14,11 @@ data:
 
     {
       # Enable Tailscale TLS certificate provisioning
-      tailscale {
-        # Use socket at /var/run/tailscale/tailscaled.sock
-      }
     }
 
-    # Main HTTPS endpoint
-    https://mastragen-{{ .Values.global.environment }}.{{ .Values.tailscale.tailnet }}.ts.net {
+    # Main HTTPS endpoint - accepts any Tailscale hostname
+    # Uses on_demand to fetch cert for the actual registered hostname (which may have -1 suffix)
+    https://*.{{ .Values.tailscale.tailnet }}.ts.net {
       tls {
         get_certificate tailscale
       }

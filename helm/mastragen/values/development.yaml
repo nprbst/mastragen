@@ -20,6 +20,10 @@ orchestrator:
     NODE_ENV: "development"
     K8S_SKIP_TLS_VERIFY: "true"  # Allow metrics API with self-signed certs in minikube
     NODE_TLS_REJECT_UNAUTHORIZED: "0"  # Skip TLS verification for all HTTPS (dev only!)
+    # Sandbox image configuration for local minikube
+    IMAGE_REGISTRY: "mastragen"  # Local image prefix (no registry)
+    IMAGE_TAG: "local"
+    IMAGE_PULL_POLICY: "Never"  # Use locally built images
 
   persistence:
     enabled: true
@@ -28,10 +32,19 @@ orchestrator:
 # Enable Tailscale for development
 tailscale:
   enabled: true
+  tailnet: "shad-smelt"  # Your tailnet domain
   authKeySecretName: mastragen-tailscale
   authKeySecretKey: auth-key
   apiSecretName: mastragen-tailscale
   aclTags: []  # No ACL tags for local dev
+
+# Local Caddy image for development
+caddy:
+  enabled: true
+  image:
+    repository: mastragen-caddy
+    tag: local
+    pullPolicy: Never
 
 # Disable RBAC for local development (minikube admin access)
 rbac:

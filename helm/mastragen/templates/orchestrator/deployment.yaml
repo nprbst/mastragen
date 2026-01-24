@@ -121,7 +121,10 @@ spec:
             {{- if .Values.caddy.enabled }}
             # T095d: Allow Caddy to fetch TLS certificates from Tailscale
             - name: TS_PERMIT_CERT_UID
-              value: "caddy"
+              value: "1000"  # Must match Caddy's runAsUser
+            # Put socket directly in shared volume (not a symlink to /tmp)
+            - name: TS_SOCKET
+              value: "/var/run/tailscale/tailscaled.sock"
             {{- end }}
             {{- if .Values.tailscale.aclTags }}
             - name: TS_EXTRA_ARGS
@@ -156,6 +159,10 @@ spec:
             - name: tailscale-socket
               mountPath: /var/run/tailscale
               readOnly: true
+            - name: caddy-data
+              mountPath: /data/caddy
+            - name: caddy-config-data
+              mountPath: /config/caddy
           resources:
             {{- toYaml .Values.caddy.resources | nindent 12 }}
         {{- end }}
@@ -175,6 +182,10 @@ spec:
         - name: caddy-config
           configMap:
             name: {{ include "mastragen.fullname" . }}-caddy-config
+        - name: caddy-data
+          emptyDir: {}
+        - name: caddy-config-data
+          emptyDir: {}
         {{- end }}
       {{- with .Values.orchestrator.nodeSelector }}
       nodeSelector:
