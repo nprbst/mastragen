@@ -118,6 +118,7 @@ export class MgenClient {
       url: `${this.baseUrl}/rpc`,
       headers: () => ({
         'Content-Type': 'application/json',
+        'Connection': 'close',
       }),
     });
     this.rpcClient = createORPCClient<Router>(link);
@@ -146,6 +147,7 @@ export class MgenClient {
     const url = `${this.baseUrl}${path}`;
     const headers = {
       'Content-Type': 'application/json',
+      'Connection': 'close',
       ...options.headers,
     };
 
@@ -172,7 +174,7 @@ export class MgenClient {
     const url = `${this.baseUrl}/health`;
     const response = await fetch(url, {
       method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'Connection': 'close' },
     });
 
     // Health endpoint returns data even on 503
@@ -446,6 +448,7 @@ export class MgenClient {
     const url = `${this.baseUrl}/metrics`;
     const response = await fetch(url, {
       method: 'GET',
+      headers: { 'Connection': 'close' },
     });
 
     if (!response.ok) {
