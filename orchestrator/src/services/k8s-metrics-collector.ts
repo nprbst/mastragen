@@ -187,6 +187,14 @@ export class K8sMetricsCollector {
         kc.loadFromDefault();
       }
 
+      // Allow skipping TLS verification for development/minikube
+      if (process.env.K8S_SKIP_TLS_VERIFY === 'true') {
+        const cluster = kc.getCurrentCluster();
+        if (cluster) {
+          (cluster as { skipTLSVerify: boolean }).skipTLSVerify = true;
+        }
+      }
+
       this.k8sApi = kc.makeApiClient(k8s.CoreV1Api);
       this.metricsApi = new k8s.Metrics(kc);
     } catch (error) {

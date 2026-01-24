@@ -18,6 +18,8 @@ orchestrator:
   env:
     LOG_LEVEL: "debug"
     NODE_ENV: "development"
+    K8S_SKIP_TLS_VERIFY: "true"  # Allow metrics API with self-signed certs in minikube
+    NODE_TLS_REJECT_UNAUTHORIZED: "0"  # Skip TLS verification for all HTTPS (dev only!)
 
   persistence:
     enabled: true

@@ -91,6 +91,7 @@ orchestrator:
   env:
     LOG_LEVEL: "info"
     NODE_ENV: "production"
+    # K8S_SKIP_TLS_VERIFY: "true"  # Uncomment for minikube/dev clusters with self-signed certs
 
   # Extra environment variables from secrets/configmaps
   envFrom: []

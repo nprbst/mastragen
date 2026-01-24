@@ -683,6 +683,24 @@ Expected output:
 
 ### Common Issues
 
+#### Metrics API TLS Certificate Error
+
+If you see this error in orchestrator logs:
+```
+K8s metrics API error: unable to verify the first certificate
+```
+
+This occurs because minikube's metrics-server uses self-signed certificates. The fix is enabled by default in development.yaml via `K8S_SKIP_TLS_VERIFY: "true"`.
+
+If using custom helm values, add:
+```yaml
+orchestrator:
+  env:
+    K8S_SKIP_TLS_VERIFY: "true"
+```
+
+**Note**: Only use this in development environments. Production should use properly signed certificates.
+
 #### Pod Stuck in Pending
 
 ```bash

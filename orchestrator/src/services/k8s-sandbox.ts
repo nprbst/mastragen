@@ -95,6 +95,14 @@ export class K8sSandboxService {
       this.kc.loadFromDefault();
     }
 
+    // Allow skipping TLS verification for development/minikube
+    if (process.env.K8S_SKIP_TLS_VERIFY === 'true') {
+      const cluster = this.kc.getCurrentCluster();
+      if (cluster) {
+        (cluster as { skipTLSVerify: boolean }).skipTLSVerify = true;
+      }
+    }
+
     this.coreApi = this.kc.makeApiClient(k8s.CoreV1Api);
   }
 
