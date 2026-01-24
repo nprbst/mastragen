@@ -18,6 +18,12 @@
       "specId": "003-cui-config-landing-page",
       "createdAt": "2026-01-18T18:10:21.465Z",
       "updatedAt": "2026-01-18T18:10:21.465Z"
+    },
+    {
+      "name": "004-production-readiness",
+      "specId": "004-production-readiness",
+      "createdAt": "2026-01-21T17:06:11.395Z",
+      "updatedAt": "2026-01-21T17:06:11.395Z"
     }
   ],
   "specIndex": {
@@ -29,6 +35,9 @@
     ],
     "003-cui-config-landing-page": [
       "003-cui-config-landing-page"
+    ],
+    "004-production-readiness": [
+      "004-production-readiness"
     ]
   }
 }
