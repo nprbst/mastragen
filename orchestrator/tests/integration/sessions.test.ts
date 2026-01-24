@@ -116,18 +116,18 @@ describe('Sessions routes - Dashboard integration', () => {
       const res = await app.request('/sessions');
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as unknown[];
       expect(body.length).toBe(3);
 
       // Verify we can filter by project
       const projectRes = await app.request(`/sessions?projectId=${testProjectId}`);
-      const projectBody = await projectRes.json();
+      const projectBody = (await projectRes.json()) as unknown[];
       expect(projectBody.length).toBe(2);
     });
 
     test('should include status indicators in response', async () => {
       // Create active session
-      const active = await sessionsRepo.create({
+      await sessionsRepo.create({
         project_id: testProjectId,
         artifact_name: 'active-work',
         environment: 'dev',
@@ -162,11 +162,11 @@ describe('Sessions routes - Dashboard integration', () => {
       const res = await app.request('/sessions');
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Array<{ state: string }>;
       expect(body.length).toBe(3);
 
       // Verify state values
-      const states = body.map((s: { state: string }) => s.state);
+      const states = body.map((s) => s.state);
       expect(states).toContain('active');
       expect(states).toContain('suspended');
       expect(states).toContain('pr_open');
@@ -199,15 +199,15 @@ describe('Sessions routes - Dashboard integration', () => {
 
       // Filter active only
       const activeRes = await app.request('/sessions?state=active');
-      const activeBody = await activeRes.json();
+      const activeBody = (await activeRes.json()) as Array<{ artifactName: string }>;
       expect(activeBody.length).toBe(1);
-      expect(activeBody[0].artifactName).toBe('active-1');
+      expect(activeBody[0]?.artifactName).toBe('active-1');
 
       // Filter suspended only
       const suspendedRes = await app.request('/sessions?state=suspended');
-      const suspendedBody = await suspendedRes.json();
+      const suspendedBody = (await suspendedRes.json()) as Array<{ artifactName: string }>;
       expect(suspendedBody.length).toBe(1);
-      expect(suspendedBody[0].artifactName).toBe('suspended-1');
+      expect(suspendedBody[0]?.artifactName).toBe('suspended-1');
     });
   });
 
@@ -225,18 +225,18 @@ describe('Sessions routes - Dashboard integration', () => {
 
       // Get first page
       const page1Res = await app.request('/sessions?limit=3&offset=0');
-      const page1 = await page1Res.json();
+      const page1 = (await page1Res.json()) as Array<{ id: string }>;
       expect(page1.length).toBe(3);
 
       // Get second page
       const page2Res = await app.request('/sessions?limit=3&offset=3');
-      const page2 = await page2Res.json();
+      const page2 = (await page2Res.json()) as Array<{ id: string }>;
       expect(page2.length).toBe(3);
 
       // Verify different sessions
-      const page1Ids = page1.map((s: { id: string }) => s.id);
-      const page2Ids = page2.map((s: { id: string }) => s.id);
-      const overlap = page1Ids.filter((id: string) => page2Ids.includes(id));
+      const page1Ids = page1.map((s) => s.id);
+      const page2Ids = page2.map((s) => s.id);
+      const overlap = page1Ids.filter((id) => page2Ids.includes(id));
       expect(overlap.length).toBe(0);
     });
 
@@ -252,7 +252,7 @@ describe('Sessions routes - Dashboard integration', () => {
       }
 
       const res = await app.request('/sessions');
-      const body = await res.json();
+      const body = (await res.json()) as unknown[];
       expect(body.length).toBe(5);
     });
   });
@@ -281,7 +281,7 @@ describe('Sessions routes - Dashboard integration', () => {
       expect(res.status).toBe(200);
 
       // After implementation, this should return the shared session
-      const body = await res.json();
+      // const body = (await res.json()) as unknown[];
       // expect(body.length).toBe(1);
       // expect(body[0].artifactName).toBe('alice-work');
     });
@@ -307,9 +307,9 @@ describe('Sessions routes - Dashboard integration', () => {
       const res = await app.request(`/sessions?sharedWithMe=true&userId=${testUser2Id}`);
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Array<{ id: string }>;
       // Revoked shares should not appear
-      const sharedSession = body.find((s: { id: string }) => s.id === aliceSession.id);
+      const sharedSession = body.find((s) => s.id === aliceSession.id);
       expect(sharedSession).toBeUndefined();
     });
   });
@@ -322,15 +322,13 @@ describe('Sessions routes - Dashboard integration', () => {
         environment: 'dev',
         user_id: testUserId,
         branch_name: 'feature/detailed',
-        last_commit_sha: 'abc123',
-        commit_count: 5,
       });
 
       const res = await app.request('/sessions?includeProject=true');
       expect(res.status).toBe(200);
 
       // After implementation, should include project details
-      const body = await res.json();
+      const body = (await res.json()) as unknown[];
       expect(body.length).toBe(1);
       // expect(body[0].project).toBeDefined();
       // expect(body[0].project.name).toBe('Project Alpha');
@@ -343,17 +341,15 @@ describe('Sessions routes - Dashboard integration', () => {
         environment: 'dev',
         user_id: testUserId,
         branch_name: 'feature/git-work',
-        last_commit_sha: 'def456',
-        commit_count: 3,
       });
 
       const res = await app.request('/sessions');
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Array<{ projectId: string }>;
       expect(body.length).toBe(1);
       // Basic fields should be present
-      expect(body[0].projectId).toBe(testProjectId);
+      expect(body[0]?.projectId).toBe(testProjectId);
     });
   });
 });

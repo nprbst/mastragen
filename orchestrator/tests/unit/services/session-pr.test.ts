@@ -46,7 +46,7 @@ describe('SessionPrService', () => {
             { status: 201 }
           )
         )
-      ) as typeof fetch;
+      ) as unknown as typeof fetch;
 
       const service = new SessionPrService(mockSandboxClient as never);
       await service.createPr({
@@ -90,7 +90,7 @@ describe('SessionPrService', () => {
           );
         }
         return Promise.resolve(new Response('{}', { status: 200 }));
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const service = new SessionPrService(mockSandboxClient as never);
       await service.createPr({
@@ -131,7 +131,7 @@ describe('SessionPrService', () => {
             { status: 201 }
           )
         )
-      ) as typeof fetch;
+      ) as unknown as typeof fetch;
 
       const service = new SessionPrService(mockSandboxClient as never);
       const result = await service.createPr({
@@ -169,7 +169,7 @@ describe('SessionPrService', () => {
             { status: 201 }
           )
         );
-      }) as typeof fetch;
+      }) as unknown as typeof fetch;
 
       const service = new SessionPrService(mockSandboxClient as never);
       await service.createPr({
@@ -236,7 +236,7 @@ describe('SessionPrService', () => {
             { status: 422 }
           )
         )
-      ) as typeof fetch;
+      ) as unknown as typeof fetch;
 
       const service = new SessionPrService(mockSandboxClient as never);
 
@@ -274,7 +274,7 @@ describe('SessionPrService', () => {
             { status: 422 }
           )
         )
-      ) as typeof fetch;
+      ) as unknown as typeof fetch;
 
       const service = new SessionPrService(mockSandboxClient as never);
 

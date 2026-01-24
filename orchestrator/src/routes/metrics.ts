@@ -17,8 +17,10 @@ const requestTimestamps: number[] = [];
 function isRateLimited(): boolean {
   const now = Date.now();
   // Remove timestamps older than the window
-  while (requestTimestamps.length > 0 && requestTimestamps[0] < now - rateLimitWindow) {
+  let oldest = requestTimestamps[0];
+  while (oldest !== undefined && oldest < now - rateLimitWindow) {
     requestTimestamps.shift();
+    oldest = requestTimestamps[0];
   }
   // Check if we're over the limit
   if (requestTimestamps.length >= maxRequests) {

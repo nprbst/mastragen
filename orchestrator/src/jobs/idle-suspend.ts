@@ -22,13 +22,6 @@ interface IdleSuspendResult {
   errors: string[];
 }
 
-interface IdleSession {
-  session: Session;
-  idleMinutes: number;
-  effectiveTimeout: number;
-  effectiveWarning: number;
-}
-
 export class IdleSuspendJob {
   private defaultConfig: IdleSuspendConfig = {
     checkIntervalMinutes: 5,

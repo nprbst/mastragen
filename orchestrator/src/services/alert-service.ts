@@ -14,7 +14,6 @@ import type { Kysely } from 'kysely';
 import type {
   Database,
   AlertRule,
-  AlertEvent,
   AlertConditionType,
   AlertSeverityType,
   AlertEventStatusType,

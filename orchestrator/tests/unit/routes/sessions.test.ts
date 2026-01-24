@@ -94,9 +94,9 @@ describe('Sessions routes - Dashboard filtering', () => {
       const res = await app.request('/sessions?state=active');
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Array<{ artifactName: string }>;
       expect(body.length).toBe(1);
-      expect(body[0].artifactName).toBe('active-session');
+      expect(body[0]?.artifactName).toBe('active-session');
     });
 
     test('should filter sessions by state=suspended', async () => {
@@ -120,9 +120,9 @@ describe('Sessions routes - Dashboard filtering', () => {
       const res = await app.request('/sessions?state=suspended');
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Array<{ artifactName: string }>;
       expect(body.length).toBe(1);
-      expect(body[0].artifactName).toBe('suspended-session');
+      expect(body[0]?.artifactName).toBe('suspended-session');
     });
   });
 
@@ -147,9 +147,9 @@ describe('Sessions routes - Dashboard filtering', () => {
       const res = await app.request(`/sessions?projectId=${testProjectId}`);
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Array<{ artifactName: string }>;
       expect(body.length).toBe(1);
-      expect(body[0].artifactName).toBe('project1-session');
+      expect(body[0]?.artifactName).toBe('project1-session');
     });
   });
 
@@ -183,9 +183,9 @@ describe('Sessions routes - Dashboard filtering', () => {
       const res = await app.request(`/sessions?state=active&projectId=${testProjectId}`);
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as Array<{ artifactName: string }>;
       expect(body.length).toBe(1);
-      expect(body[0].artifactName).toBe('active-p1');
+      expect(body[0]?.artifactName).toBe('active-p1');
     });
   });
 
@@ -205,7 +205,7 @@ describe('Sessions routes - Dashboard filtering', () => {
       const res = await app.request('/sessions?limit=2');
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as unknown[];
       expect(body.length).toBe(2);
     });
 
@@ -223,7 +223,7 @@ describe('Sessions routes - Dashboard filtering', () => {
       const res = await app.request('/sessions?limit=2&offset=2');
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as unknown[];
       expect(body.length).toBe(2);
     });
   });
@@ -250,7 +250,7 @@ describe('Sessions routes - Dashboard filtering', () => {
       const res = await app.request(`/sessions?sharedWithMe=true&userId=${testUser2Id}`);
       expect(res.status).toBe(200);
 
-      const body = await res.json();
+      const body = (await res.json()) as unknown[];
       // Should return the shared session
       expect(body.length).toBeGreaterThanOrEqual(0); // Will be 1 after implementation
     });

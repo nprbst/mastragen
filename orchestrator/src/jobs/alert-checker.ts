@@ -40,7 +40,7 @@ export class AlertCheckerJob {
   constructor(
     private db: Kysely<Database>,
     private alertService: AlertService,
-    private metricsService: MetricsService,
+    _metricsService: MetricsService,
     config?: AlertCheckerConfig
   ) {
     this.config = {

@@ -16,7 +16,6 @@ describe('POST /sessions with Claude config injection', () => {
   let projectsRepo: ProjectsRepository;
   let usersRepo: UsersRepository;
   let testProjectId: string;
-  let testUserId: string;
 
   beforeAll(async () => {
     db = await createTestDb(TEST_DB_PATH);
@@ -42,13 +41,12 @@ describe('POST /sessions with Claude config injection', () => {
     app.route('/sessions', sessionsRoutes(db, { dockerEnabled: false }));
 
     // Create test user
-    const user = await usersRepo.create({
+    await usersRepo.create({
       email: 'test@example.com',
       name: 'Test User',
       github_id: 12345,
       github_login: 'testuser',
     });
-    testUserId = user.id;
 
     // Create test project with environment
     const project = await projectsRepo.create({
@@ -79,7 +77,7 @@ describe('POST /sessions with Claude config injection', () => {
       });
 
       expect(res.status).toBe(201);
-      const body = await res.json();
+      const body = (await res.json()) as { id: string; projectId: string; artifactName: string; environment: string; state: string; urls: unknown };
 
       expect(body.id).toBeDefined();
       expect(body.projectId).toBe(testProjectId);
@@ -102,7 +100,7 @@ describe('POST /sessions with Claude config injection', () => {
       });
 
       expect(res.status).toBe(404);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string };
       expect(body.error).toContain('Environment');
     });
 
@@ -159,7 +157,7 @@ describe('POST /sessions with Claude config injection', () => {
       });
 
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string };
       expect(body.error).toBe('Validation failed');
     });
   });
@@ -209,7 +207,7 @@ describe('POST /sessions with Claude config injection', () => {
       });
 
       expect(res.status).toBe(201);
-      const body = await res.json();
+      const body = (await res.json()) as { urls: unknown };
       expect(body.urls).toBeDefined();
     });
   });
@@ -255,7 +253,7 @@ describe('POST /sessions with Claude config injection', () => {
       });
 
       expect(res.status).toBe(201);
-      const body = await res.json();
+      const body = (await res.json()) as { urls: { mastra: string; vscode: string } };
 
       expect(body.urls).toBeDefined();
       expect(body.urls.mastra).toBeDefined();

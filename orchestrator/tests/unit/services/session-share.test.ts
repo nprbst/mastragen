@@ -289,8 +289,8 @@ describe('SessionShareService', () => {
       const shares = await service.listShares('session-123');
 
       expect(shares).toHaveLength(2);
-      expect(shares[0].sharedWithUserId).toBe('user-123');
-      expect(shares[1].sharedWithUserId).toBe('user-789');
+      expect(shares[0]?.sharedWithUserId).toBe('user-123');
+      expect(shares[1]?.sharedWithUserId).toBe('user-789');
     });
 
     test('should return empty array if no shares exist', async () => {

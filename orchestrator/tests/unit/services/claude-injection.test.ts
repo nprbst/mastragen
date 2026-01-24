@@ -112,7 +112,7 @@ describe('claude-injection service', () => {
       });
 
       // Environment variable should be interpolated
-      expect(settings.mcpServers.database.env.DATABASE_URL).toBe('postgres://localhost:5432/dev');
+      expect(settings.mcpServers?.database?.env?.DATABASE_URL).toBe('postgres://localhost:5432/dev');
     });
   });
 
@@ -202,7 +202,6 @@ describe('claude-injection service', () => {
       });
 
       // Built-in commands from claude-commands/ directory
-      const commandNames = commands.map(c => c.name);
       // At minimum we expect the standard commands to eventually exist
       expect(Array.isArray(commands)).toBe(true);
     });

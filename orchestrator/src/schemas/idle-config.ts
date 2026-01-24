@@ -3,7 +3,7 @@
  * Per specs/004-production-readiness/contracts/idle-config.md
  */
 import * as v from 'valibot';
-import { IdSchema, TimestampSchema } from './common.ts';
+import { TimestampSchema } from './common.ts';
 
 /**
  * Idle timeout minutes validation: 5-480 minutes (8 hours max).

@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, afterEach, mock } from 'bun:test';
+import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../../src/db/types.ts';
 import { createDatabase } from '../../../src/db/index.ts';
@@ -72,6 +72,7 @@ describe('AlertService', () => {
         name: 'Test Rule',
         conditionType: 'pod_creation_failed',
         severity: 'warning',
+        enabled: true,
         destinations,
       });
 
@@ -161,7 +162,7 @@ describe('AlertService', () => {
       const filtered = await alertService.listEvents({ ruleId: 'alert-pod-creation-failed' });
 
       expect(filtered.events.length).toBe(1);
-      expect(filtered.events[0].ruleId).toBe('alert-pod-creation-failed');
+      expect(filtered.events[0]?.ruleId).toBe('alert-pod-creation-failed');
     });
 
     test('should get event by id', async () => {

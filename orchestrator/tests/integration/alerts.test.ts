@@ -96,11 +96,11 @@ describe('Alerts integration', () => {
       const res = await authRequest('/alerts/rules');
 
       expect(res.status).toBe(200);
-      const data = await res.json();
+      const data = (await res.json()) as { rules: Array<{ name: string }> };
       expect(data.rules).toBeDefined();
       expect(data.rules.length).toBeGreaterThanOrEqual(4); // 4 seeded rules + any created in tests
 
-      const names = data.rules.map((r: any) => r.name);
+      const names = data.rules.map((r) => r.name);
       expect(names).toContain('Pod Creation Failure');
       expect(names).toContain('Tailscale Registration Timeout');
       expect(names).toContain('Database Connection Failure');
@@ -111,7 +111,7 @@ describe('Alerts integration', () => {
       const res = await authRequest('/alerts/rules/alert-pod-creation-failed');
 
       expect(res.status).toBe(200);
-      const rule = await res.json();
+      const rule = (await res.json()) as { id: string; name: string; conditionType: string; severity: string; enabled: boolean };
       expect(rule.id).toBe('alert-pod-creation-failed');
       expect(rule.name).toBe('Pod Creation Failure');
       expect(rule.conditionType).toBe('pod_creation_failed');
@@ -138,7 +138,7 @@ describe('Alerts integration', () => {
       });
 
       expect(res.status).toBe(201);
-      const rule = await res.json();
+      const rule = (await res.json()) as { name: string; severity: string; destinations: unknown[] };
       expect(rule.name).toBe('Test Alert');
       expect(rule.severity).toBe('critical');
       expect(rule.destinations.length).toBe(1);
@@ -154,7 +154,7 @@ describe('Alerts integration', () => {
       });
 
       expect(res.status).toBe(200);
-      const rule = await res.json();
+      const rule = (await res.json()) as { enabled: boolean };
       expect(rule.enabled).toBe(false);
 
       // Restore for other tests
@@ -173,7 +173,7 @@ describe('Alerts integration', () => {
           destinations: [],
         }),
       });
-      const created = await createRes.json();
+      const created = (await createRes.json()) as { id: string };
 
       // Delete it
       const deleteRes = await authRequest(`/alerts/rules/${created.id}`, {
@@ -204,7 +204,7 @@ describe('Alerts integration', () => {
       const res = await authRequest('/alerts/events');
 
       expect(res.status).toBe(200);
-      const data = await res.json();
+      const data = (await res.json()) as { events: unknown[]; total: number };
       expect(data.events).toBeDefined();
       expect(data.events.length).toBeGreaterThan(0);
       expect(data.total).toBeGreaterThan(0);
@@ -214,7 +214,7 @@ describe('Alerts integration', () => {
       const res = await authRequest('/alerts/events?status=pending');
 
       expect(res.status).toBe(200);
-      const data = await res.json();
+      const data = (await res.json()) as { events: Array<{ status: string }> };
       for (const event of data.events) {
         expect(event.status).toBe('pending');
       }
@@ -224,7 +224,7 @@ describe('Alerts integration', () => {
       const res = await authRequest('/alerts/events?ruleId=alert-pod-creation-failed');
 
       expect(res.status).toBe(200);
-      const data = await res.json();
+      const data = (await res.json()) as { events: Array<{ ruleId: string }> };
       for (const event of data.events) {
         expect(event.ruleId).toBe('alert-pod-creation-failed');
       }
@@ -234,7 +234,7 @@ describe('Alerts integration', () => {
       const res = await authRequest(`/alerts/events/${testEventId}`);
 
       expect(res.status).toBe(200);
-      const event = await res.json();
+      const event = (await res.json()) as { id: string; ruleId: string; context: { sessionId: string } };
       expect(event.id).toBe(testEventId);
       expect(event.ruleId).toBe('alert-pod-creation-failed');
       expect(event.context.sessionId).toBe('test-session');
@@ -254,7 +254,7 @@ describe('Alerts integration', () => {
       });
 
       expect(res.status).toBe(200);
-      const ack = await res.json();
+      const ack = (await res.json()) as { status: string; acknowledgedBy: string; acknowledgedAt: string };
       expect(ack.status).toBe('acknowledged');
       expect(ack.acknowledgedBy).toBe(testUserId);
       expect(ack.acknowledgedAt).toBeDefined();
@@ -296,9 +296,9 @@ describe('Alerts integration', () => {
 
       // Verify event was created
       const eventsRes = await authRequest('/alerts/events?ruleId=alert-database-failed');
-      const events = await eventsRes.json();
+      const events = (await eventsRes.json()) as { events: Array<{ context: { error: string } }> };
       expect(events.events.length).toBeGreaterThan(0);
-      expect(events.events[0].context.error).toBe('Connection refused');
+      expect(events.events[0]?.context.error).toBe('Connection refused');
     });
 
     test('Metrics are updated on alert fire', async () => {
@@ -325,8 +325,8 @@ describe('Alerts integration', () => {
 
       // 2. List events and find it
       const listRes = await authRequest('/alerts/events?status=pending');
-      const listData = await listRes.json();
-      const foundEvent = listData.events.find((e: any) => e.id === event!.id);
+      const listData = (await listRes.json()) as { events: Array<{ id: string }> };
+      const foundEvent = listData.events.find((e) => e.id === event!.id);
       expect(foundEvent).toBeDefined();
 
       // 3. Acknowledge the event
@@ -339,7 +339,7 @@ describe('Alerts integration', () => {
 
       // 4. Verify it's acknowledged
       const getRes = await authRequest(`/alerts/events/${event!.id}`);
-      const ackEvent = await getRes.json();
+      const ackEvent = (await getRes.json()) as { status: string };
       expect(ackEvent.status).toBe('acknowledged');
     });
   });

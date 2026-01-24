@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, afterEach, mock } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import { createHmac } from 'crypto';
 
@@ -67,7 +67,7 @@ describe('GitHub webhook handler', () => {
       });
 
       expect(res.status).toBe(401);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string; code: string };
       expect(body.error).toBe('Unauthorized');
       expect(body.code).toBe('WEBHOOK_SIGNATURE_INVALID');
     });
@@ -91,7 +91,7 @@ describe('GitHub webhook handler', () => {
       });
 
       expect(res.status).toBe(401);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string; code: string };
       expect(body.error).toBe('Unauthorized');
       expect(body.code).toBe('WEBHOOK_SIGNATURE_INVALID');
     });
@@ -133,7 +133,7 @@ describe('GitHub webhook handler', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as { received: boolean };
       expect(body.received).toBe(true);
     });
   });
@@ -194,7 +194,7 @@ describe('GitHub webhook handler', () => {
     test('should delete installation record on installation.deleted', async () => {
       const { createWebhookRoutes } = await import('../../../src/routes/webhooks.ts');
 
-      let deletedInstallationId: number | null = null;
+      let deletedInstallationId = 0;
 
       const mockDb = {
         selectFrom: () => ({
@@ -239,7 +239,7 @@ describe('GitHub webhook handler', () => {
       });
 
       expect(res.status).toBe(200);
-      expect(deletedInstallationId).toBe(99999);
+      expect(deletedInstallationId).toEqual(99999);
     });
 
     test('should mark installation as suspended on installation.suspend', async () => {
@@ -392,7 +392,7 @@ describe('GitHub webhook handler', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as { received: boolean };
       expect(body.received).toBe(true);
     });
 
@@ -437,7 +437,7 @@ describe('GitHub webhook handler', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as { received: boolean };
       expect(body.received).toBe(true);
     });
   });
@@ -466,7 +466,7 @@ describe('GitHub webhook handler', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as { received: boolean };
       expect(body.received).toBe(true);
     });
   });

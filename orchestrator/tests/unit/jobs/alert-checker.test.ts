@@ -88,7 +88,7 @@ describe('AlertCheckerJob', () => {
   describe('Context providers', () => {
     test('should use default database health check', async () => {
       // Database should be healthy - no alert fired
-      const result = await job.run();
+      await job.run();
 
       const events = await alertService.listEvents({
         ruleId: 'alert-database-failed',

@@ -103,7 +103,7 @@ describe('Auth routes integration', () => {
       const res = await app.request('/auth/callback');
 
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string };
       expect(body.error).toBe('Missing authorization code');
     });
 
@@ -111,7 +111,7 @@ describe('Auth routes integration', () => {
       const res = await app.request('/auth/callback?code=test-code&state=invalid-state');
 
       expect(res.status).toBe(400);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string };
       expect(body.error).toBe('Invalid state parameter');
     });
 
@@ -239,7 +239,7 @@ describe('Auth routes integration', () => {
       });
 
       expect(res.status).toBe(401);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string };
       expect(body.error).toBe('Refresh token expired');
     });
 
@@ -253,7 +253,7 @@ describe('Auth routes integration', () => {
       });
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as { accessToken: string };
       expect(body).toHaveProperty('accessToken');
 
       // New access token should be valid JWT format

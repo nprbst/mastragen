@@ -113,6 +113,7 @@ describe('Project admin workflow', () => {
     app = new Hono();
     // Add middleware to set db in context for auth middleware
     app.use('*', async (c, next) => {
+      // @ts-expect-error - db is added dynamically to context for middleware use
       c.set('db', db);
       await next();
     });
@@ -122,7 +123,7 @@ describe('Project admin workflow', () => {
 
     // Mock GitHub API calls for auth middleware
     originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url: string | URL | Request) => {
+    globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url instanceof Request ? url.url : url.toString();
 
       // Mock /repos/{owner}/{repo} for admin check
@@ -140,7 +141,7 @@ describe('Project admin workflow', () => {
       }
 
       return originalFetch(url);
-    };
+    }) as typeof fetch;
   });
 
   afterEach(() => {
@@ -205,7 +206,7 @@ describe('Project admin workflow', () => {
       expect(res.status).toBe(200);
       const commands = (await res.json()) as { name: string }[];
       expect(commands).toHaveLength(1);
-      expect(commands[0].name).toBe('deploy');
+      expect(commands[0]?.name).toBe('deploy');
 
       // Step 5: Create a skill
       res = await app.request(`/projects/${testProjectId}/skills`, {
@@ -226,7 +227,7 @@ describe('Project admin workflow', () => {
       expect(res.status).toBe(200);
       const skills = (await res.json()) as { name: string }[];
       expect(skills).toHaveLength(1);
-      expect(skills[0].name).toBe('mastra-development');
+      expect(skills[0]?.name).toBe('mastra-development');
 
       // Step 7: Get preview
       res = await app.request(`/projects/${testProjectId}/claude-config/preview`);
@@ -451,12 +452,12 @@ describe('Project admin workflow', () => {
       let res = await app.request(`/projects/${testProjectId}/commands`);
       let commands = (await res.json()) as { name: string }[];
       expect(commands).toHaveLength(1);
-      expect(commands[0].name).toBe('project1-command');
+      expect(commands[0]?.name).toBe('project1-command');
 
       res = await app.request(`/projects/${otherProjectId}/commands`);
       commands = (await res.json()) as { name: string }[];
       expect(commands).toHaveLength(1);
-      expect(commands[0].name).toBe('project2-command');
+      expect(commands[0]?.name).toBe('project2-command');
     });
   });
 });

@@ -35,7 +35,7 @@ describe('Skills injection', () => {
           writtenFiles.push({ path, content });
           return Promise.resolve();
         }),
-        mkdir: mock(() => Promise.resolve()),
+        mkdir: mock((_path: string) => Promise.resolve()),
       };
 
       // Create injection function
@@ -54,8 +54,8 @@ describe('Skills injection', () => {
       await injectSkills(mockSkills, '/mnt/skills/project', mockFs);
 
       expect(writtenFiles).toHaveLength(2);
-      expect(writtenFiles[0].path).toBe('/mnt/skills/project/mastra-development.md');
-      expect(writtenFiles[1].path).toBe('/mnt/skills/project/code-review.md');
+      expect(writtenFiles[0]?.path).toBe('/mnt/skills/project/mastra-development.md');
+      expect(writtenFiles[1]?.path).toBe('/mnt/skills/project/code-review.md');
     });
 
     test('should include skill metadata in file content', async () => {
@@ -72,7 +72,7 @@ describe('Skills injection', () => {
           writtenFiles.push({ path, content });
           return Promise.resolve();
         }),
-        mkdir: mock(() => Promise.resolve()),
+        mkdir: mock((_path: string) => Promise.resolve()),
       };
 
       async function injectSkillWithMetadata(
@@ -88,9 +88,9 @@ describe('Skills injection', () => {
 
       await injectSkillWithMetadata(mockSkill, '/mnt/skills/project', mockFs);
 
-      expect(writtenFiles[0].content).toContain('---');
-      expect(writtenFiles[0].content).toContain('name: test-skill');
-      expect(writtenFiles[0].content).toContain('description: Test skill description');
+      expect(writtenFiles[0]?.content).toContain('---');
+      expect(writtenFiles[0]?.content).toContain('name: test-skill');
+      expect(writtenFiles[0]?.content).toContain('description: Test skill description');
     });
 
     test('should inject built-in skills from claude-skills directory', async () => {
@@ -103,12 +103,12 @@ describe('Skills injection', () => {
 
       const writtenFiles: string[] = [];
       const mockFs = {
-        writeFile: mock((path: string) => {
+        writeFile: mock((path: string, _content: string) => {
           writtenFiles.push(path);
           return Promise.resolve();
         }),
-        mkdir: mock(() => Promise.resolve()),
-        readdir: mock(() => Promise.resolve(builtInSkills.map((s) => `${s}.md`))),
+        mkdir: mock((_path: string) => Promise.resolve()),
+        readdir: mock((_dir: string) => Promise.resolve(builtInSkills.map((s) => `${s}.md`))),
         readFile: mock((path: string) => {
           const name = path.split('/').pop()?.replace('.md', '') || '';
           return Promise.resolve(`# ${name}\n\nBuilt-in skill content...`);
@@ -139,11 +139,11 @@ describe('Skills injection', () => {
     test('should handle empty skills list gracefully', async () => {
       const writtenFiles: string[] = [];
       const mockFs = {
-        writeFile: mock((path: string) => {
+        writeFile: mock((path: string, _content: string) => {
           writtenFiles.push(path);
           return Promise.resolve();
         }),
-        mkdir: mock(() => Promise.resolve()),
+        mkdir: mock((_path: string) => Promise.resolve()),
       };
 
       async function injectSkills(
@@ -177,7 +177,7 @@ describe('Skills injection', () => {
           }
           return Promise.resolve();
         }),
-        mkdir: mock(() => Promise.resolve()),
+        mkdir: mock((_path: string) => Promise.resolve()),
       };
 
       async function createSkillIndex(

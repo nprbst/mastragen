@@ -3,7 +3,6 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../../src/db/types.ts';
 import { createTestDb, cleanupTestDb } from '../../helpers/test-db.ts';
-import { ProjectsRepository } from '../../../src/repositories/index.ts';
 import { createTestJwt } from '../../helpers/jwt.ts';
 
 const TEST_DB_PATH = './data/test-commands-routes.db';
@@ -20,7 +19,6 @@ const TEST_DB_PATH = './data/test-commands-routes.db';
  */
 describe('commands routes', () => {
   let db: Kysely<Database>;
-  let projectsRepo: ProjectsRepository;
   let testProjectId: string;
   let testUserId: string;
   let testInstallationId: string;
@@ -30,7 +28,6 @@ describe('commands routes', () => {
 
   beforeAll(async () => {
     db = await createTestDb(TEST_DB_PATH);
-    projectsRepo = new ProjectsRepository(db);
   });
 
   afterAll(async () => {
@@ -101,7 +98,7 @@ describe('commands routes', () => {
 
     // Mock GitHub API calls for auth middleware
     originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url: string | URL | Request) => {
+    globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url instanceof Request ? url.url : url.toString();
 
       if (urlStr.includes('api.github.com/repos/')) {
@@ -117,7 +114,7 @@ describe('commands routes', () => {
       }
 
       return originalFetch(url);
-    };
+    }) as typeof fetch;
   });
 
   afterEach(async () => {
@@ -136,6 +133,7 @@ describe('commands routes', () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });
@@ -152,6 +150,7 @@ describe('commands routes', () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });
@@ -167,6 +166,7 @@ describe('commands routes', () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });
@@ -198,6 +198,7 @@ describe('commands routes', () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });
@@ -219,6 +220,7 @@ describe('commands routes', () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });
@@ -255,6 +257,7 @@ describe('commands routes', () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });
@@ -284,6 +287,7 @@ describe('commands routes', () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });
@@ -299,6 +303,7 @@ describe('commands routes', () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });
@@ -344,6 +349,7 @@ describe('commands routes', () => {
       const { commandsRoutes } = await import('../../../src/routes/commands.ts');
       const app = new Hono();
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });

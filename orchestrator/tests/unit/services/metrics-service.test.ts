@@ -17,12 +17,9 @@ describe('MetricsService', () => {
 
   function createMockDb(options: {
     sessionCounts?: Array<{ project_id: string; state: string; count: number }>;
-    creationCounts?: Array<{ project_id: string; count: number }>;
-    suspensionCounts?: Array<{ project_id: string; suspension_reason: string; count: number }>;
     alertCounts?: Array<{ condition_type: string; count: number }>;
   }) {
-    const { sessionCounts = [], creationCounts = [], suspensionCounts = [], alertCounts = [] } =
-      options;
+    const { sessionCounts = [], alertCounts = [] } = options;
 
     // Mock the Kysely fn helper
     const mockFn = {
@@ -319,9 +316,9 @@ describe('MetricsService', () => {
       const metrics = service.getPodMetrics();
 
       expect(metrics).toHaveLength(1);
-      expect(metrics[0].pod).toBe('sandbox-test1');
-      expect(metrics[0].cpuRatio).toBe(0.3);
-      expect(metrics[0].memoryBytes).toBe(134217728);
+      expect(metrics[0]?.pod).toBe('sandbox-test1');
+      expect(metrics[0]?.cpuRatio).toBe(0.3);
+      expect(metrics[0]?.memoryBytes).toBe(134217728);
     });
 
     test('should return empty array when no pod metrics set', async () => {

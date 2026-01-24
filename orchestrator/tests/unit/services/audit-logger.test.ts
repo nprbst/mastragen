@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach, afterEach, spyOn } from 'bun:test';
+import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 
 // Test T010: Unit test for audit logger service
 

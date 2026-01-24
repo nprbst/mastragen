@@ -27,8 +27,6 @@ export interface IdleConfigResult {
 }
 
 export class IdleConfigService {
-  private static GLOBAL_CONFIG_ID = 'idle-config-global';
-
   constructor(private db: Kysely<Database>) {}
 
   /**

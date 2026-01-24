@@ -4,8 +4,6 @@ import type { Database } from '../../src/db/types.ts';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrator.ts';
 import { SessionSharesRepository } from '../../src/repositories/session-shares.ts';
-import { SessionsRepository } from '../../src/repositories/sessions.ts';
-import { UsersRepository } from '../../src/repositories/users.ts';
 
 /**
  * T019: Integration tests for session share/unshare flow
@@ -20,16 +18,12 @@ import { UsersRepository } from '../../src/repositories/users.ts';
 describe('Session shares integration', () => {
   let db: Kysely<Database>;
   let sessionSharesRepo: SessionSharesRepository;
-  let sessionsRepo: SessionsRepository;
-  let usersRepo: UsersRepository;
   const testDbPath = ':memory:';
 
   beforeAll(async () => {
     db = createDatabase(testDbPath);
     await runMigrations(db);
     sessionSharesRepo = new SessionSharesRepository(db);
-    sessionsRepo = new SessionsRepository(db);
-    usersRepo = new UsersRepository(db);
   });
 
   afterAll(async () => {
@@ -52,7 +46,7 @@ describe('Session shares integration', () => {
         email,
         name,
         github_id: Math.floor(Math.random() * 1000000),
-        github_login: email.split('@')[0],
+        github_login: email.split('@')[0] ?? email,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -171,9 +165,9 @@ describe('Session shares integration', () => {
       const shares = await sessionSharesRepo.getSessionShares(sessionId);
 
       expect(shares.length).toBe(1);
-      expect(shares[0].shared_with_user_id).toBe(sharedWithId);
-      expect(shares[0].shared_with_email).toBe('shared3@example.com');
-      expect(shares[0].shared_with_name).toBe('Shared Three');
+      expect(shares[0]?.shared_with_user_id).toBe(sharedWithId);
+      expect(shares[0]?.shared_with_email).toBe('shared3@example.com');
+      expect(shares[0]?.shared_with_name).toBe('Shared Three');
     });
 
     test('should not return revoked shares', async () => {

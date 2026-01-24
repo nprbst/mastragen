@@ -13,6 +13,26 @@
 import * as k8s from '@kubernetes/client-node';
 import type { Session, Project } from '../db/types.ts';
 
+/**
+ * Check if an error from the k8s client is a 404 (Not Found) error.
+ */
+function isK8s404Error(error: unknown): boolean {
+  if (error && typeof error === 'object') {
+    // Check for statusCode property (newer client versions)
+    if ('statusCode' in error && error.statusCode === 404) {
+      return true;
+    }
+    // Check for response.statusCode (some error wrappers)
+    if ('response' in error && error.response && typeof error.response === 'object') {
+      const response = error.response as { statusCode?: number };
+      if (response.statusCode === 404) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 export interface K8sSandboxConfig {
   /** Kubernetes namespace for sandbox pods */
   namespace: string;
@@ -89,7 +109,6 @@ export class K8sSandboxService {
     envVars: Record<string, string> = {},
     claudeToken?: string
   ): Promise<void> {
-    const podName = this.getPodName(session.id);
     const configMapName = this.getConfigMapName(session.id);
 
     // Create Caddyfile ConfigMap first
@@ -112,7 +131,7 @@ export class K8sSandboxService {
       await this.coreApi.deleteNamespacedPod({ name: podName, namespace: this.config.namespace });
     } catch (error) {
       // Ignore 404 errors (pod already deleted)
-      if (!(error instanceof k8s.HttpError && error.statusCode === 404)) {
+      if (!isK8s404Error(error)) {
         throw error;
       }
     }
@@ -125,7 +144,7 @@ export class K8sSandboxService {
       });
     } catch (error) {
       // Ignore 404 errors
-      if (!(error instanceof k8s.HttpError && error.statusCode === 404)) {
+      if (!isK8s404Error(error)) {
         throw error;
       }
     }
@@ -165,7 +184,7 @@ export class K8sSandboxService {
         containerStatuses,
       };
     } catch (error) {
-      if (error instanceof k8s.HttpError && error.statusCode === 404) {
+      if (isK8s404Error(error)) {
         return null;
       }
       throw error;
@@ -307,7 +326,7 @@ https://${hostname}:${SANDBOX_PORTS.astro} {
     const baseEnv: k8s.V1EnvVar[] = [
       { name: 'SESSION_ID', value: session.id },
       { name: 'PROJECT_ID', value: project.id },
-      { name: 'WORKSPACE_VOLUME', value: session.workspace_volume },
+      { name: 'WORKSPACE_VOLUME', value: session.workspace_volume ?? undefined },
       ...Object.entries(envVars).map(([name, value]) => ({ name, value })),
     ];
 

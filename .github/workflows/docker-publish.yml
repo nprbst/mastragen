@@ -184,6 +184,10 @@ jobs:
         working-directory: ./orchestrator
         run: mkdir -p data
 
+      - name: Type check
+        working-directory: ./orchestrator
+        run: bun run typecheck
+
       - name: Run tests
         working-directory: ./orchestrator
         run: bun test
@@ -207,6 +211,10 @@ jobs:
 
       - name: Create test data directory
         run: mkdir -p orchestrator/data
+
+      - name: Type check
+        working-directory: ./web
+        run: bun run check
 
       - name: Run tests
         working-directory: ./web

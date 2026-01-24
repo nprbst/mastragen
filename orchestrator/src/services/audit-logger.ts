@@ -26,7 +26,7 @@ export interface SessionEventData {
 }
 
 export interface ShareEventData {
-  action: 'grant' | 'revoke';
+  action: 'grant' | 'revoke' | 'suspend_warning';
   sessionId: string;
   sharedByUserId: string;
   sharedWithUserId: string;

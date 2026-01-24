@@ -22,7 +22,7 @@ describe('JWT validation middleware', () => {
 
     // Mock fetch for GitHub API calls
     originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url: string | URL | Request) => {
+    globalThis.fetch = (async (url: string | URL | Request) => {
       const urlStr = url instanceof Request ? url.url : url.toString();
 
       // Mock GitHub API - deny access by default for these tests
@@ -39,7 +39,7 @@ describe('JWT validation middleware', () => {
       }
 
       return originalFetch(url);
-    };
+    }) as typeof fetch;
   });
 
   afterEach(async () => {
@@ -58,7 +58,7 @@ describe('JWT validation middleware', () => {
       const res = await app.request('/protected/resource');
 
       expect(res.status).toBe(401);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string };
       expect(body.error).toBe('Unauthorized');
     });
 
@@ -73,7 +73,7 @@ describe('JWT validation middleware', () => {
       });
 
       expect(res.status).toBe(401);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string };
       expect(body.error).toBe('Invalid authorization header');
     });
 
@@ -95,7 +95,7 @@ describe('JWT validation middleware', () => {
       });
 
       expect(res.status).toBe(401);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string };
       expect(body.error).toBe('Token expired');
     });
 
@@ -112,7 +112,7 @@ describe('JWT validation middleware', () => {
       });
 
       expect(res.status).toBe(401);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string };
       expect(body.error).toBe('Invalid token');
     });
 
@@ -152,7 +152,7 @@ describe('JWT validation middleware', () => {
       const res = await app.request('/public/resource');
 
       expect(res.status).toBe(200);
-      const body = await res.json();
+      const body = (await res.json()) as { authenticated: boolean };
       expect(body.authenticated).toBe(false);
     });
 
@@ -181,6 +181,7 @@ describe('JWT validation middleware', () => {
 
       // Add db middleware
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });
@@ -230,6 +231,7 @@ describe('JWT validation middleware', () => {
 
       // Add db middleware
       app.use('*', async (c, next) => {
+        // @ts-expect-error - db is added dynamically to context for middleware use
         c.set('db', db);
         await next();
       });
@@ -280,7 +282,7 @@ describe('JWT validation middleware', () => {
       }).execute();
 
       // Mock GitHub API to return non-admin permissions
-      globalThis.fetch = async (url: string | URL | Request) => {
+      globalThis.fetch = (async (url: string | URL | Request) => {
         const urlStr = url instanceof Request ? url.url : url.toString();
 
         if (urlStr.includes('api.github.com/repos/')) {
@@ -296,7 +298,7 @@ describe('JWT validation middleware', () => {
         }
 
         return originalFetch(url);
-      };
+      }) as typeof fetch;
 
       const memberToken = await createTestJwt({ sub: testUserId, email: 'admin@test.com' });
 
@@ -310,7 +312,7 @@ describe('JWT validation middleware', () => {
       });
 
       expect(res.status).toBe(403);
-      const body = await res.json();
+      const body = (await res.json()) as { error: string };
       expect(body.error).toBe('Admin access required');
     });
   });

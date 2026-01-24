@@ -85,14 +85,14 @@ describe('K8sMetricsCollector', () => {
       const metrics = await collector.collectPodMetrics();
 
       expect(metrics).toHaveLength(2);
-      expect(metrics[0].pod).toBe('sandbox-abc123');
-      expect(metrics[0].namespace).toBe('mastragen');
-      expect(metrics[0].cpuRatio).toBeCloseTo(0.25, 2); // 250m / 1000m
-      expect(metrics[0].memoryBytes).toBe(268435456); // 256 MiB in bytes
+      expect(metrics[0]?.pod).toBe('sandbox-abc123');
+      expect(metrics[0]?.namespace).toBe('mastragen');
+      expect(metrics[0]?.cpuRatio).toBeCloseTo(0.25, 2); // 250m / 1000m
+      expect(metrics[0]?.memoryBytes).toBe(268435456); // 256 MiB in bytes
 
-      expect(metrics[1].pod).toBe('sandbox-def456');
-      expect(metrics[1].cpuRatio).toBeCloseTo(0.5, 2); // 500m / 1000m
-      expect(metrics[1].memoryBytes).toBe(536870912); // 512 MiB in bytes
+      expect(metrics[1]?.pod).toBe('sandbox-def456');
+      expect(metrics[1]?.cpuRatio).toBeCloseTo(0.5, 2); // 500m / 1000m
+      expect(metrics[1]?.memoryBytes).toBe(536870912); // 512 MiB in bytes
     });
 
     test('should cache metrics for 15 seconds', async () => {
