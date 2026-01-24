@@ -151,7 +151,7 @@ log "Orchestrator pod is ready"
 
 # Step 7: Port-forward to service
 log "Setting up port-forward..."
-kubectl port-forward -n "$NAMESPACE" svc/"$RELEASE_NAME"-mastragen-orchestrator 4000:4000 &
+kubectl port-forward -n "$NAMESPACE" svc/"$RELEASE_NAME"-mastragen-orchestrator 4000:4000 2>/dev/null &
 PF_PID=$!
 sleep 5
 
