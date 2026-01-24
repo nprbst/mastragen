@@ -166,6 +166,49 @@ export interface WorkflowResponse {
 }
 
 /**
+ * Agent details from Mastra API.
+ */
+export interface AgentDetails {
+  name: string;
+  description?: string;
+  tools: string[];
+  systemPrompt?: string;
+  model?: string;
+}
+
+/**
+ * Workflow step for workflow details.
+ */
+export interface WorkflowStepDetails {
+  id: string;
+  type: 'action' | 'condition' | 'loop' | 'parallel';
+  description?: string;
+  tool?: string;
+  agent?: string;
+}
+
+/**
+ * Workflow details from Mastra API.
+ */
+export interface WorkflowDetails {
+  name: string;
+  description?: string;
+  steps: WorkflowStepDetails[];
+  inputSchema?: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
+}
+
+/**
+ * Tool details from Mastra API.
+ */
+export interface ToolDetails {
+  name: string;
+  description?: string;
+  inputSchema?: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
+}
+
+/**
  * Mastra HTTP API endpoints.
  */
 export const MASTRA_API = {

@@ -73,7 +73,7 @@ describe('MastraClient', () => {
     });
 
     // Get the actual port assigned
-    mockPort = mockServer.port;
+    mockPort = mockServer.port ?? 0;
     mockBaseUrl = `http://localhost:${mockPort}`;
   });
 

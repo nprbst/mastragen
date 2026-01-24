@@ -3,7 +3,14 @@
  * T031: HTTP client for agents, workflows, and tools.
  */
 
-import type { AgentInput, AgentResponse, WorkflowResponse } from './types';
+import type {
+  AgentDetails,
+  AgentInput,
+  AgentResponse,
+  ToolDetails,
+  WorkflowDetails,
+  WorkflowResponse,
+} from './types';
 
 /**
  * Mastra client configuration.
@@ -138,6 +145,60 @@ export class MastraClient {
 
     const data = await response.json() as { tools?: Array<{ name: string }> };
     return (data.tools ?? []).map((t) => t.name);
+  }
+
+  /**
+   * Get agent details.
+   */
+  async getAgentDetails(agentName: string): Promise<AgentDetails | null> {
+    try {
+      const url = `${this.config.baseUrl}/api/agents/${agentName}`;
+      const response = await this.fetch(url);
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return response.json() as Promise<AgentDetails>;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get workflow details.
+   */
+  async getWorkflowDetails(workflowName: string): Promise<WorkflowDetails | null> {
+    try {
+      const url = `${this.config.baseUrl}/api/workflows/${workflowName}`;
+      const response = await this.fetch(url);
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return response.json() as Promise<WorkflowDetails>;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get tool details.
+   */
+  async getToolDetails(toolName: string): Promise<ToolDetails | null> {
+    try {
+      const url = `${this.config.baseUrl}/api/tools/${toolName}`;
+      const response = await this.fetch(url);
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return response.json() as Promise<ToolDetails>;
+    } catch {
+      return null;
+    }
   }
 
   /**
