@@ -23,6 +23,12 @@ export interface Session {
     name: string;
     gitRepo: string | null;
   };
+  // Owner info (for shared sessions)
+  user?: {
+    id: string;
+    name: string | null;
+    email: string;
+  };
 }
 
 export interface Project {
