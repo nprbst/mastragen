@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: phoenix
+  labels:
+    app: phoenix
+    component: observability
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: phoenix
+  template:
+    metadata:
+      labels:
+        app: phoenix
+        component: observability
+    spec:
+      containers:
+        - name: phoenix
+          image: arizephoenix/phoenix:latest
+          ports:
+            - containerPort: 6006
+              name: http
+            - containerPort: 4317
+              name: otlp
+          env:
+            - name: PHOENIX_SQL_DATABASE_URL
+              value: "sqlite:////data/phoenix/phoenix.db"
+            - name: PHOENIX_WORKING_DIR
+              value: "/data/phoenix"
+            - name: PHOENIX_TRACE_RETENTION_DAYS
+              value: "30"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          volumeMounts:
+            - name: phoenix-data
+              mountPath: /data/phoenix
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 6006
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 6006
+            initialDelaySeconds: 30
+            periodSeconds: 30
+      volumes:
+        - name: phoenix-data
+          persistentVolumeClaim:
+            claimName: phoenix-pvc

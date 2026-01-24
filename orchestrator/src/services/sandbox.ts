@@ -101,6 +101,7 @@ export interface ServiceUrls {
   mastra: string;
   astro: string | null;
   vscode: string;
+  phoenix: string | null;
 }
 
 export interface CreateSandboxInput {
@@ -240,6 +241,7 @@ export class SandboxService {
     astro: 4321,
     vscode: 8080,
     chrome: 9222,
+    phoenix: 6006,
   };
 
   // Container image names (built from sandbox/ Dockerfiles)
@@ -249,10 +251,14 @@ export class SandboxService {
     astro: 'mastragen-astro',
     vscode: 'mastragen-vscode',
     chrome: 'ghcr.io/browserless/chromium:latest',
+    phoenix: 'arizephoenix/phoenix:latest',
   };
 
   // Cache for session -> project mapping (for URL generation)
   private sessionProjectCache: Map<string, Project> = new Map();
+
+  // Cache for session -> Phoenix enablement (for URL generation)
+  private sessionPhoenixCache: Map<string, boolean> = new Map();
 
   constructor(options: SandboxServiceOptions) {
     this.projectsRepo = options.projectsRepo;
@@ -479,6 +485,7 @@ export class SandboxService {
 
     // Docker mode: localhost URLs
     const cachedProject = project ?? this.sessionProjectCache.get(sessionId);
+    const phoenixEnabled = this.sessionPhoenixCache.get(sessionId) ?? false;
 
     return {
       mastra: `http://localhost:${SandboxService.PORTS.mastra}`,
@@ -486,6 +493,9 @@ export class SandboxService {
         ? `http://localhost:${SandboxService.PORTS.astro}`
         : null,
       vscode: `http://localhost:${SandboxService.PORTS.vscode}`,
+      phoenix: phoenixEnabled
+        ? `http://localhost:${SandboxService.PORTS.phoenix}`
+        : null,
     };
   }
 
@@ -1156,6 +1166,13 @@ export class SandboxService {
     // Run init container to clone the repo (using session branch if available)
     await this.runInitContainer(session.id, volumeName, project.github_repo, session.branch_name ?? undefined, userGithubToken);
 
+    // Read project config from workspace to check if Phoenix should be enabled
+    const projectConfig = await this.readProjectConfigFromVolume(volumeName);
+    console.log(`[SandboxService] Project config: Phoenix enabled=${projectConfig.phoenixEnabled}`);
+
+    // Cache Phoenix enablement for URL generation
+    this.sessionPhoenixCache.set(session.id, projectConfig.phoenixEnabled);
+
     // Parse environment variables from JSON string
     let parsedEnvVars: Record<string, string> = {};
     try {
@@ -1174,6 +1191,15 @@ export class SandboxService {
       ...Object.entries(parsedEnvVars).map(([k, v]) => `${k}=${v}`),
     ];
 
+    // Phoenix environment variables for Mastra container
+    const phoenixEnv = projectConfig.phoenixEnabled
+      ? [
+          'PHOENIX_ENABLED=true',
+          `PHOENIX_ENDPOINT=http://${session.id}-phoenix:6006/v1/traces`,
+          'PHOENIX_PROJECT_NAME=mastragen-experiments',
+        ]
+      : ['PHOENIX_ENABLED=false'];
+
     // Container configurations
     // T048: Use project.mastra_path for Mastra working directory
     const mastraWorkDir = `/workspace${project.mastra_path && project.mastra_path !== '.' ? `/${project.mastra_path}` : ''}`;
@@ -1191,6 +1217,7 @@ export class SandboxService {
           port: SandboxService.PORTS.mastra,
           env: [
             ...baseEnv,
+            ...phoenixEnv,
             `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY || ''}`, // Mastra SDK needs actual API key
             ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
           ],
@@ -1233,6 +1260,20 @@ export class SandboxService {
         'DEFAULT_LAUNCH_ARGS=["--disable-dev-shm-usage"]',
       ],
     });
+
+    // Add Phoenix container when enabled via project config
+    if (projectConfig.phoenixEnabled) {
+      containers.push({
+        name: `${session.id}-phoenix`,
+        image: SandboxService.IMAGES.phoenix,
+        port: SandboxService.PORTS.phoenix,
+        env: [
+          'PHOENIX_SQL_DATABASE_URL=sqlite:////data/phoenix/phoenix.db',
+          'PHOENIX_WORKING_DIR=/data/phoenix',
+          `PHOENIX_TRACE_RETENTION_DAYS=${projectConfig.phoenixRetentionDays}`,
+        ],
+      });
+    }
 
     // Start containers in parallel
     console.log(`[SandboxService] Starting ${containers.length} containers...`);
@@ -1477,5 +1518,63 @@ export class SandboxService {
     tarStream.finalize();
 
     await container.putArchive(tarStream, { path: dirPath });
+  }
+
+  /**
+   * Reads the project config from a Docker volume.
+   *
+   * Uses a temporary Alpine container to read the file from the workspace volume.
+   * Returns null if the config file doesn't exist or can't be read.
+   */
+  private async readProjectConfigFromVolume(volumeName: string): Promise<{
+    phoenixEnabled: boolean;
+    phoenixRetentionDays: number;
+  }> {
+    const defaults = { phoenixEnabled: false, phoenixRetentionDays: 30 };
+
+    try {
+      // Create temporary container to read the config file
+      const container = await this.docker.createContainer({
+        Image: 'alpine:latest',
+        Cmd: ['cat', '/workspace/.mastragen/config.yaml'],
+        HostConfig: {
+          Binds: [`${volumeName}:/workspace:ro`],
+          AutoRemove: true,
+        },
+      });
+
+      await container.start();
+      const stream = await container.logs({ stdout: true, stderr: true, follow: true });
+
+      // Collect output
+      let output = '';
+      await new Promise<void>((resolve) => {
+        stream.on('data', (chunk: Buffer) => {
+          // Docker log format includes 8-byte header, skip it
+          output += chunk.slice(8).toString();
+        });
+        stream.on('end', () => resolve());
+        stream.on('error', () => resolve());
+      });
+
+      await container.wait();
+
+      if (!output.trim()) {
+        console.log('[SandboxService] No project config found, using defaults');
+        return defaults;
+      }
+
+      // Parse YAML (simple parsing for the specific fields we need)
+      const phoenixEnabledMatch = output.match(/phoenix:\s*\n\s*enabled:\s*(true|false)/);
+      const retentionMatch = output.match(/traces_days:\s*(\d+)/);
+
+      return {
+        phoenixEnabled: phoenixEnabledMatch?.[1] === 'true',
+        phoenixRetentionDays: retentionMatch?.[1] ? parseInt(retentionMatch[1], 10) : 30,
+      };
+    } catch (err) {
+      console.log('[SandboxService] Error reading project config:', err);
+      return defaults;
+    }
   }
 }

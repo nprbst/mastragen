@@ -112,6 +112,7 @@ const SANDBOX_PORTS = {
   astro: 4321,
   vscode: 8080,
   chrome: 3000,
+  phoenix: 6006,
 } as const;
 
 /**
@@ -506,12 +507,13 @@ export class K8sSandboxService {
    * Get service URLs for a sandbox.
    * Uses port-based routing to avoid path prefix issues.
    */
-  getServiceUrls(sessionId: string): { mastra: string; astro: string; vscode: string } {
+  getServiceUrls(sessionId: string): { mastra: string; astro: string; vscode: string; phoenix: string | null } {
     const hostname = this.getHostname(sessionId);
     return {
       mastra: `https://${hostname}:${SANDBOX_PORTS.mastra}`,
       astro: `https://${hostname}:${SANDBOX_PORTS.astro}`,
       vscode: `https://${hostname}`, // port 443 is implicit
+      phoenix: null, // Set when Phoenix is enabled via project config
     };
   }
 

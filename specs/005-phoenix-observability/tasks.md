@@ -15,10 +15,10 @@
 
 **Goal**: Project initialization and dependency setup
 
-- [ ] T001 Install @arizeai/phoenix-client dependency in experiments/package.json
-- [ ] T002 [P] Install @mastra/arize dependency in sandbox/mastra/package.json
-- [ ] T003 [P] Install @anthropic-ai/sdk dependency for experiments in experiments/package.json
-- [ ] T004 Create experiments/ directory structure per plan.md in experiments/
+- [X] T001 Install @arizeai/phoenix-client dependency in experiments/package.json
+- [X] T002 [P] Install @mastra/arize dependency in sandbox/mastra/package.json
+- [X] T003 [P] Install @anthropic-ai/sdk dependency for experiments in experiments/package.json
+- [X] T004 Create experiments/ directory structure per plan.md in experiments/
 
 ---
 
@@ -26,12 +26,12 @@
 
 **Goal**: Config file parser and configuration (blocking prerequisites for all user stories)
 
-- [ ] T005 Create Valibot schema for `.mastragen/config.yaml` in orchestrator/src/lib/project-config.schema.ts
-- [ ] T006 Implement config file parser with fallback to defaults in orchestrator/src/lib/project-config.ts
-- [ ] T007 Add Phoenix environment variables to config.ts (phoenixEnabled, phoenixEndpoint) in orchestrator/src/config.ts
-- [ ] T008 Add phoenix field to ServiceUrls interface in orchestrator/src/services/sandbox.ts
-- [ ] T009 Write unit tests for config file parser in orchestrator/tests/lib/project-config.test.ts
-- [ ] T010 [P] Create `.mastragen/config.yaml` template documentation in docs/config-file.md
+- [X] T005 Create Valibot schema for `.mastragen/config.yaml` in orchestrator/src/lib/project-config.schema.ts
+- [X] T006 Implement config file parser with fallback to defaults in orchestrator/src/lib/project-config.ts
+- [X] T007 Add Phoenix environment variables to config.ts (phoenixEnabled, phoenixEndpoint) in orchestrator/src/config.ts
+- [X] T008 Add phoenix field to ServiceUrls interface in orchestrator/src/services/sandbox.ts
+- [X] T009 Write unit tests for config file parser in orchestrator/tests/lib/project-config.test.ts
+- [X] T010 [P] Create `.mastragen/config.yaml` template documentation in docs/config-file.md
 
 ---
 
@@ -48,16 +48,16 @@
 
 ### Tasks
 
-- [ ] T012 [US1] Add Phoenix service configuration to docker-compose.yml with phoenix profile in docker-compose.yml
-- [ ] T013 [US1] Configure Phoenix volume for SQLite persistence in docker-compose.yml
-- [ ] T014 [US1] Add Phoenix healthcheck to docker-compose.yml in docker-compose.yml
-- [ ] T014a [US1] Configure PHOENIX_TRACE_RETENTION_DAYS=30 in docker-compose.yml and K8s manifests for FR-020
-- [ ] T015 [P] [US1] Create Phoenix Kubernetes deployment manifest in orchestrator/k8s/phoenix/deployment.yaml
-- [ ] T016 [P] [US1] Create Phoenix Kubernetes service manifest in orchestrator/k8s/phoenix/service.yaml
-- [ ] T017 [P] [US1] Create Phoenix Kubernetes PVC manifest in orchestrator/k8s/phoenix/pvc.yaml
-- [ ] T018 [US1] Update Mastra entrypoint.sh to configure OTEL exporter when PHOENIX_ENABLED=true in sandbox/mastra/entrypoint.sh
-- [ ] T019 [US1] Create Mastra telemetry configuration template in experiments/lib/mastra-telemetry.ts
-- [ ] T020 [US1] Write unit tests for telemetry configuration in experiments/lib/mastra-telemetry.test.ts
+- [X] T012 [US1] Add Phoenix service configuration to docker-compose.yml with phoenix profile in docker-compose.yml
+- [X] T013 [US1] Configure Phoenix volume for SQLite persistence in docker-compose.yml
+- [X] T014 [US1] Add Phoenix healthcheck to docker-compose.yml in docker-compose.yml
+- [X] T014a [US1] Configure PHOENIX_TRACE_RETENTION_DAYS=30 in docker-compose.yml and K8s manifests for FR-020
+- [X] T015 [P] [US1] Create Phoenix Kubernetes deployment manifest in orchestrator/k8s/phoenix/deployment.yaml
+- [X] T016 [P] [US1] Create Phoenix Kubernetes service manifest in orchestrator/k8s/phoenix/service.yaml
+- [X] T017 [P] [US1] Create Phoenix Kubernetes PVC manifest in orchestrator/k8s/phoenix/pvc.yaml
+- [X] T018 [US1] Update Mastra entrypoint.sh to configure OTEL exporter when PHOENIX_ENABLED=true in sandbox/mastra/entrypoint.sh
+- [X] T019 [US1] Create Mastra telemetry configuration template in experiments/lib/mastra-telemetry.ts
+- [X] T020 [US1] Write unit tests for telemetry configuration in experiments/lib/mastra-telemetry.test.ts
 
 ---
 
@@ -74,10 +74,10 @@
 
 ### Tasks
 
-- [ ] T021 [US2] Modify SandboxService to read .mastragen/config.yaml and check components.phoenix.enabled in orchestrator/src/services/sandbox.ts
-- [ ] T022 [US2] Add Phoenix container to containers array when enabled in SandboxService in orchestrator/src/services/sandbox.ts
-- [ ] T023 [US2] Inject PHOENIX_ENABLED and PHOENIX_ENDPOINT into Mastra container in orchestrator/src/services/sandbox.ts
-- [ ] T024 [US2] Populate phoenix URL in ServiceUrls when Phoenix enabled in orchestrator/src/services/sandbox.ts
+- [X] T021 [US2] Modify SandboxService to read .mastragen/config.yaml and check components.phoenix.enabled in orchestrator/src/services/sandbox.ts
+- [X] T022 [US2] Add Phoenix container to containers array when enabled in SandboxService in orchestrator/src/services/sandbox.ts
+- [X] T023 [US2] Inject PHOENIX_ENABLED and PHOENIX_ENDPOINT into Mastra container in orchestrator/src/services/sandbox.ts
+- [X] T024 [US2] Populate phoenix URL in ServiceUrls when Phoenix enabled in orchestrator/src/services/sandbox.ts
 - [ ] T025 [P] [US2] Modify K8sSandboxService to read .mastragen/config.yaml and add Phoenix container when enabled in orchestrator/src/services/k8s-sandbox.ts
 - [ ] T026 [P] [US2] Add Caddyfile entry for Phoenix port 6006 with Tailscale TLS in orchestrator/src/services/k8s-sandbox.ts
 - [ ] T027 [US2] Write unit tests for SandboxService Phoenix integration in orchestrator/tests/unit/services/sandbox-phoenix.test.ts
