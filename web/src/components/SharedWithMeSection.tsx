@@ -21,12 +21,13 @@ function groupSessionsByProject(sessions: Session[]): GroupedSessions[] {
   for (const session of sessions) {
     const projectId = session.projectId;
     const projectName = session.project?.name || projectId;
+    const ownerName = session.user?.name || session.user?.email || null;
 
     if (!groups.has(projectId)) {
       groups.set(projectId, {
         projectId,
         projectName,
-        ownerName: null,
+        ownerName,
         sessions: [],
       });
     }
