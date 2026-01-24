@@ -63,6 +63,7 @@ const SANDBOX_PORTS = {
   mastra: 4111,
   astro: 4321,
   vscode: 8080,
+  chrome: 3000,
 } as const;
 
 /**
@@ -75,6 +76,7 @@ const SANDBOX_IMAGES = {
   vscode: 'mastragen-vscode',
   tailscale: 'tailscale/tailscale:latest',
   caddy: 'mastragen-caddy',
+  chrome: 'ghcr.io/browserless/chromium:latest',
 } as const;
 
 export class K8sSandboxService {
@@ -284,6 +286,14 @@ https://${hostname}:${SANDBOX_PORTS.astro} {
   }
   reverse_proxy localhost:${SANDBOX_PORTS.astro}
 }
+
+# Chrome DevTools on port ${SANDBOX_PORTS.chrome}
+https://${hostname}:${SANDBOX_PORTS.chrome} {
+  tls {
+    get_certificate tailscale
+  }
+  reverse_proxy localhost:${SANDBOX_PORTS.chrome}
+}
 `;
 
     const configMap: k8s.V1ConfigMap = {
@@ -388,6 +398,27 @@ https://${hostname}:${SANDBOX_PORTS.astro} {
               requests: { cpu: '100m', memory: '256Mi' },
             },
           },
+          // Chrome DevTools container for browser automation
+          {
+            name: 'chrome',
+            image: SANDBOX_IMAGES.chrome,
+            ports: [{ containerPort: SANDBOX_PORTS.chrome }],
+            env: [
+              { name: 'CONNECTION_TIMEOUT', value: '300000' },
+              { name: 'MAX_CONCURRENT_SESSIONS', value: '2' },
+              { name: 'PREBOOT_CHROME', value: 'true' },
+              { name: 'DEFAULT_LAUNCH_ARGS', value: '["--disable-dev-shm-usage"]' },
+            ],
+            resources: {
+              limits: { cpu: '1', memory: '2Gi' },
+              requests: { cpu: '500m', memory: '1Gi' },
+            },
+            readinessProbe: {
+              httpGet: { path: '/health', port: SANDBOX_PORTS.chrome },
+              initialDelaySeconds: 10,
+              periodSeconds: 10,
+            },
+          },
           // T095f, T095h: Tailscale sidecar with TS_PERMIT_CERT_UID=caddy
           {
             name: 'tailscale',
@@ -432,6 +463,7 @@ https://${hostname}:${SANDBOX_PORTS.astro} {
               { containerPort: 443, name: 'https' },
               { containerPort: SANDBOX_PORTS.mastra, name: 'mastra' },
               { containerPort: SANDBOX_PORTS.astro, name: 'astro' },
+              { containerPort: SANDBOX_PORTS.chrome, name: 'chrome' },
             ],
             volumeMounts: [
               { name: 'caddy-config', mountPath: '/etc/caddy', readOnly: true },

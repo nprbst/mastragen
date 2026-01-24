@@ -16,6 +16,7 @@ import { configRoutes } from './routes/config.ts';
 import { metricsRoutes } from './routes/metrics.ts';
 import { tailscaleRoutes } from './routes/tailscale.ts';
 import { alertsRoutes } from './routes/alerts.ts';
+import { chromeSetupRoutes } from './routes/chrome-setup.ts';
 import { handleORPCRequest } from './orpc/index.ts';
 import { initializeKeyPair } from './lib/crypto.ts';
 import { createIdleSuspendScheduler } from './jobs/idle-suspend.ts';
@@ -75,6 +76,7 @@ api.route('/sessions', sessionsRoutes(db));
 api.route('/config', configRoutes(db));
 api.route('/tailscale', tailscaleRoutes());
 api.route('/alerts', alertsRoutes(db));
+api.route('/chrome-setup', chromeSetupRoutes(db));
 
 // GitHub webhook handler
 const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || 'development-webhook-secret';

@@ -407,6 +407,16 @@ export function NewSessionForm({}: NewSessionFormProps) {
         </p>
       </div>
 
+      {/* Browser preview tip */}
+      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
+        <p className="text-sm text-blue-800 dark:text-blue-300">
+          <strong>Browser Preview:</strong> Claude Code will have access to a containerized Chrome browser for taking screenshots and interacting with your Astro preview.
+        </p>
+        <p className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+          Want to see the same browser Claude sees? Use the CLI: <code className="bg-blue-100 dark:bg-blue-800/50 px-1 rounded font-mono">mgen chrome start</code>
+        </p>
+      </div>
+
       <div className="flex justify-end gap-3 pt-4">
         <a
           href="/"

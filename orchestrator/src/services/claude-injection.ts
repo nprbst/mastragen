@@ -5,6 +5,11 @@ import type { Database, ProjectClaudeConfig } from '../db/types.ts';
 import { ProjectsRepository } from '../repositories/index.ts';
 
 /**
+ * Chrome mode type for DevTools MCP integration.
+ */
+export type ChromeMode = 'sidecar' | 'local';
+
+/**
  * Configuration for generating Claude settings.
  */
 export interface ClaudeSettingsConfig {
@@ -12,6 +17,8 @@ export interface ClaudeSettingsConfig {
   environment: string;
   sessionId: string;
   userId?: string;
+  chromeMode?: ChromeMode;
+  userTailscaleHostname?: string;
 }
 
 /**
@@ -54,16 +61,39 @@ export interface McpServerConfig {
 const BUILTIN_COMMANDS_DIR = '/app/claude-commands';
 const BUILTIN_SKILLS_DIR = '/app/claude-skills';
 
-const DEFAULT_MCP_SERVERS: Record<string, McpServerConfig> = {
-  'astro-docs': {
-    command: 'bunx',
-    args: ['--bun', 'mcp-remote', 'https://mcp.docs.astro.build/mcp'],
-  },
-  'mastra-docs': {
-    command: 'bunx',
-    args: ['--bun', '@mastra/mcp-docs-server'],
-  },
-};
+/**
+ * Get default MCP servers with dynamic chrome endpoint.
+ */
+function getDefaultMcpServers(chromeEndpoint: string): Record<string, McpServerConfig> {
+  return {
+    'astro-docs': {
+      command: 'bunx',
+      args: ['--bun', 'mcp-remote', 'https://mcp.docs.astro.build/mcp'],
+    },
+    'mastra-docs': {
+      command: 'bunx',
+      args: ['--bun', '@mastra/mcp-docs-server'],
+    },
+    'chrome-devtools': {
+      command: 'npx',
+      args: ['chrome-devtools-mcp@latest', `--browserUrl=${chromeEndpoint}`],
+    },
+  };
+}
+
+/**
+ * Get the Chrome DevTools endpoint based on chrome mode.
+ * - sidecar: Container Chrome at http://chrome:3000
+ * - local: User's Chrome via Tailscale
+ */
+function getChromeEndpoint(chromeMode: ChromeMode | undefined, userTailscaleHostname: string | undefined): string {
+  if (chromeMode === 'local' && userTailscaleHostname) {
+    // User's Chrome via Tailscale
+    return `http://${userTailscaleHostname}:9222`;
+  }
+  // Default to sidecar Chrome container
+  return 'http://chrome:3000';
+}
 
 /**
  * Claude settings.json structure.
@@ -109,8 +139,11 @@ export class ClaudeInjectionService {
     // Get project Claude config
     const claudeConfig = await this.getClaudeConfig(config.projectId);
 
-    // Start with default MCP servers
-    let mcpServers: Record<string, McpServerConfig> = { ...DEFAULT_MCP_SERVERS };
+    // Determine Chrome endpoint based on session's chrome mode
+    const chromeEndpoint = getChromeEndpoint(config.chromeMode, config.userTailscaleHostname);
+
+    // Start with default MCP servers (includes dynamic chrome-devtools endpoint)
+    let mcpServers: Record<string, McpServerConfig> = { ...getDefaultMcpServers(chromeEndpoint) };
 
     // Merge project-specific MCP servers (overrides defaults)
     if (claudeConfig?.mcp_servers) {
@@ -161,6 +194,13 @@ export class ClaudeInjectionService {
     content += `- \`touch /workspace/.restart-astro\` - Restart the Astro dev server (UI)\n`;
     content += `- \`touch /workspace/.restart-mastra\` - Restart the Mastra dev server (agents/tools)\n\n`;
     content += `The process will restart within 1-2 seconds after the file is touched.\n\n`;
+
+    // Add browser preview access documentation
+    content += `## Browser Preview Access\n\n`;
+    content += `You have access to Chrome DevTools via the \`chrome-devtools\` MCP server. To see the Astro preview:\n\n`;
+    content += `1. Navigate to the preview: use \`navigate_page\` with URL \`http://astro:4321\`\n`;
+    content += `2. Take a screenshot: use \`take_screenshot\`\n`;
+    content += `3. Check console: use \`list_console_messages\`\n\n`;
 
     // Add custom CLAUDE.md content if configured
     if (claudeConfig?.claude_md) {

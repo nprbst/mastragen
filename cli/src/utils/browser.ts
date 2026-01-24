@@ -15,7 +15,7 @@ const CHROME_PATHS = [
 /**
  * Finds Chrome binary path, checking common locations and falling back to mdfind.
  */
-function findChromePath(): string | null {
+export function findChromePath(): string | null {
   // Check known paths first
   for (const path of CHROME_PATHS) {
     if (existsSync(path)) {

@@ -97,6 +97,28 @@ services:
     profiles:
       - sandbox
 
+  chrome:
+    image: ghcr.io/browserless/chromium:latest
+    ports:
+      - "9222:3000"
+    environment:
+      - CONNECTION_TIMEOUT=300000
+      - MAX_CONCURRENT_SESSIONS=2
+      - PREBOOT_CHROME=true
+      - DEFAULT_LAUNCH_ARGS=["--disable-dev-shm-usage"]
+    networks:
+      - mastragen
+    depends_on:
+      - astro
+    profiles:
+      - sandbox
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
   init:
     build:
       context: ./sandbox/init

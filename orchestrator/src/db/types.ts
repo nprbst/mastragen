@@ -63,6 +63,13 @@ export type SessionStateType = 'active' | 'suspended' | 'pr_open' | 'merged' | '
 export type SuspensionReasonType = 'manual' | 'auto' | 'share_revoke';
 
 /**
+ * Chrome mode type for DevTools MCP integration.
+ * - 'sidecar': Use containerized Chrome in the sandbox
+ * - 'local': Use user's Chrome on their Mac via Tailscale
+ */
+export type ChromeModeType = 'sidecar' | 'local';
+
+/**
  * Sessions table - active or suspended development session.
  * Extended with git-related fields per specs/002-git-multi-project/data-model.md
  * Extended with last_activity_at per specs/003-cui-config-landing-page/data-model.md
@@ -84,6 +91,8 @@ export interface SessionsTable {
   pr_url: string | null;
   last_activity_at: string | null;
   suspension_reason: SuspensionReasonType | null;
+  chrome_mode: ChromeModeType | null;
+  user_tailscale_hostname: string | null;
   created_at: Generated<string>;
   updated_at: Generated<string>;
 }

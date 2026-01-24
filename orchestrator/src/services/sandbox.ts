@@ -235,6 +235,7 @@ export class SandboxService {
     mastra: 4111,
     astro: 4321,
     vscode: 8080,
+    chrome: 9222,
   };
 
   // Container image names (built from sandbox/ Dockerfiles)
@@ -243,6 +244,7 @@ export class SandboxService {
     mastra: 'mastragen-mastra',
     astro: 'mastragen-astro',
     vscode: 'mastragen-vscode',
+    chrome: 'ghcr.io/browserless/chromium:latest',
   };
 
   // Cache for session -> project mapping (for URL generation)
@@ -865,6 +867,7 @@ export class SandboxService {
       `${sessionId}-mastra`,
       `${sessionId}-vscode`,
       `${sessionId}-astro`,
+      `${sessionId}-chrome`,
     ];
 
     await Promise.all(
@@ -1067,6 +1070,20 @@ export class SandboxService {
       });
     }
 
+    // Add Chrome DevTools container for browser automation (sidecar mode)
+    // This runs browserless/chromium which exposes Chrome DevTools Protocol
+    containers.push({
+      name: `${session.id}-chrome`,
+      image: SandboxService.IMAGES.chrome,
+      port: SandboxService.PORTS.chrome,
+      env: [
+        'CONNECTION_TIMEOUT=300000',
+        'MAX_CONCURRENT_SESSIONS=2',
+        'PREBOOT_CHROME=true',
+        'DEFAULT_LAUNCH_ARGS=["--disable-dev-shm-usage"]',
+      ],
+    });
+
     // Start containers in parallel
     console.log(`[SandboxService] Starting ${containers.length} containers...`);
     const containerIds: string[] = [];
@@ -1116,6 +1133,8 @@ export class SandboxService {
       projectId: project.id,
       environment: session.environment,
       userId: userId ?? session.user_id ?? undefined,
+      chromeMode: session.chrome_mode ?? undefined,
+      userTailscaleHostname: session.user_tailscale_hostname ?? undefined,
     });
   }
 
@@ -1160,7 +1179,13 @@ export class SandboxService {
   private async injectClaudeConfig(
     sessionId: string,
     containerName: string,
-    config: { projectId: string; environment: string; userId?: string }
+    config: {
+      projectId: string;
+      environment: string;
+      userId?: string;
+      chromeMode?: 'sidecar' | 'local';
+      userTailscaleHostname?: string;
+    }
   ): Promise<void> {
     if (!this.claudeInjectionService) {
       console.log('[SandboxService] Claude injection service not available, skipping config injection');
@@ -1172,11 +1197,13 @@ export class SandboxService {
     const container = this.docker.getContainer(containerName);
 
     try {
-      // Generate settings.json
+      // Generate settings.json with chrome mode configuration
       const settings = await this.claudeInjectionService.generateSettings({
         projectId: config.projectId,
         environment: config.environment,
         sessionId,
+        chromeMode: config.chromeMode,
+        userTailscaleHostname: config.userTailscaleHostname,
       });
 
       // Generate CLAUDE.md
@@ -1184,6 +1211,8 @@ export class SandboxService {
         projectId: config.projectId,
         environment: config.environment,
         sessionId,
+        chromeMode: config.chromeMode,
+        userTailscaleHostname: config.userTailscaleHostname,
       });
 
       // Get built-in and project-specific commands

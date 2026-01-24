@@ -10,6 +10,7 @@ import { projectCommand } from './commands/project.ts';
 import { sessionCommand } from './commands/session.ts';
 import { metricsCommand } from './commands/metrics.ts';
 import { tailscaleCommand } from './commands/tailscale.ts';
+import { chromeCommand } from './commands/chrome.ts';
 
 const config = loadConfig();
 
@@ -42,6 +43,7 @@ program.addCommand(projectCommand(defaultClient));
 program.addCommand(sessionCommand(defaultClient));
 program.addCommand(metricsCommand(defaultClient));
 program.addCommand(tailscaleCommand(defaultClient));
+program.addCommand(chromeCommand(defaultClient));
 
 // Parse and execute
 program.parse();
