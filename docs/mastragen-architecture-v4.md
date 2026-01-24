@@ -477,10 +477,14 @@ This gives Claude and developers a starting point. Components prototyped here ev
 │  │                                                                      │   │
 │  │  ┌────────────────────────────────────────────────────────────────┐ │   │
 │  │  │  Tailscale Sidecar                                             │ │   │
-│  │  │  - Hostname: sandbox-{sessionId}.tailnet.ts.net                │ │   │
-│  │  │  - Exposes ports: 3001, 4111, 4321, 8080                       │ │   │
-│  │  │  - HTTPS termination via Tailscale Serve                       │ │   │
+│  │  │  - Hostname: {sessionId}-mastragen-{env}.{tailnet}.ts.net      │ │   │
+│  │  │  - Exposes ports: 4111, 4321, 8080                             │ │   │
 │  │  │  - ACL-based access control                                    │ │   │
+│  │  └────────────────────────────────────────────────────────────────┘ │   │
+│  │  ┌────────────────────────────────────────────────────────────────┐ │   │
+│  │  │  Caddy Sidecar                                                 │ │   │
+│  │  │  - HTTPS termination via Caddy + Tailscale certs               │ │   │
+│  │  │  - Reverse proxy to internal services                          │ │   │
 │  │  └────────────────────────────────────────────────────────────────┘ │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                              │
@@ -639,10 +643,9 @@ When a session is active, the landing page shows direct links to each service:
 
 | Button | URL | Purpose |
 |--------|-----|---------|
-| **cui :3001** | `https://sandbox-{id}.tailnet.ts.net:3001` | Natural language development with Claude |
-| **Mastra :4111** | `https://sandbox-{id}.tailnet.ts.net:4111` | Testing tools/agents/workflows |
-| **Astro :4321** | `https://sandbox-{id}.tailnet.ts.net:4321` | UI component prototyping |
-| **VS Code :8080** | `https://sandbox-{id}.tailnet.ts.net:8080` | Full IDE (starts on first access) |
+| **Mastra :4111** | `https://{id}-mastragen-{env}.{tailnet}.ts.net:4111` | Testing tools/agents/workflows |
+| **Astro :4321** | `https://{id}-mastragen-{env}.{tailnet}.ts.net:4321` | UI component prototyping |
+| **VS Code :8080** | `https://{id}-mastragen-{env}.{tailnet}.ts.net:8080` | Full IDE (starts on first access) |
 
 #### Implementation
 
@@ -1253,21 +1256,21 @@ app.post('/sessions', async (c) => {
   });
   
   // 7. Wait for Tailscale to register
-  const tailscaleHostname = `sandbox-${sessionId}.${process.env.TAILNET_DOMAIN}`;
-  await tailscale.waitForDevice(`sandbox-${sessionId}`, { timeout: 60000 });
-  
+  const env = process.env.MASTRAGEN_ENV || 'local';
+  const tailscaleHostname = `${sessionId}-mastragen-${env}.${process.env.TAILNET_DOMAIN}`;
+  await tailscale.waitForDevice(`${sessionId}-mastragen-${env}`, { timeout: 60000 });
+
   // 8. Update session with pod info
   await sessions.update(sessionId, {
     pod_name: pod.name,
     tailscale_hostname: tailscaleHostname,
   });
-  
+
   // 9. Return session with service URLs
   const hasAstro = !!project.ui_sandbox_path;
   return c.json({
     ...await sessions.findById(sessionId),
     urls: {
-      cui: `https://${tailscaleHostname}:3001`,
       mastra: `https://${tailscaleHostname}:4111`,
       astro: hasAstro ? `https://${tailscaleHostname}:4321` : null,
       vscode: `https://${tailscaleHostname}:8080`,
@@ -1331,22 +1334,22 @@ app.post('/sessions/:id/resume', async (c) => {
   });
   
   // 2. Wait for Tailscale
-  const tailscaleHostname = `sandbox-${session.id}.${process.env.TAILNET_DOMAIN}`;
-  await tailscale.waitForDevice(`sandbox-${session.id}`, { timeout: 60000 });
-  
+  const env = process.env.MASTRAGEN_ENV || 'local';
+  const tailscaleHostname = `${session.id}-mastragen-${env}.${process.env.TAILNET_DOMAIN}`;
+  await tailscale.waitForDevice(`${session.id}-mastragen-${env}`, { timeout: 60000 });
+
   // 3. Update session
   await sessions.update(session.id, {
     state: 'active',
     pod_name: pod.name,
     tailscale_hostname: tailscaleHostname,
   });
-  
+
   // 4. Return session with service URLs
   const hasAstro = !!project.ui_sandbox_path;
   return c.json({
     ...await sessions.findById(session.id),
     urls: {
-      cui: `https://${tailscaleHostname}:3001`,
       mastra: `https://${tailscaleHostname}:4111`,
       astro: hasAstro ? `https://${tailscaleHostname}:4321` : null,
       vscode: `https://${tailscaleHostname}:8080`,
@@ -1404,18 +1407,18 @@ app.post('/sessions/:id/share', async (c) => {
   }
   
   // Update Tailscale ACLs to allow these users
+  const env = process.env.MASTRAGEN_ENV || 'local';
   await tailscale.grantAccess({
-    device: `sandbox-${session.id}`,
+    device: `${session.id}-mastragen-${env}`,
     users: userIds,
   });
-  
+
   // Record sharing in session
   await store.addSharedUsers(session.id, userIds);
-  
+
   const hostname = session.tailscaleHostname;
   return c.json({
     urls: {
-      cui: `https://${hostname}:3001`,
       mastra: `https://${hostname}:4111`,
       astro: `https://${hostname}:4321`,
       vscode: `https://${hostname}:8080`,
@@ -1936,13 +1939,13 @@ spec:
               name: tailscale-auth
               key: authkey
         - name: TS_HOSTNAME
-          value: sandbox-${SESSION_ID}
+          value: ${SESSION_ID}-mastragen-${ENV}
         - name: TS_STATE_DIR
           value: /var/lib/tailscale
         - name: TS_USERSPACE
           value: "true"
-        - name: TS_SERVE_CONFIG
-          value: /config/serve.json
+        - name: TS_PERMIT_CERT_UID
+          value: caddy  # Allow Caddy to fetch TLS certs
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000
@@ -1960,66 +1963,39 @@ spec:
           mountPath: /config
 ```
 
-#### Tailscale Serve ConfigMap (Port-Based)
+#### Caddy ConfigMap (HTTPS Termination)
 
-Tailscale Serve exposes each port with HTTPS termination:
+Caddy provides HTTPS termination using certificates from the Tailscale daemon. Each port is served on its own hostname:port combination (port-based routing per Constitution Principle III).
 
 ```yaml
 # Created dynamically by orchestrator for each session
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: sandbox-tailscale-config-${SESSION_ID}
+  name: sandbox-caddy-config-${SESSION_ID}
   namespace: mastragen-sandboxes
 data:
-  serve.json: |
-    {
-      "TCP": {
-        "3001": {
-          "HTTPS": true
-        },
-        "4111": {
-          "HTTPS": true
-        },
-        "4321": {
-          "HTTPS": true
-        },
-        "8080": {
-          "HTTPS": true
-        }
-      },
-      "Web": {
-        "sandbox-${SESSION_ID}.${TAILNET_DOMAIN}:3001": {
-          "Handlers": {
-            "/": {
-              "Proxy": "http://127.0.0.1:3001"
-            }
-          }
-        },
-        "sandbox-${SESSION_ID}.${TAILNET_DOMAIN}:4111": {
-          "Handlers": {
-            "/": {
-              "Proxy": "http://127.0.0.1:4111"
-            }
-          }
-        },
-        "sandbox-${SESSION_ID}.${TAILNET_DOMAIN}:4321": {
-          "Handlers": {
-            "/": {
-              "Proxy": "http://127.0.0.1:4321"
-            }
-          }
-        },
-        "sandbox-${SESSION_ID}.${TAILNET_DOMAIN}:8080": {
-          "Handlers": {
-            "/": {
-              "Proxy": "http://127.0.0.1:8080"
-            }
-          }
-        }
-      }
+  Caddyfile: |
+    # Hostname pattern: {id}-mastragen-{env}.{tailnet}.ts.net
+    # Caddy gets TLS certs from Tailscale daemon (requires TS_PERMIT_CERT_UID=caddy)
+
+    # Mastra Studio
+    ${SESSION_ID}-mastragen-${ENV}.${TAILNET_DOMAIN}:4111 {
+        reverse_proxy localhost:4111
+    }
+
+    # Astro UI Sandbox
+    ${SESSION_ID}-mastragen-${ENV}.${TAILNET_DOMAIN}:4321 {
+        reverse_proxy localhost:4321
+    }
+
+    # VS Code Server
+    ${SESSION_ID}-mastragen-${ENV}.${TAILNET_DOMAIN}:8080 {
+        reverse_proxy localhost:8080
     }
 ```
+
+**Tailscale Configuration**: The Tailscale sidecar must set `TS_PERMIT_CERT_UID=caddy` to allow the Caddy process to fetch certificates.
 
 #### Service URLs
 
@@ -2027,10 +2003,9 @@ Once the sandbox is running, users access each service on its own port:
 
 | Service | URL | Purpose |
 |---------|-----|---------|
-| **cui** | `https://sandbox-{id}.tailnet.ts.net:3001` | Claude chat + file editing |
-| **Mastra** | `https://sandbox-{id}.tailnet.ts.net:4111` | Tool/agent testing + Studio UI |
-| **Astro** | `https://sandbox-{id}.tailnet.ts.net:4321` | React UI component prototyping |
-| **VS Code** | `https://sandbox-{id}.tailnet.ts.net:8080` | Full IDE (starts on first access) |
+| **Mastra** | `https://{id}-mastragen-{env}.{tailnet}.ts.net:4111` | Tool/agent testing + Studio UI |
+| **Astro** | `https://{id}-mastragen-{env}.{tailnet}.ts.net:4321` | React UI component prototyping |
+| **VS Code** | `https://{id}-mastragen-{env}.{tailnet}.ts.net:8080` | Full IDE (starts on first access) |
 
 All services share the same `/workspace` volume, so changes in VS Code are immediately visible in cui and trigger Mastra/Astro HMR.
 
@@ -2303,10 +2278,10 @@ import { useConfig } from '@/hooks/useConfig';
 import { useState } from 'react';
 
 export function SessionControls() {
-  const { sessionId, orchestratorUrl, tailnetDomain } = useConfig();
+  const { sessionId, orchestratorUrl, tailnetDomain, env } = useConfig();
   const [loading, setLoading] = useState(false);
-  
-  const mastraUrl = `https://sandbox-${sessionId}.${tailnetDomain}:4111`;
+
+  const mastraUrl = `https://${sessionId}-mastragen-${env}.${tailnetDomain}:4111`;
   
   async function suspend() {
     setLoading(true);

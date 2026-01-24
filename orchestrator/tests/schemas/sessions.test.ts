@@ -68,6 +68,7 @@ describe('SessionResponseSchema', () => {
       artifactName: 'my-feature',
       environment: 'dev',
       state: 'active' as const,
+      suspensionReason: null,
       createdAt: '2024-01-17T12:00:00Z',
       updatedAt: '2024-01-17T12:00:00Z',
     };
@@ -82,6 +83,7 @@ describe('SessionResponseSchema', () => {
       artifactName: 'my-feature',
       environment: 'dev',
       state: 'suspended',
+      suspensionReason: 'manual',
       createdAt: '2024-01-17T12:00:00Z',
       updatedAt: '2024-01-17T12:00:00Z',
     };
@@ -111,6 +113,7 @@ describe('SessionWithUrlsResponseSchema', () => {
       artifactName: 'my-feature',
       environment: 'dev',
       state: 'active' as const,
+      suspensionReason: null,
       createdAt: '2024-01-17T12:00:00Z',
       updatedAt: '2024-01-17T12:00:00Z',
       urls: {

@@ -1,0 +1,39 @@
+# T088: Staging environment values
+# Usage: helm install mastragen ./helm/mastragen -f ./helm/mastragen/values/staging.yaml
+
+orchestrator:
+  replicaCount: 2
+
+  image:
+    pullPolicy: IfNotPresent
+
+  resources:
+    limits:
+      cpu: "1"
+      memory: "1Gi"
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+
+  env:
+    LOG_LEVEL: "info"
+    NODE_ENV: "staging"
+
+  persistence:
+    enabled: true
+    size: 5Gi
+
+# Enable Tailscale
+tailscale:
+  enabled: true
+  aclTags:
+    - "tag:mastragen-staging"
+
+# Enable RBAC
+rbac:
+  create: true
+
+# Enable PDB for 2 replicas
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

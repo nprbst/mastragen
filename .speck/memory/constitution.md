@@ -102,6 +102,14 @@ easier to debug, operate, and extend. Mastragen should feel lightweight to opera
 
 ## Development Workflow
 
+### Preflight Checks
+
+Before pushing changes, run `bun run preflight:quick` to verify TypeScript compiles across all services.
+
+- This catches type errors before they fail in CI
+- The git pre-push hook enforces this automatically
+- For full validation including tests, run `bun run preflight`
+
 ### Session Lifecycle
 
 1. User creates session via landing page (selects project, environment, artifact name)

@@ -33,6 +33,13 @@ export const SessionStateSchema = v.picklist([
 export type SessionState = v.InferOutput<typeof SessionStateSchema>;
 
 /**
+ * Suspension reason enum.
+ * Added in Phase 4 for idle auto-suspend feature.
+ */
+export const SuspensionReasonSchema = v.picklist(['manual', 'auto', 'share_revoke']);
+export type SuspensionReason = v.InferOutput<typeof SuspensionReasonSchema>;
+
+/**
  * Artifact name: lowercase alphanumeric with hyphens, 1-50 chars.
  * Must start and end with alphanumeric, or be a single alphanumeric character.
  */

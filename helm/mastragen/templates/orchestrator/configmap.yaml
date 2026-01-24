@@ -1,0 +1,19 @@
+# T080: Orchestrator configmap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "mastragen.fullname" . }}-config
+  labels:
+    {{- include "mastragen.orchestrator.labels" . | nindent 4 }}
+data:
+  # Application configuration
+  LOG_LEVEL: {{ .Values.orchestrator.env.LOG_LEVEL | default "info" | quote }}
+  NODE_ENV: {{ .Values.orchestrator.env.NODE_ENV | default "production" | quote }}
+
+  # Tailscale configuration
+  {{- if .Values.tailscale.enabled }}
+  TAILSCALE_ENABLED: "true"
+  {{- end }}
+
+  # Database path (when using SQLite)
+  DATABASE_PATH: "/app/data/mastragen.db"

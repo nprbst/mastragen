@@ -1,0 +1,47 @@
+---
+/**
+ * T069: Admin alerts page
+ *
+ * Displays alert rules and events for platform administrators.
+ * Features:
+ * - List of alert rules with enable/disable toggle
+ * - Create/edit alert rules
+ * - List of alert events with status filters
+ * - Acknowledge events inline
+ */
+import Layout from '../../layouts/Layout.astro';
+import AlertRulesList from '../../components/admin/AlertRulesList';
+import AlertEventsList from '../../components/admin/AlertEventsList';
+---
+
+<Layout title="Alert Management">
+  <div class="space-y-6">
+    <div>
+      <a href="/" class="text-sm text-gray-500 dark:text-dark-text-secondary hover:text-gray-700 dark:hover:text-dark-text-primary mb-2 block">
+        &larr; Back to Dashboard
+      </a>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-dark-text-primary">
+        Alert Management
+      </h1>
+      <p class="mt-1 text-sm text-gray-500 dark:text-dark-text-secondary">
+        Configure alert rules and view triggered events.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white dark:bg-dark-bg-secondary rounded-lg shadow-sm border border-gray-200 dark:border-dark-border p-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-dark-text-primary mb-4">
+          Alert Rules
+        </h2>
+        <AlertRulesList client:load />
+      </div>
+
+      <div class="bg-white dark:bg-dark-bg-secondary rounded-lg shadow-sm border border-gray-200 dark:border-dark-border p-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-dark-text-primary mb-4">
+          Recent Events
+        </h2>
+        <AlertEventsList client:load />
+      </div>
+    </div>
+  </div>
+</Layout>

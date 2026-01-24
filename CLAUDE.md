@@ -23,6 +23,12 @@ mastragen - AI-powered development platform with compounding knowledge
 ### Full stack development
 - `docker-compose up` - Start all services (orchestrator, web, sandbox containers)
 
+### Preflight Checks
+- `bun run preflight` - Full preflight (typecheck + tests for orchestrator and web)
+- `bun run preflight:quick` - Quick preflight (typecheck only, faster)
+- Always run `bun run preflight:quick` before pushing to catch TypeScript errors early
+- A git pre-push hook is installed via `bun install` that runs preflight:quick automatically
+
 ## Architecture
 
 - **web/** - Astro SSR frontend with React islands (port 3000)

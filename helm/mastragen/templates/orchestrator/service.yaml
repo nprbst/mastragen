@@ -1,0 +1,20 @@
+# T079: Orchestrator service
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "mastragen.fullname" . }}-orchestrator
+  labels:
+    {{- include "mastragen.orchestrator.labels" . | nindent 4 }}
+  {{- with .Values.orchestrator.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.orchestrator.service.type }}
+  ports:
+    - port: {{ .Values.orchestrator.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "mastragen.orchestrator.selectorLabels" . | nindent 4 }}

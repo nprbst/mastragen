@@ -12,8 +12,17 @@ import {
   sessionsRoutes,
   createWebhookRoutes,
 } from './routes/index.ts';
+import { configRoutes } from './routes/config.ts';
+import { metricsRoutes } from './routes/metrics.ts';
+import { tailscaleRoutes } from './routes/tailscale.ts';
+import { alertsRoutes } from './routes/alerts.ts';
 import { handleORPCRequest } from './orpc/index.ts';
 import { initializeKeyPair } from './lib/crypto.ts';
+import { createIdleSuspendScheduler } from './jobs/idle-suspend.ts';
+import { createAlertCheckerScheduler } from './jobs/alert-checker.ts';
+import { createK8sMetricsScheduler } from './jobs/k8s-metrics.ts';
+import { initializeMetricsService } from './services/metrics-service.ts';
+import { metricsMiddleware } from './middleware/metrics-middleware.ts';
 
 const config = loadConfig();
 
@@ -32,12 +41,23 @@ await runMigrations(db);
 // Initialize encryption key pair for token encryption
 initializeKeyPair();
 
+// Initialize metrics service for Prometheus metrics collection (T037-T041)
+initializeMetricsService(db);
+
 // Create Hono app
 const app = new Hono();
 
 // Middleware
 app.use('*', cors());
-app.use('*', logger());
+app.use('*', metricsMiddleware()); // Track request counts and duration (T042-T043)
+
+// Logger middleware - skip /metrics to reduce noise (T047)
+app.use('*', async (c, next) => {
+  if (c.req.path === '/metrics') {
+    return next();
+  }
+  return logger()(c, next);
+});
 
 // Inject database into context for middleware
 app.use('*', async (c, next) => {
@@ -52,10 +72,25 @@ api.route('/auth', createAuthRoutes(db));
 api.route('/health', healthRoutes(db));
 api.route('/projects', projectsRoutes(db));
 api.route('/sessions', sessionsRoutes(db));
+api.route('/config', configRoutes(db));
+api.route('/tailscale', tailscaleRoutes());
+api.route('/alerts', alertsRoutes(db));
 
 // GitHub webhook handler
 const webhookSecret = process.env.GITHUB_WEBHOOK_SECRET || 'development-webhook-secret';
 api.route('/webhooks', createWebhookRoutes(db, webhookSecret));
+
+// Start idle suspend scheduler (T024)
+const idleSuspendScheduler = createIdleSuspendScheduler(db);
+idleSuspendScheduler.start();
+
+// Start alert checker scheduler (T059-T060)
+const alertCheckerScheduler = createAlertCheckerScheduler(db);
+alertCheckerScheduler.start();
+
+// Start K8s metrics collector (T041a-b) - collects pod CPU/memory for Prometheus
+const k8sMetricsScheduler = createK8sMetricsScheduler();
+k8sMetricsScheduler.start();
 
 // API info route
 api.get('/', (c) => {
@@ -71,6 +106,9 @@ app.route('/api', api);
 
 // Health check at root (standard for load balancers/monitoring)
 app.route('/health', healthRoutes(db));
+
+// Prometheus metrics endpoint (T045-T047)
+app.route('/metrics', metricsRoutes());
 
 // oRPC handler for type-safe API calls (stays at /rpc)
 app.all('/rpc/*', async (c) => {

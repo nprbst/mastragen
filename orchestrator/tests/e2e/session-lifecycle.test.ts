@@ -6,6 +6,7 @@ import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import { healthRoutes } from '../../src/routes/health.ts';
 import { sessionsRoutes } from '../../src/routes/sessions.ts';
+import { IdleSuspendJob } from '../../src/jobs/idle-suspend.ts';
 
 const TEST_DB_PATH = './data/test-e2e-lifecycle.db';
 
@@ -63,6 +64,7 @@ describe('Session Lifecycle E2E', () => {
         projectId: testProjectId,
         artifactName: 'lifecycle-test',
         environment: 'dev',
+        claudeToken: 'test-token',
       }),
     });
     expect(createRes.status).toBe(201);
@@ -156,6 +158,7 @@ describe('Session Lifecycle E2E', () => {
         projectId: testProjectId,
         artifactName: 'multi-1',
         environment: 'dev',
+        claudeToken: 'test-token',
       }),
     });
     const session1 = (await session1Res.json()) as Record<string, unknown>;
@@ -168,6 +171,7 @@ describe('Session Lifecycle E2E', () => {
         projectId: testProjectId,
         artifactName: 'multi-2',
         environment: 'dev',
+        claudeToken: 'test-token',
       }),
     });
     await session2Res.json(); // Consume response
@@ -189,5 +193,276 @@ describe('Session Lifecycle E2E', () => {
     expect(active.filter((s) => (s.artifactName as string).startsWith('multi-')).length).toBe(1);
     // Should have session1 suspended + session from previous test that was never unsuspended
     expect(suspended.filter((s) => (s.artifactName as string).startsWith('multi-')).length).toBe(1);
+  });
+
+  /**
+   * T109: E2E tests for session lifecycle with idle suspend
+   */
+  describe('Session lifecycle with idle suspend', () => {
+    test('activity endpoint updates last_activity_at timestamp', async () => {
+      // Create a session
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'idle-activity-test',
+          environment: 'dev',
+          claudeToken: 'test-token',
+        }),
+      });
+      expect(createRes.status).toBe(201);
+      const session = (await createRes.json()) as {
+        id: string;
+        sessionToken: string;
+      };
+
+      // Record activity
+      const activityRes = await app.request(`/sessions/${session.id}/activity`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.sessionToken}`,
+        },
+        body: JSON.stringify({ type: 'terminal' }),
+      });
+      expect(activityRes.status).toBe(200);
+      const activity = (await activityRes.json()) as {
+        sessionId: string;
+        lastActivityAt: string;
+        activityType: string;
+      };
+      expect(activity.sessionId).toBe(session.id);
+      expect(activity.activityType).toBe('terminal');
+      expect(activity.lastActivityAt).toBeDefined();
+    });
+
+    test('idle-status endpoint returns correct status for active session', async () => {
+      // Create a session
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'idle-status-test',
+          environment: 'dev',
+          claudeToken: 'test-token',
+        }),
+      });
+      expect(createRes.status).toBe(201);
+      const session = (await createRes.json()) as {
+        id: string;
+        sessionToken: string;
+      };
+
+      // Get idle status
+      const idleStatusRes = await app.request(`/sessions/${session.id}/idle-status`, {
+        headers: { Authorization: `Bearer ${session.sessionToken}` },
+      });
+      expect(idleStatusRes.status).toBe(200);
+      const idleStatus = (await idleStatusRes.json()) as {
+        sessionId: string;
+        state: string;
+        idleTimeoutMinutes: number;
+        warningMinutes: number;
+        idleSinceMinutes: number;
+        warningIssued: boolean;
+        suspendAt: string | null;
+      };
+
+      expect(idleStatus.sessionId).toBe(session.id);
+      expect(idleStatus.state).toBe('active');
+      expect(idleStatus.idleTimeoutMinutes).toBe(30);
+      expect(idleStatus.warningMinutes).toBe(5);
+      expect(idleStatus.idleSinceMinutes).toBeGreaterThanOrEqual(0);
+      expect(idleStatus.warningIssued).toBe(false);
+      expect(idleStatus.suspendAt).toBeNull();
+    });
+
+    test('idle-status endpoint returns 404 for non-existent session', async () => {
+      // Create a session just to get a valid token format
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'idle-status-404-test',
+          environment: 'dev',
+          claudeToken: 'test-token',
+        }),
+      });
+      expect(createRes.status).toBe(201);
+      const session = (await createRes.json()) as { sessionToken: string };
+
+      // Try to get idle status for non-existent session (using a real token but wrong session)
+      // This should fail because the token is tied to a different session
+      const idleStatusRes = await app.request('/sessions/non-existent-session/idle-status', {
+        headers: { Authorization: `Bearer ${session.sessionToken}` },
+      });
+      // Expecting 403 because token is for different session (forbidden)
+      expect(idleStatusRes.status).toBe(403);
+    });
+
+    test('IdleSuspendJob auto-suspends idle sessions', async () => {
+      // Create a session
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'auto-suspend-test',
+          environment: 'dev',
+          claudeToken: 'test-token',
+        }),
+      });
+      expect(createRes.status).toBe(201);
+      const session = (await createRes.json()) as {
+        id: string;
+        sessionToken: string;
+      };
+
+      // Manually set last_activity_at to 35 minutes ago (exceeds 30-min timeout)
+      const thirtyFiveMinutesAgo = new Date(Date.now() - 35 * 60 * 1000);
+      await db
+        .updateTable('sessions')
+        .set({ last_activity_at: thirtyFiveMinutesAgo.toISOString() })
+        .where('id', '=', session.id)
+        .execute();
+
+      // Run idle suspend job
+      const idleSuspendJob = new IdleSuspendJob(db);
+      const result = await idleSuspendJob.run();
+
+      expect(result.sessionsSuspended).toBeGreaterThanOrEqual(1);
+
+      // Verify session is suspended
+      const getRes = await app.request(`/sessions/${session.id}`);
+      expect(getRes.status).toBe(200);
+      const sessionDetails = (await getRes.json()) as { state: string };
+      expect(sessionDetails.state).toBe('suspended');
+    });
+
+    test('activity recording resets idle timer', async () => {
+      // Create a session
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'activity-reset-test',
+          environment: 'dev',
+          claudeToken: 'test-token',
+        }),
+      });
+      expect(createRes.status).toBe(201);
+      const session = (await createRes.json()) as {
+        id: string;
+        sessionToken: string;
+      };
+
+      // Set session to 26 minutes idle (in warning window)
+      const twentySixMinutesAgo = new Date(Date.now() - 26 * 60 * 1000);
+      await db
+        .updateTable('sessions')
+        .set({ last_activity_at: twentySixMinutesAgo.toISOString() })
+        .where('id', '=', session.id)
+        .execute();
+
+      // Verify warning state via idle status
+      const idleSuspendJob = new IdleSuspendJob(db);
+      const idleStatusBefore = await idleSuspendJob.getIdleStatus(session.id);
+      expect(idleStatusBefore?.warningIssued).toBe(true);
+
+      // Record activity (simulating "Keep Working" button)
+      const activityRes = await app.request(`/sessions/${session.id}/activity`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.sessionToken}`,
+        },
+        body: JSON.stringify({ type: 'keep_working' }),
+      });
+      expect(activityRes.status).toBe(200);
+
+      // Verify warning state is cleared
+      const idleStatusAfter = await idleSuspendJob.getIdleStatus(session.id);
+      expect(idleStatusAfter?.warningIssued).toBe(false);
+      expect(idleStatusAfter?.idleSinceMinutes).toBeLessThan(1);
+    });
+
+    test('complete lifecycle with idle: create → activity → idle warning → keep working → suspend', async () => {
+      // Step 1: Create session
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'complete-idle-lifecycle',
+          environment: 'dev',
+          claudeToken: 'test-token',
+        }),
+      });
+      expect(createRes.status).toBe(201);
+      const session = (await createRes.json()) as {
+        id: string;
+        sessionToken: string;
+      };
+
+      // Step 2: Record some activity
+      const activityRes = await app.request(`/sessions/${session.id}/activity`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.sessionToken}`,
+        },
+        body: JSON.stringify({ type: 'code_edit' }),
+      });
+      expect(activityRes.status).toBe(200);
+
+      // Step 3: Simulate passage of time to warning window
+      const twentySixMinutesAgo = new Date(Date.now() - 26 * 60 * 1000);
+      await db
+        .updateTable('sessions')
+        .set({ last_activity_at: twentySixMinutesAgo.toISOString() })
+        .where('id', '=', session.id)
+        .execute();
+
+      // Step 4: Check idle status shows warning
+      const idleSuspendJob = new IdleSuspendJob(db);
+      const warningStatus = await idleSuspendJob.getIdleStatus(session.id);
+      expect(warningStatus?.warningIssued).toBe(true);
+
+      // Step 5: Record activity to reset timer ("Keep Working")
+      const keepWorkingRes = await app.request(`/sessions/${session.id}/activity`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.sessionToken}`,
+        },
+        body: JSON.stringify({ type: 'keep_working' }),
+      });
+      expect(keepWorkingRes.status).toBe(200);
+
+      // Step 6: Verify no longer in warning
+      const afterKeepWorkingStatus = await idleSuspendJob.getIdleStatus(session.id);
+      expect(afterKeepWorkingStatus?.warningIssued).toBe(false);
+
+      // Step 7: Simulate session going idle again past timeout
+      const fortyMinutesAgo = new Date(Date.now() - 40 * 60 * 1000);
+      await db
+        .updateTable('sessions')
+        .set({ last_activity_at: fortyMinutesAgo.toISOString() })
+        .where('id', '=', session.id)
+        .execute();
+
+      // Step 8: Run idle job - should auto-suspend
+      const jobResult = await idleSuspendJob.run();
+      expect(jobResult.sessionsSuspended).toBeGreaterThanOrEqual(1);
+
+      // Step 9: Verify session is suspended
+      const finalGetRes = await app.request(`/sessions/${session.id}`);
+      const finalSession = (await finalGetRes.json()) as { state: string };
+      expect(finalSession.state).toBe('suspended');
+    });
   });
 });

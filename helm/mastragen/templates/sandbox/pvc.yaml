@@ -1,0 +1,26 @@
+# T082: Sandbox persistent volume claim template
+# Note: This is a template for sandbox PVCs created dynamically by the orchestrator
+# The orchestrator creates PVCs for each sandbox session using the Kubernetes API
+
+# Data PVC for orchestrator persistence
+{{- if .Values.orchestrator.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "mastragen.fullname" . }}-data
+  labels:
+    {{- include "mastragen.orchestrator.labels" . | nindent 4 }}
+  {{- with .Values.orchestrator.persistence.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  accessModes:
+    {{- toYaml .Values.orchestrator.persistence.accessModes | nindent 4 }}
+  {{- if .Values.orchestrator.persistence.storageClass }}
+  storageClassName: {{ .Values.orchestrator.persistence.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.orchestrator.persistence.size }}
+{{- end }}

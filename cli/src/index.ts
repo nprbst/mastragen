@@ -8,6 +8,8 @@ import { loadConfig } from './config.ts';
 import { healthCommand } from './commands/health.ts';
 import { projectCommand } from './commands/project.ts';
 import { sessionCommand } from './commands/session.ts';
+import { metricsCommand } from './commands/metrics.ts';
+import { tailscaleCommand } from './commands/tailscale.ts';
 
 const config = loadConfig();
 
@@ -38,6 +40,8 @@ const defaultClient = new MgenClient(config.apiUrl);
 program.addCommand(healthCommand(defaultClient));
 program.addCommand(projectCommand(defaultClient));
 program.addCommand(sessionCommand(defaultClient));
+program.addCommand(metricsCommand(defaultClient));
+program.addCommand(tailscaleCommand(defaultClient));
 
 // Parse and execute
 program.parse();

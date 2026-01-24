@@ -8,6 +8,7 @@ import {
   GitShaSchema,
   IdSchema,
   SessionStateSchema,
+  SuspensionReasonSchema,
   TimestampSchema,
   UserIdSchema,
 } from './common.ts';
@@ -68,6 +69,7 @@ export const SessionResponseSchema = v.object({
   artifactName: v.string(),
   environment: v.string(),
   state: SessionStateSchema,
+  suspensionReason: v.nullable(SuspensionReasonSchema),
   createdAt: TimestampSchema,
   updatedAt: TimestampSchema,
 });

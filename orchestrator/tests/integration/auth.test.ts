@@ -1,12 +1,27 @@
 import { describe, expect, test, beforeEach, beforeAll, afterAll } from 'bun:test';
+
+// Track if we have real GitHub credentials (affects which tests can run)
+const hasRealGitHubCredentials = !!process.env.GITHUB_APP_CLIENT_ID;
 import type { Kysely } from 'kysely';
 import { Hono } from 'hono';
 import { nanoid } from 'nanoid';
+import crypto from 'crypto';
 import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
 import { createTestJwt } from '../helpers/jwt.ts';
 import { createAuthRoutes } from '../../src/routes/auth.ts';
 import { AuthService } from '../../src/services/auth.ts';
+import { initializeKeyPair } from '../../src/lib/crypto.ts';
 import type { Database } from '../../src/db/types.ts';
+
+// Generate test RSA keys at module load time
+const testKeyPair = crypto.generateKeyPairSync('rsa', {
+  modulusLength: 2048,
+  publicKeyEncoding: { type: 'spki', format: 'pem' },
+  privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
+});
+// Set environment variables so initializeKeyPair uses them
+process.env.ENCRYPTION_PUBLIC_KEY = testKeyPair.publicKey;
+process.env.ENCRYPTION_PRIVATE_KEY = testKeyPair.privateKey;
 
 // Test T011: Integration test for auth routes (login, callback, logout, me, refresh)
 
@@ -20,6 +35,7 @@ describe('Auth routes integration', () => {
 
   beforeAll(async () => {
     db = await createTestDb(TEST_DB_PATH);
+    await initializeKeyPair();
 
     // Create a test user
     testUser = {
@@ -99,7 +115,10 @@ describe('Auth routes integration', () => {
       expect(body.error).toBe('Invalid state parameter');
     });
 
-    test('should exchange code for tokens and create session', async () => {
+    test.skipIf(hasRealGitHubCredentials)('should exchange code for tokens and create session', async () => {
+      // This test only works in mock mode (no GITHUB_APP_CLIENT_ID)
+      // When real credentials are present, the OAuth flow requires a real GitHub code
+
       // First, initiate login to get a valid state
       const loginRes = await app.request('/auth/login');
       const location = loginRes.headers.get('Location');
