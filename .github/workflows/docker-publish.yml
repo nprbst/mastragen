@@ -11,12 +11,37 @@ on:
     branches:
       - main
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   REGISTRY: ghcr.io
   ORCHESTRATOR_IMAGE_NAME: ${{ github.repository_owner }}/mastragen-orchestrator
   CADDY_IMAGE_NAME: ${{ github.repository_owner }}/mastragen-caddy
 
 jobs:
+  # Detect which files changed to skip unnecessary builds
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      caddy: ${{ steps.filter.outputs.caddy }}
+      orchestrator: ${{ steps.filter.outputs.orchestrator }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            caddy:
+              - 'docker/caddy/**'
+            orchestrator:
+              - 'orchestrator/**'
+              - 'web/**'
+              - 'claude-commands/**'
+              - 'claude-skills/**'
+
   build-orchestrator:
     name: Build Orchestrator
     runs-on: ubuntu-latest
@@ -71,6 +96,8 @@ jobs:
   # T095a: Build Caddy sidecar with Tailscale HTTPS support
   build-caddy:
     name: Build Caddy Sidecar
+    needs: changes
+    if: ${{ needs.changes.outputs.caddy == 'true' || github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

@@ -4,9 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "preflight": "cd orchestrator && bun run preflight && cd ../cli && bun run preflight",
-    "preflight:orchestrator": "cd orchestrator && bun run preflight",
-    "preflight:cli": "cd cli && bun run preflight"
+    "preflight": "cd orchestrator && bun run typecheck && bun test && cd ../web && bun run typecheck",
+    "preflight:quick": "cd orchestrator && bun run typecheck && cd ../web && bun run typecheck",
+    "prepare": "[ -d .git ] && cp scripts/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push || true"
   },
   "devDependencies": {
     "@types/bun": "latest"
