@@ -61,8 +61,15 @@ export class HealthService {
 
   /**
    * Checks Docker daemon connectivity.
+   * In K8s mode (MASTRAGEN_NAMESPACE set), Docker is not used.
    */
   private async checkDocker(): Promise<'connected' | 'disconnected'> {
+    // In K8s mode, Docker is not used - we use K8s pods instead
+    if (process.env.MASTRAGEN_NAMESPACE) {
+      // Return 'connected' since container orchestration is handled by K8s
+      return 'connected';
+    }
+
     if (!this.dockerEnabled) {
       return 'disconnected';
     }

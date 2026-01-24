@@ -42,6 +42,12 @@ spec:
               value: "4000"
             - name: HOST
               value: "0.0.0.0"
+            - name: MASTRAGEN_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: MASTRAGEN_ENVIRONMENT
+              value: {{ .Values.global.environment | quote }}
             {{- range $key, $value := .Values.orchestrator.env }}
             - name: {{ $key }}
               value: {{ $value | quote }}

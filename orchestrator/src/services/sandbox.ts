@@ -10,6 +10,7 @@ import type { GitStatus, CommitResult } from './git.ts';
 import { InsufficientPermissionsError, GitHubService, type PRResult, type PRCreateInput } from './github.ts';
 import { ClaudeInjectionService } from './claude-injection.ts';
 import { AuthService } from './auth.ts';
+import { K8sSandboxService, createK8sSandboxService } from './k8s-sandbox.ts';
 
 export { InsufficientPermissionsError };
 
@@ -229,6 +230,7 @@ export class SandboxService {
   private docker: Docker;
   private claudeInjectionService: ClaudeInjectionService | null = null;
   private db: Kysely<Database> | null = null;
+  private k8sSandboxService: K8sSandboxService | null = null;
 
   // Default ports for services
   private static readonly PORTS = {
@@ -259,6 +261,18 @@ export class SandboxService {
       this.db = options.db;
       this.claudeInjectionService = new ClaudeInjectionService(options.db);
     }
+    // Try to create K8s sandbox service if running in K8s environment
+    this.k8sSandboxService = createK8sSandboxService();
+    if (this.k8sSandboxService) {
+      console.log('[SandboxService] K8s sandbox service initialized - running in K8s mode');
+    }
+  }
+
+  /**
+   * Check if running in K8s mode.
+   */
+  isK8sMode(): boolean {
+    return this.k8sSandboxService !== null;
   }
 
   /**
@@ -434,6 +448,18 @@ export class SandboxService {
    * Gets service URLs for a session.
    */
   getServiceUrls(sessionId: string, project?: Project): ServiceUrls {
+    // K8s mode: use K8sSandboxService URLs (HTTPS via Tailscale)
+    if (this.k8sSandboxService) {
+      const k8sUrls = this.k8sSandboxService.getServiceUrls(sessionId);
+      const cachedProject = project ?? this.sessionProjectCache.get(sessionId);
+      return {
+        mastra: k8sUrls.mastra,
+        astro: cachedProject?.ui_sandbox_path ? k8sUrls.astro : null,
+        vscode: k8sUrls.vscode,
+      };
+    }
+
+    // Docker mode: localhost URLs
     const cachedProject = project ?? this.sessionProjectCache.get(sessionId);
 
     return {
@@ -805,8 +831,13 @@ export class SandboxService {
       throw new SessionNotFoundError(sessionId);
     }
 
-    // Stop and remove containers
-    if (this.dockerEnabled) {
+    // K8s mode: cleanup via K8sSandboxService
+    if (this.k8sSandboxService) {
+      console.log(`[SandboxService] K8s mode: cleaning up session ${sessionId}`);
+      // deleteSandboxPod handles pod, ConfigMap, and optionally PVC
+      await this.k8sSandboxService.deleteSandboxPod(sessionId, { keepPVC: !options.removeVolume });
+    } else if (this.dockerEnabled) {
+      // Docker mode: original implementation
       await this.cleanupContainers(sessionId, session.container_id);
 
       // Remove volume if requested (with retry logic for timing issues)
@@ -985,7 +1016,52 @@ export class SandboxService {
   ): Promise<void> {
     console.log(`[SandboxService] startContainers called for session ${session.id}`);
     console.log(`[SandboxService] dockerEnabled: ${this.dockerEnabled}`);
+    console.log(`[SandboxService] k8sMode: ${this.isK8sMode()}`);
 
+    // K8s mode: delegate to K8sSandboxService
+    if (this.k8sSandboxService) {
+      console.log('[SandboxService] Using K8s sandbox service');
+
+      // Parse environment variables from JSON string
+      let parsedEnvVars: Record<string, string> = {};
+      try {
+        parsedEnvVars = JSON.parse(envVars || '{}');
+      } catch {
+        // If parsing fails, use empty object
+      }
+
+      // Add git credentials to env vars
+      if (userGithubToken) parsedEnvVars.GH_TOKEN = userGithubToken;
+      if (userGitName) parsedEnvVars.GIT_USER_NAME = userGitName;
+      if (userGitEmail) parsedEnvVars.GIT_USER_EMAIL = userGitEmail;
+
+      // Create PVC (idempotent for resume)
+      await this.k8sSandboxService.createWorkspacePVC(session.id);
+
+      // Create the sandbox pod
+      await this.k8sSandboxService.createSandboxPod(session, project, parsedEnvVars, claudeToken);
+
+      // Wait for pod to be ready
+      const ready = await this.k8sSandboxService.waitForPodReady(session.id);
+      if (!ready) {
+        throw new Error(`Sandbox pod failed to become ready for session ${session.id}`);
+      }
+
+      // Inject Claude config
+      if (this.claudeInjectionService) {
+        await this.k8sSandboxService.injectClaudeConfig(this.claudeInjectionService, {
+          projectId: project.id,
+          environment: session.environment,
+          sessionId: session.id,
+          userId,
+        });
+      }
+
+      console.log('[SandboxService] K8s sandbox pod started successfully');
+      return;
+    }
+
+    // Docker mode: original implementation
     // Clean up any existing containers using our ports (single-session mode)
     await this.cleanupConflictingContainers();
 
@@ -1139,9 +1215,18 @@ export class SandboxService {
   }
 
   /**
-   * Stops Docker containers for a session.
+   * Stops Docker containers for a session (used for suspend).
+   * In K8s mode, keeps PVC for resume.
    */
   private async stopContainers(session: Session): Promise<void> {
+    // K8s mode: delete pod but keep PVC for resume
+    if (this.k8sSandboxService) {
+      console.log(`[SandboxService] K8s mode: deleting pod for session ${session.id} (keeping PVC)`);
+      await this.k8sSandboxService.deleteSandboxPod(session.id, { keepPVC: true });
+      return;
+    }
+
+    // Docker mode: original implementation
     if (!session.container_id) {
       return;
     }

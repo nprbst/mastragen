@@ -11,7 +11,21 @@
  */
 
 import * as k8s from '@kubernetes/client-node';
+import { Writable } from 'node:stream';
 import type { Session, Project } from '../db/types.ts';
+import type { ClaudeInjectionService } from './claude-injection.ts';
+
+/**
+ * Configuration for Claude config injection.
+ */
+export interface ClaudeConfigInjectionConfig {
+  projectId: string;
+  environment: string;
+  sessionId: string;
+  userId?: string;
+  chromeMode?: 'sidecar' | 'local';
+  userTailscaleHostname?: string;
+}
 
 /**
  * Check if an error from the k8s client is a 404 (Not Found) error.
@@ -133,13 +147,17 @@ export class K8sSandboxService {
 
   /**
    * Delete a sandbox pod and its ConfigMap.
+   * @param sessionId - The session ID
+   * @param options.keepPVC - If true, keep the PVC for resume (default: false)
    */
-  async deleteSandboxPod(sessionId: string): Promise<void> {
+  async deleteSandboxPod(sessionId: string, options?: { keepPVC?: boolean }): Promise<void> {
     const podName = this.getPodName(sessionId);
     const configMapName = this.getConfigMapName(sessionId);
+    const pvcName = `workspace-${sessionId.slice(0, 12)}`;
 
     // Delete pod
     try {
+      console.log(`[K8sSandboxService] Deleting pod ${podName}`);
       await this.coreApi.deleteNamespacedPod({ name: podName, namespace: this.config.namespace });
     } catch (error) {
       // Ignore 404 errors (pod already deleted)
@@ -150,6 +168,7 @@ export class K8sSandboxService {
 
     // Delete ConfigMap
     try {
+      console.log(`[K8sSandboxService] Deleting ConfigMap ${configMapName}`);
       await this.coreApi.deleteNamespacedConfigMap({
         name: configMapName,
         namespace: this.config.namespace,
@@ -159,6 +178,24 @@ export class K8sSandboxService {
       if (!isK8s404Error(error)) {
         throw error;
       }
+    }
+
+    // Delete PVC unless keepPVC is true (for suspend/resume)
+    if (!options?.keepPVC) {
+      try {
+        console.log(`[K8sSandboxService] Deleting PVC ${pvcName}`);
+        await this.coreApi.deleteNamespacedPersistentVolumeClaim({
+          name: pvcName,
+          namespace: this.config.namespace,
+        });
+      } catch (error) {
+        // Ignore 404 errors
+        if (!isK8s404Error(error)) {
+          throw error;
+        }
+      }
+    } else {
+      console.log(`[K8sSandboxService] Keeping PVC ${pvcName} for resume`);
     }
   }
 
@@ -241,6 +278,186 @@ export class K8sSandboxService {
       astro: `https://${hostname}:${SANDBOX_PORTS.astro}`,
       vscode: `https://${hostname}`, // port 443 is implicit
     };
+  }
+
+  /**
+   * Create workspace PVC for a session.
+   * Idempotent - does nothing if PVC already exists (for resume).
+   * Must be called before createSandboxPod().
+   */
+  async createWorkspacePVC(sessionId: string): Promise<void> {
+    const pvcName = `workspace-${sessionId.slice(0, 12)}`;
+
+    // Check if PVC already exists (resume case)
+    try {
+      await this.coreApi.readNamespacedPersistentVolumeClaim({
+        name: pvcName,
+        namespace: this.config.namespace,
+      });
+      console.log(`[K8sSandboxService] PVC ${pvcName} already exists (resume)`);
+      return;
+    } catch (error) {
+      if (!isK8s404Error(error)) {
+        throw error;
+      }
+      // PVC doesn't exist, create it
+    }
+
+    const pvc: k8s.V1PersistentVolumeClaim = {
+      apiVersion: 'v1',
+      kind: 'PersistentVolumeClaim',
+      metadata: {
+        name: pvcName,
+        namespace: this.config.namespace,
+        labels: {
+          'app.kubernetes.io/name': 'mastragen-sandbox',
+          'mastragen.io/session-id': sessionId,
+        },
+      },
+      spec: {
+        accessModes: ['ReadWriteOnce'],
+        resources: {
+          requests: {
+            storage: '10Gi',
+          },
+        },
+      },
+    };
+
+    console.log(`[K8sSandboxService] Creating PVC ${pvcName}`);
+    await this.coreApi.createNamespacedPersistentVolumeClaim({
+      namespace: this.config.namespace,
+      body: pvc,
+    });
+  }
+
+  /**
+   * Inject Claude configuration into the vscode container.
+   * Uses K8s exec API to write files to the container.
+   */
+  async injectClaudeConfig(
+    claudeInjectionService: ClaudeInjectionService,
+    config: ClaudeConfigInjectionConfig
+  ): Promise<void> {
+    const podName = this.getPodName(config.sessionId);
+    const containerName = 'vscode';
+
+    console.log(`[K8sSandboxService] Injecting Claude config into pod ${podName}...`);
+
+    try {
+      // Generate settings.json
+      const settings = await claudeInjectionService.generateSettings({
+        projectId: config.projectId,
+        environment: config.environment,
+        sessionId: config.sessionId,
+        chromeMode: config.chromeMode,
+        userTailscaleHostname: config.userTailscaleHostname,
+      });
+
+      // Generate CLAUDE.md
+      const claudeMd = await claudeInjectionService.generateClaudeMd({
+        projectId: config.projectId,
+        environment: config.environment,
+        sessionId: config.sessionId,
+        chromeMode: config.chromeMode,
+        userTailscaleHostname: config.userTailscaleHostname,
+      });
+
+      // Get built-in and project-specific commands
+      const builtinCommands = await claudeInjectionService.getBuiltinCommands();
+      const projectCommands = await claudeInjectionService.getCommands({
+        projectId: config.projectId,
+        environment: config.environment,
+      });
+      const allCommands = [...builtinCommands, ...projectCommands];
+
+      // Get built-in skills
+      const builtinSkills = await claudeInjectionService.getBuiltinSkills();
+
+      // Get session environment variables
+      const envVars = await claudeInjectionService.getSessionEnvVars({
+        projectId: config.projectId,
+        environment: config.environment,
+        sessionId: config.sessionId,
+        userId: config.userId ?? '',
+      });
+
+      // Create directories
+      await this.execInPod(podName, containerName, ['mkdir', '-p', '/home/coder/.claude/commands']);
+      await this.execInPod(podName, containerName, ['mkdir', '-p', '/home/coder/.claude/skills']);
+
+      // Write settings.json (without mcpServers)
+      const { mcpServers, ...settingsWithoutMcp } = settings;
+      await this.writeFileToPod(podName, containerName, '/home/coder/.claude/settings.json', JSON.stringify(settingsWithoutMcp, null, 2));
+
+      // Write MCP config to ~/.claude.json
+      const claudeJsonConfig = { mcpServers };
+      await this.writeFileToPod(podName, containerName, '/home/coder/.claude.json', JSON.stringify(claudeJsonConfig, null, 2));
+
+      // Write CLAUDE.md
+      await this.writeFileToPod(podName, containerName, '/home/coder/.claude/CLAUDE.md', claudeMd);
+
+      // Write commands
+      for (const command of allCommands) {
+        await this.writeFileToPod(podName, containerName, `/home/coder/.claude/commands/${command.name}.md`, command.content);
+      }
+
+      // Write skills
+      for (const skill of builtinSkills) {
+        await this.execInPod(podName, containerName, ['mkdir', '-p', `/home/coder/.claude/skills/${skill.name}`]);
+        await this.writeFileToPod(podName, containerName, `/home/coder/.claude/skills/${skill.name}/SKILL.md`, skill.content);
+      }
+
+      // Write environment variables
+      const envContent = Object.entries(envVars)
+        .map(([k, v]) => `export ${k}="${v}"`)
+        .join('\n');
+      await this.writeFileToPod(podName, containerName, '/home/coder/.claude/env.sh', envContent);
+
+      console.log('[K8sSandboxService] Claude config injection complete');
+    } catch (err) {
+      console.error('[K8sSandboxService] Failed to inject Claude config:', err);
+      // Don't throw - Claude config injection failure shouldn't prevent session creation
+    }
+  }
+
+  /**
+   * Execute a command in a pod container.
+   */
+  private async execInPod(podName: string, containerName: string, command: string[]): Promise<void> {
+    const exec = new k8s.Exec(this.kc);
+
+    await new Promise<void>((resolve, reject) => {
+      exec.exec(
+        this.config.namespace,
+        podName,
+        containerName,
+        command,
+        // Use null streams - we don't need output
+        new Writable({ write: (_chunk, _encoding, callback) => callback() }),
+        new Writable({ write: (_chunk, _encoding, callback) => callback() }),
+        null, // stdin
+        false, // tty
+        (status) => {
+          if (status.status === 'Success') {
+            resolve();
+          } else {
+            reject(new Error(`Command failed: ${status.message}`));
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Write a file to a pod container using exec with base64 encoding.
+   */
+  private async writeFileToPod(podName: string, containerName: string, filePath: string, content: string): Promise<void> {
+    // Base64 encode the content to handle special characters
+    const base64Content = Buffer.from(content).toString('base64');
+    // Use sh -c to decode and write the file
+    const command = ['sh', '-c', `echo '${base64Content}' | base64 -d > ${filePath}`];
+    await this.execInPod(podName, containerName, command);
   }
 
   // Private methods
