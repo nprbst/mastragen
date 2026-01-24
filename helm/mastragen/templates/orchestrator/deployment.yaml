@@ -125,6 +125,8 @@ spec:
                   key: {{ .Values.tailscale.authKeySecretKey }}
             - name: TS_KUBE_SECRET
               value: ""
+            - name: TS_STATE_DIR
+              value: "/var/lib/tailscale"
             - name: TS_USERSPACE
               value: "false"
             - name: TS_HOSTNAME
@@ -163,6 +165,15 @@ spec:
             - name: https
               containerPort: 443
               protocol: TCP
+          # Warm up TLS cert on startup to avoid slow first request
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - |
+                    sleep 8 && curl -sk -H "Host: mastragen-{{ .Values.global.environment }}.{{ .Values.tailscale.tailnet }}.ts.net" https://localhost/health || true
           volumeMounts:
             - name: caddy-config
               mountPath: /etc/caddy
@@ -185,7 +196,12 @@ spec:
         {{- end }}
         {{- if .Values.tailscale.enabled }}
         - name: tailscale-state
+          {{- if .Values.tailscale.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "mastragen.fullname" . }}-tailscale-state
+          {{- else }}
           emptyDir: {}
+          {{- end }}
         {{- end }}
         {{- if and .Values.tailscale.enabled .Values.caddy.enabled }}
         - name: tailscale-socket
@@ -194,7 +210,12 @@ spec:
           configMap:
             name: {{ include "mastragen.fullname" . }}-caddy-config
         - name: caddy-data
+          {{- if .Values.caddy.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "mastragen.fullname" . }}-caddy-data
+          {{- else }}
           emptyDir: {}
+          {{- end }}
         - name: caddy-config-data
           emptyDir: {}
         {{- end }}

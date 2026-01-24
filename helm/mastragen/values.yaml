@@ -149,10 +149,22 @@ tailscale:
       cpu: "50m"
       memory: "64Mi"
 
+  # Persist Tailscale state (certs, device identity) across restarts
+  persistence:
+    enabled: true
+    size: 100Mi
+    storageClass: ""
+
 # T095c-e: Caddy HTTPS configuration
 caddy:
   # Enable Caddy sidecar for HTTPS termination
   enabled: true
+
+  # Persist Caddy data (cached certs) across restarts
+  persistence:
+    enabled: true
+    size: 50Mi
+    storageClass: ""
 
   # Caddy image (built with Tailscale module)
   image:

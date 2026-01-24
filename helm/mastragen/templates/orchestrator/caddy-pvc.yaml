@@ -1,0 +1,17 @@
+{{- if and .Values.caddy.enabled .Values.caddy.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "mastragen.fullname" . }}-caddy-data
+  labels:
+    {{- include "mastragen.orchestrator.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.caddy.persistence.storageClass }}
+  storageClassName: {{ .Values.caddy.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.caddy.persistence.size }}
+{{- end }}

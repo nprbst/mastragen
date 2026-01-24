@@ -1,0 +1,17 @@
+{{- if and .Values.tailscale.enabled .Values.tailscale.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "mastragen.fullname" . }}-tailscale-state
+  labels:
+    {{- include "mastragen.orchestrator.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- if .Values.tailscale.persistence.storageClass }}
+  storageClassName: {{ .Values.tailscale.persistence.storageClass }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.tailscale.persistence.size }}
+{{- end }}

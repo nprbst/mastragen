@@ -1,6 +1,10 @@
 # T087: Development environment values
 # Usage: helm install mastragen ./helm/mastragen -f ./helm/mastragen/values/development.yaml
 
+# Temporary: use dev2 to bypass LE rate limit on "dev" (revert after Jan 26)
+global:
+  environment: "dev2"
+
 orchestrator:
   replicaCount: 1
 
