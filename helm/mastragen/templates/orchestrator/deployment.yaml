@@ -8,6 +8,10 @@ metadata:
     {{- include "mastragen.orchestrator.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.orchestrator.replicaCount }}
+  {{- with .Values.orchestrator.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "mastragen.orchestrator.selectorLabels" . | nindent 6 }}
@@ -25,6 +29,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "mastragen.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.orchestrator.terminationGracePeriodSeconds | default 10 }}
       securityContext:
         {{- toYaml .Values.orchestrator.podSecurityContext | nindent 8 }}
       containers:

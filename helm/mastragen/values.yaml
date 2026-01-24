@@ -24,6 +24,15 @@ orchestrator:
   # Image pull secrets (for private registries)
   imagePullSecrets: []
 
+  # Deployment strategy - Recreate prevents Tailscale hostname conflicts during upgrades
+  # Note: rollingUpdate must be null when type is Recreate
+  strategy:
+    type: Recreate
+    rollingUpdate: null
+
+  # Grace period for graceful shutdown
+  terminationGracePeriodSeconds: 10
+
   # Service account
   serviceAccount:
     create: true
