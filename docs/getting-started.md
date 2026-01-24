@@ -183,8 +183,32 @@ Each session provides access to:
 | **VS Code** | Claude Code IDE for development |
 | **Mastra Studio** | Mastra workflow visualization and testing |
 | **Astro** | UI sandbox (if `uiSandboxPath` is configured) |
+| **Chrome** | Browser automation for Claude Code (sidecar mode) |
 
 Service URLs are displayed after session creation and in the web dashboard.
+
+### Browser Preview
+
+Claude Code has access to Chrome DevTools via MCP, allowing it to see and interact with your Astro preview. This runs in one of two modes:
+
+**Sidecar Mode (Default)**
+A containerized Chrome browser runs alongside your session. Claude can take screenshots, navigate pages, and inspect the console without any local setup.
+
+**Local Mode (Optional)**
+See exactly what Claude sees by running Chrome on your Mac connected via Tailscale:
+
+```bash
+# Launch Chrome with DevTools bound to Tailscale
+mgen chrome start
+
+# Create session with local Chrome
+mgen session create --chrome-mode=local
+```
+
+Claude Code can use these MCP tools to interact with the browser:
+- `navigate_page` - Navigate to a URL (e.g., `http://astro:4321`)
+- `take_screenshot` - Capture what the browser displays
+- `list_console_messages` - View browser console output
 
 ## Project Administration
 
@@ -239,6 +263,16 @@ mgen session list            # List all sessions (alias: ls)
 mgen session resume [id]     # Resume a suspended session
 mgen session suspend [id]    # Suspend a running session
 ```
+
+### Chrome Commands
+
+```bash
+mgen chrome start            # Launch Chrome with DevTools for local mode
+mgen chrome stop             # Stop the debugging Chrome instance
+mgen chrome status           # Check Chrome debugging status
+```
+
+See [Browser Preview](#browser-preview) for details on how Claude Code uses Chrome.
 
 ### Common Options
 
