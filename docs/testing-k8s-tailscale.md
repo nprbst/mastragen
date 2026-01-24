@@ -396,7 +396,7 @@ kubectl logs mastragen-orchestrator-<pod-id> -f -n mastragen-test
 
 ```bash
 # Port-forward to orchestrator
-kubectl port-forward svc/mastragen-orchestrator 4000:4000 2>/dev/null &
+kubectl port-forward svc/mastragen-orchestrator 4000:4000 >/dev/null 2>&1 &
 
 # Check health using mgen CLI
 mgen health

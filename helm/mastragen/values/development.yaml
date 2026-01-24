@@ -25,9 +25,13 @@ orchestrator:
     enabled: true
     size: 1Gi
 
-# Disable Tailscale for local development
+# Enable Tailscale for development
 tailscale:
-  enabled: false
+  enabled: true
+  authKeySecretName: mastragen-tailscale
+  authKeySecretKey: auth-key
+  apiSecretName: mastragen-tailscale
+  aclTags: []  # No ACL tags for local dev
 
 # Disable RBAC for local development (minikube admin access)
 rbac:

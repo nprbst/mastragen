@@ -3,7 +3,8 @@
     "allow": [
       "Bash(cut:*)",
       "Bash(bun run preflight:*)",
-      "Bash(helm template:*)"
+      "Bash(helm template:*)",
+      "Bash(kubectl get:*)"
     ]
   }
 }

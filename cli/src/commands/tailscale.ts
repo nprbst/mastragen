@@ -163,7 +163,7 @@ function formatDevice(device: TailscaleDevice): string {
     lines.push(label('Addresses', device.addresses.join(', ')));
   }
 
-  if (device.tags.length > 0) {
+  if (device.tags && device.tags.length > 0) {
     lines.push(label('Tags', device.tags.join(', ')));
   }
 
@@ -202,7 +202,7 @@ function formatDeviceTable(devices: TailscaleDevice[]): string {
     const auth = d.authorized
       ? colors.green + 'yes' + colors.reset
       : colors.yellow + 'no' + colors.reset;
-    const tags = d.tags.length > 0
+    const tags = d.tags && d.tags.length > 0
       ? d.tags.map(t => t.replace('tag:', '')).join(', ')
       : colors.dim + '-' + colors.reset;
 

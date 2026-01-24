@@ -50,6 +50,20 @@ spec:
             - name: TAILSCALE_ENABLED
               value: "true"
             {{- end }}
+            {{- if .Values.tailscale.apiSecretName }}
+            - name: TAILSCALE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.tailscale.apiSecretName }}
+                  key: api-key
+                  optional: true
+            - name: TAILSCALE_TAILNET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.tailscale.apiSecretName }}
+                  key: tailnet
+                  optional: true
+            {{- end }}
           {{- with .Values.orchestrator.envFrom }}
           envFrom:
             {{- toYaml . | nindent 12 }}

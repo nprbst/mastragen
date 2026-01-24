@@ -113,9 +113,13 @@ tailscale:
   # Your Tailscale tailnet name (e.g., "example" for example.ts.net)
   tailnet: "your-tailnet"
 
-  # Auth key secret reference
+  # Auth key secret reference (for Tailscale sidecar)
   authKeySecretName: tailscale-auth
   authKeySecretKey: key
+
+  # API secret reference (for orchestrator to query Tailscale API)
+  # Secret should have keys: api-key, tailnet
+  apiSecretName: ""
 
   # ACL tags for the orchestrator
   aclTags:
