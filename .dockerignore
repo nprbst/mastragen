@@ -1,0 +1,44 @@
+# Git
+.git/
+.gitignore
+
+# Node modules (each service installs its own)
+node_modules/
+*/node_modules/
+
+# Build artifacts
+dist/
+*/dist/
+*.log
+
+# Development/IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Documentation and specs (not needed for build)
+docs/
+specs/
+*.md
+!README.md
+
+# Other services/tools not needed for orchestrator image
+cli/
+helm/
+scripts/
+sandbox/
+fixtures/
+docker/
+
+# Claude config
+.claude/
+
+# Test files
+tests/
+*/tests/
+*.test.ts
+*.spec.ts
+
+# Environment files
+.env*
