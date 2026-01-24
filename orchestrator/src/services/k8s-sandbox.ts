@@ -32,6 +32,10 @@ export interface ClaudeConfigInjectionConfig {
  */
 function isK8s404Error(error: unknown): boolean {
   if (error && typeof error === 'object') {
+    // Check for code property (ApiException from k8s client)
+    if ('code' in error && error.code === 404) {
+      return true;
+    }
     // Check for statusCode property (newer client versions)
     if ('statusCode' in error && error.statusCode === 404) {
       return true;

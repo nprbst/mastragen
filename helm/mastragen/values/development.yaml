@@ -5,7 +5,9 @@ orchestrator:
   replicaCount: 1
 
   image:
-    pullPolicy: Always
+    repository: mastragen-orchestrator
+    tag: local
+    pullPolicy: Never
 
   resources:
     limits:

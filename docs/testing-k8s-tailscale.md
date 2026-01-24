@@ -238,8 +238,8 @@ docker.io/library/mastragen-caddy:local
 ### Create Test Namespace
 
 ```bash
-kubectl create namespace mastragen-test
-kubectl config set-context --current --namespace=mastragen-test
+kubectl create namespace mastragen-dev
+kubectl config set-context --current --namespace=mastragen-dev
 ```
 
 ### Create Secrets
@@ -302,7 +302,7 @@ helm lint ./helm/mastragen
 # Template without installing (dry run)
 helm template mastragen ./helm/mastragen \
   -f ./helm/mastragen/values/development.yaml \
-  --namespace mastragen-test
+  --namespace mastragen-dev
 ```
 
 ### Install Chart
@@ -310,7 +310,7 @@ helm template mastragen ./helm/mastragen \
 ```bash
 helm install mastragen ./helm/mastragen \
   -f ./helm/mastragen/values/development.yaml \
-  --namespace mastragen-test \
+  --namespace mastragen-dev \
   --set image.pullPolicy=Never \
   --set image.caddy.tag=local \
   --set image.orchestrator.tag=local \
@@ -339,10 +339,10 @@ Common operations for iterating on the orchestrator during development.
 
 ```bash
 # Restart deployment (keeps Helm release, pulls same image)
-kubectl rollout restart deployment mastragen-orchestrator -n mastragen-test
+kubectl rollout restart deployment mastragen-orchestrator -n mastragen-dev
 
 # Or delete pod directly (auto-recreates)
-kubectl delete pod -l app.kubernetes.io/name=mastragen -n mastragen-test
+kubectl delete pod -l app.kubernetes.io/name=mastragen -n mastragen-dev
 ```
 
 #### Upgrade After Code Changes
@@ -357,7 +357,7 @@ minikube image load mastragen-orchestrator:local
 # 3. Upgrade the release (triggers pod restart)
 helm upgrade mastragen ./helm/mastragen \
   -f ./helm/mastragen/values/development.yaml \
-  --namespace mastragen-test \
+  --namespace mastragen-dev \
   --set image.pullPolicy=Never \
   --set image.orchestrator.tag=local
 ```
@@ -366,12 +366,12 @@ helm upgrade mastragen ./helm/mastragen \
 
 ```bash
 # Uninstall the release
-helm uninstall mastragen -n mastragen-test
+helm uninstall mastragen -n mastragen-dev
 
 # Reinstall
 helm install mastragen ./helm/mastragen \
   -f ./helm/mastragen/values/development.yaml \
-  --namespace mastragen-test \
+  --namespace mastragen-dev \
   --set image.pullPolicy=Never \
   --set image.orchestrator.tag=local
 ```
@@ -380,10 +380,10 @@ helm install mastragen ./helm/mastragen \
 
 ```bash
 # Stream logs
-kubectl logs -l app.kubernetes.io/name=mastragen -f -n mastragen-test
+kubectl logs -l app.kubernetes.io/name=mastragen -f -n mastragen-dev
 
 # Or by pod name
-kubectl logs mastragen-orchestrator-<pod-id> -f -n mastragen-test
+kubectl logs mastragen-orchestrator-<pod-id> -f -n mastragen-dev
 ```
 
 ---
@@ -772,7 +772,7 @@ curl -s -H "Authorization: Bearer $TAILSCALE_API_KEY" \
 ### Delete Helm Release
 
 ```bash
-helm uninstall mastragen --namespace mastragen-test
+helm uninstall mastragen --namespace mastragen-dev
 ```
 
 ### Remove Orphaned Tailscale Devices
@@ -794,7 +794,7 @@ done
 
 ```bash
 # Delete namespace (removes all resources)
-kubectl delete namespace mastragen-test
+kubectl delete namespace mastragen-dev
 
 # Reset context
 kubectl config set-context --current --namespace=default

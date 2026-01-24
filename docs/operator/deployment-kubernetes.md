@@ -10,13 +10,26 @@ This guide covers deploying Mastragen to a Kubernetes cluster using Helm.
 - Tailscale account with admin access
 - GitHub App configured (see [GitHub App Setup](github-app-setup.md))
 
+## Available Scripts
+
+The project provides `bun run` scripts for common operations. Run `bun run` in the project root to see all available helm/k8s scripts, or see the root [package.json](../../package.json).
+
 ## Quick Start
 
 ```bash
-# Add the Mastragen Helm repository (if published)
-# helm repo add mastragen https://charts.mastragen.io
+# Development
+bun run helm:install:dev
 
-# For local deployment, use the chart directly
+# Staging
+bun run helm:install:staging
+
+# Production
+bun run helm:install:prod
+```
+
+Or with custom values:
+
+```bash
 helm install mastragen ./helm/mastragen \
   --namespace mastragen \
   --create-namespace \
@@ -116,17 +129,14 @@ helm install mastragen ./helm/mastragen \
 ### 5. Verify Deployment
 
 ```bash
-# Check pods
-kubectl get pods -n mastragen
-
-# Check services
-kubectl get svc -n mastragen
+# Check status (pods, services, PVCs)
+bun run k8s:status
 
 # Check orchestrator logs
-kubectl logs -n mastragen deployment/mastragen-orchestrator -c orchestrator
+bun run k8s:logs:orchestrator
 
 # Check Tailscale connection
-kubectl logs -n mastragen deployment/mastragen-orchestrator -c tailscale
+bun run k8s:logs:tailscale
 ```
 
 ### 6. Configure Tailscale ACLs
@@ -248,8 +258,19 @@ spec:
 ## Upgrading
 
 ```bash
-# Update values file with new image tag
-# Then:
+# Development
+bun run helm:upgrade:dev
+
+# Staging
+bun run helm:upgrade:staging
+
+# Production
+bun run helm:upgrade:prod
+```
+
+Or with custom values:
+
+```bash
 helm upgrade mastragen ./helm/mastragen \
   --namespace mastragen \
   --values values-production.yaml
@@ -258,13 +279,21 @@ helm upgrade mastragen ./helm/mastragen \
 ## Uninstalling
 
 ```bash
-helm uninstall mastragen --namespace mastragen
+# Development
+bun run helm:uninstall:dev
 
-# Optionally delete PVCs
-kubectl delete pvc -n mastragen --all
+# Staging
+bun run helm:uninstall:staging
 
-# Delete namespace
-kubectl delete namespace mastragen
+# Production
+bun run helm:uninstall:prod
+```
+
+To also delete PVCs and namespace:
+
+```bash
+kubectl delete pvc -n mastragen-dev --all
+kubectl delete namespace mastragen-dev
 ```
 
 ## Troubleshooting
