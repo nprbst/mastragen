@@ -161,6 +161,230 @@ describe('K8sSandboxService', () => {
     });
   });
 
+  describe('Phoenix integration (T025-T026)', () => {
+    test('should return null Phoenix URL when Phoenix not enabled', async () => {
+      const mockKc = {
+        loadFromCluster: mock(() => {
+          throw new Error('Not in cluster');
+        }),
+        loadFromDefault: mock(() => {}),
+        makeApiClient: mock(() => ({})),
+      };
+
+      mock.module('@kubernetes/client-node', () => ({
+        KubeConfig: function () {
+          return mockKc;
+        },
+        CoreV1Api: class {},
+        HttpError: class extends Error {
+          statusCode: number;
+          constructor(message: string, statusCode: number) {
+            super(message);
+            this.statusCode = statusCode;
+          }
+        },
+      }));
+
+      const { K8sSandboxService } = await import(
+        '../../../src/services/k8s-sandbox.ts'
+      );
+
+      const service = new K8sSandboxService({
+        namespace: 'mastragen',
+        tailnet: 'example',
+        environment: 'dev',
+        tailscaleSecretName: 'tailscale-auth',
+        tailscaleSecretKey: 'key',
+        imageRegistry: 'ghcr.io/test',
+        imageTag: 'latest',
+      });
+
+      const urls = service.getServiceUrls('abc123def456');
+      expect(urls.phoenix).toBeNull();
+    });
+
+    test('should return Phoenix URL when Phoenix is enabled via cache', async () => {
+      const mockCoreApi = {
+        createNamespacedConfigMap: mock(() => Promise.resolve()),
+        createNamespacedPod: mock(() => Promise.resolve()),
+      };
+
+      const mockKc = {
+        loadFromCluster: mock(() => {
+          throw new Error('Not in cluster');
+        }),
+        loadFromDefault: mock(() => {}),
+        makeApiClient: mock(() => mockCoreApi),
+      };
+
+      mock.module('@kubernetes/client-node', () => ({
+        KubeConfig: function () {
+          return mockKc;
+        },
+        CoreV1Api: class {},
+        HttpError: class extends Error {
+          statusCode: number;
+          constructor(message: string, statusCode: number) {
+            super(message);
+            this.statusCode = statusCode;
+          }
+        },
+      }));
+
+      const { K8sSandboxService } = await import(
+        '../../../src/services/k8s-sandbox.ts'
+      );
+
+      const service = new K8sSandboxService({
+        namespace: 'mastragen',
+        tailnet: 'example',
+        environment: 'dev',
+        tailscaleSecretName: 'tailscale-auth',
+        tailscaleSecretKey: 'key',
+        imageRegistry: 'ghcr.io/test',
+        imageTag: 'latest',
+      });
+
+      const session = {
+        id: 'session-phoenix-test',
+        project_id: 'proj-1',
+        artifact_name: 'test',
+        environment: 'dev',
+        state: 'active' as const,
+        container_id: null,
+        workspace_volume: null,
+        user_id: null,
+        branch_name: null,
+        last_commit_sha: null,
+        commit_count: 0,
+        pr_number: null,
+        pr_url: null,
+        last_activity_at: null,
+        suspension_reason: null,
+        chrome_mode: null,
+        user_tailscale_hostname: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      const project = {
+        id: 'proj-1',
+        name: 'test-project',
+        github_repo: 'org/repo',
+        default_branch: 'main',
+        branch_prefix: 'feature/',
+        mastra_path: '.',
+        ui_sandbox_path: null,
+        installation_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Create pod with Phoenix enabled
+      await service.createSandboxPod(session, project, {}, undefined, {
+        enabled: true,
+        retentionDays: 30,
+      });
+
+      const urls = service.getServiceUrls('session-phoenix-test');
+      expect(urls.phoenix).toBe('https://session--mastragen-dev.example.ts.net:6006');
+    });
+
+    test('should clear Phoenix cache when pod is deleted', async () => {
+      const mockCoreApi = {
+        createNamespacedConfigMap: mock(() => Promise.resolve()),
+        createNamespacedPod: mock(() => Promise.resolve()),
+        deleteNamespacedPod: mock(() => Promise.resolve()),
+        deleteNamespacedConfigMap: mock(() => Promise.resolve()),
+      };
+
+      const mockKc = {
+        loadFromCluster: mock(() => {
+          throw new Error('Not in cluster');
+        }),
+        loadFromDefault: mock(() => {}),
+        makeApiClient: mock(() => mockCoreApi),
+      };
+
+      mock.module('@kubernetes/client-node', () => ({
+        KubeConfig: function () {
+          return mockKc;
+        },
+        CoreV1Api: class {},
+        HttpError: class extends Error {
+          statusCode: number;
+          constructor(message: string, statusCode: number) {
+            super(message);
+            this.statusCode = statusCode;
+          }
+        },
+      }));
+
+      const { K8sSandboxService } = await import(
+        '../../../src/services/k8s-sandbox.ts'
+      );
+
+      const service = new K8sSandboxService({
+        namespace: 'mastragen',
+        tailnet: 'example',
+        environment: 'dev',
+        tailscaleSecretName: 'tailscale-auth',
+        tailscaleSecretKey: 'key',
+        imageRegistry: 'ghcr.io/test',
+        imageTag: 'latest',
+      });
+
+      const session = {
+        id: 'session-delete-test',
+        project_id: 'proj-1',
+        artifact_name: 'test',
+        environment: 'dev',
+        state: 'active' as const,
+        container_id: null,
+        workspace_volume: null,
+        user_id: null,
+        branch_name: null,
+        last_commit_sha: null,
+        commit_count: 0,
+        pr_number: null,
+        pr_url: null,
+        last_activity_at: null,
+        suspension_reason: null,
+        chrome_mode: null,
+        user_tailscale_hostname: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      const project = {
+        id: 'proj-1',
+        name: 'test-project',
+        github_repo: 'org/repo',
+        default_branch: 'main',
+        branch_prefix: 'feature/',
+        mastra_path: '.',
+        ui_sandbox_path: null,
+        installation_id: null,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      // Create pod with Phoenix enabled
+      await service.createSandboxPod(session, project, {}, undefined, {
+        enabled: true,
+      });
+
+      // Verify Phoenix URL is available
+      let urls = service.getServiceUrls('session-delete-test');
+      expect(urls.phoenix).not.toBeNull();
+
+      // Delete the pod
+      await service.deleteSandboxPod('session-delete-test');
+
+      // Verify Phoenix URL is null after deletion
+      urls = service.getServiceUrls('session-delete-test');
+      expect(urls.phoenix).toBeNull();
+    });
+  });
+
   describe('createK8sSandboxService factory', () => {
     test('should return null when missing required env vars', async () => {
       // Temporarily clear env vars
