@@ -47,7 +47,7 @@ bun run preview
 
 | Variable | Description |
 |----------|-------------|
-| `PUBLIC_ORCHESTRATOR_URL` | URL to the orchestrator API (default: `http://localhost:3000`) |
+| `PUBLIC_ORCHESTRATOR_URL` | URL to the orchestrator API (default: `http://localhost:4000`) |
 
 ## Project Administration
 

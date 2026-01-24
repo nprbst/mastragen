@@ -26,7 +26,7 @@ const getSecretKey = () => new TextEncoder().encode(JWT_SECRET);
 const GITHUB_CONFIG = {
   clientId: process.env.GITHUB_APP_CLIENT_ID || '',
   clientSecret: process.env.GITHUB_APP_CLIENT_SECRET || '',
-  redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:3000/api/auth/callback',
+  redirectUri: process.env.GITHUB_REDIRECT_URI || 'http://localhost:4000/api/auth/callback',
 };
 
 // GitHub API base URLs

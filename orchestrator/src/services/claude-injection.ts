@@ -230,7 +230,7 @@ export class ClaudeInjectionService {
     }
 
     // Add session-specific vars
-    const apiUrl = process.env.ORCHESTRATOR_URL || 'http://localhost:3000';
+    const apiUrl = process.env.ORCHESTRATOR_URL || 'http://localhost:4000';
     envVars.MASTRAGEN_SESSION_ID = config.sessionId;
     envVars.MASTRAGEN_API_URL = apiUrl;
     if (config.sessionToken) {

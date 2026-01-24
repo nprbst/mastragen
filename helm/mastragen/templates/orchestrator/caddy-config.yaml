@@ -1,6 +1,6 @@
+{{- if and .Values.tailscale.enabled .Values.caddy.enabled }}
 # T095e: Orchestrator Caddyfile ConfigMap
 # Provides HTTPS termination via Tailscale certificates
-{{- if and .Values.tailscale.enabled .Values.caddy.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:

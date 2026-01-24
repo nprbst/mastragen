@@ -31,7 +31,7 @@ mastragen - AI-powered development platform with compounding knowledge
 
 ## Architecture
 
-- **web/** - Astro SSR frontend with React islands (port 3000)
+- **web/** - Astro SSR frontend with React islands (port 4321)
 - **orchestrator/** - Hono API backend with SQLite database (port 4000)
 - **sandbox/** - Docker containers for development environments (VS Code, Mastra, Astro)
 

@@ -7,7 +7,7 @@ export interface CliConfig {
   apiUrl: string;
 }
 
-const DEFAULT_API_URL = 'http://localhost:3000';
+const DEFAULT_API_URL = 'http://localhost:4000';
 
 /**
  * Loads CLI configuration from environment variables.

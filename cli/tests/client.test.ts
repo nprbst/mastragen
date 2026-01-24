@@ -2,7 +2,7 @@ import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
 import { MgenClient, ApiError } from '../src/client.ts';
 
 describe('MgenClient', () => {
-  const baseUrl = 'http://localhost:3000';
+  const baseUrl = 'http://localhost:4000';
   let client: MgenClient;
   let originalFetch: typeof globalThis.fetch;
 

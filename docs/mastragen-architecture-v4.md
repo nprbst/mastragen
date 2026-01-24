@@ -3007,7 +3007,7 @@ docker-compose up -d
 open http://localhost:3001
 
 # 5. Create your first project
-curl -X POST http://localhost:3000/projects \
+curl -X POST http://localhost:4000/projects \
   -H "Content-Type: application/json" \
   -d '{
     "name": "my-ai-project",

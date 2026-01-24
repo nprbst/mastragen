@@ -84,7 +84,7 @@ describe('claude-token utilities', () => {
 });
 
 describe('MgenClient resumeSession with claudeToken', () => {
-  const baseUrl = 'http://localhost:3000';
+  const baseUrl = 'http://localhost:4000';
   let originalFetch: typeof globalThis.fetch;
 
   beforeEach(() => {

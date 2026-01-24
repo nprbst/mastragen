@@ -45,6 +45,6 @@ RUN mkdir -p /app/data
 # Point to the web dist in the container
 ENV WEB_DIST_PATH=/app/web-dist
 
-EXPOSE 3000
+EXPOSE 4000
 
 CMD ["bun", "run", "src/index.ts"]

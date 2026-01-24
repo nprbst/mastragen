@@ -59,10 +59,10 @@ await db.destroy();
 console.log('\nSeed complete! You can now test the API:');
 console.log(`
   # Create a session
-  curl -X POST http://localhost:3000/sessions \\
+  curl -X POST http://localhost:4000/sessions \\
     -H "Content-Type: application/json" \\
     -d '{"projectId":"${project.id}","artifactName":"my-feature","environment":"dev"}'
 
   # List sessions
-  curl http://localhost:3000/sessions
+  curl http://localhost:4000/sessions
 `);

@@ -442,7 +442,7 @@ export class AlertService {
       severity: 'error', // Get from rule
       triggeredAt: event.triggeredAt,
       context: event.context,
-      dashboardUrl: `${process.env.APP_URL ?? 'http://localhost:3000'}/admin/alerts/${event.id}`,
+      dashboardUrl: `${process.env.APP_URL ?? 'http://localhost:4000'}/admin/alerts/${event.id}`,
     };
   }
 

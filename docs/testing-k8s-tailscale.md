@@ -44,8 +44,8 @@ bun link
 # Verify installation
 mgen --help
 
-# Configure API URL (optional, defaults to http://localhost:3000)
-export MGEN_API_URL=http://localhost:3000
+# Configure API URL (optional, defaults to http://localhost:4000)
+export MGEN_API_URL=http://localhost:4000
 ```
 
 ### Tailnet Requirements
@@ -193,6 +193,13 @@ docker build -t mastragen-code-server:local -f sandbox/code-server/Dockerfile ./
 docker build -t mastragen-astro:local -f sandbox/astro/Dockerfile ./sandbox
 ```
 
+### Build Caddy
+
+```bash
+# Caddy for HTTPS termination (Tailscale TLS)
+docker build -t mastragen-caddy:local -f docker/caddy/Dockerfile ./docker/caddy
+```
+
 ### Load Images into Minikube
 
 After building with Docker Desktop, load the images into minikube's container runtime:
@@ -204,6 +211,7 @@ minikube image load mastragen-init:local
 minikube image load mastragen-mastra:local
 minikube image load mastragen-code-server:local
 minikube image load mastragen-astro:local
+minikube image load mastragen-caddy:local
 ```
 
 ### Verify Images
@@ -220,6 +228,7 @@ docker.io/library/mastragen-init:local
 docker.io/library/mastragen-mastra:local
 docker.io/library/mastragen-code-server:local
 docker.io/library/mastragen-astro:local
+docker.io/library/mastragen-caddy:local
 ```
 
 ---
@@ -250,9 +259,11 @@ kubectl create secret generic mastragen-github \
   --from-literal=app-id="$GITHUB_APP_ID" \
   --from-literal=client-id="$GITHUB_APP_CLIENT_ID" \
   --from-literal=client-secret="$GITHUB_APP_CLIENT_SECRET" \
-  --from-file=private-key="$GITHUB_APP_PRIVATE_KEY_PATH"
+  --from-literal=private-key="$GITHUB_APP_PRIVATE_KEY"
+  # or...
+  # --from-file=private-key="$GITHUB_APP_PRIVATE_KEY_PATH"
 
-# Anthropic API key
+# Anthropic API key (optional)
 kubectl create secret generic mastragen-anthropic \
   --from-literal=api-key="$ANTHROPIC_API_KEY"
 
@@ -301,6 +312,7 @@ helm install mastragen ./helm/mastragen \
   -f ./helm/mastragen/values/development.yaml \
   --namespace mastragen-test \
   --set image.pullPolicy=Never \
+  --set image.caddy.tag=local \
   --set image.orchestrator.tag=local \
   --set image.sandbox.mastra.tag=local \
   --set image.sandbox.codeServer.tag=local \
@@ -314,10 +326,65 @@ helm install mastragen ./helm/mastragen \
 kubectl get pods -w
 
 # Check orchestrator logs
-kubectl logs -l app=mastragen-orchestrator -f
+kubectl logs -l app.kubernetes.io/name=mastragen -f
 ```
 
 Wait for all pods to show `Running` status with `1/1` ready.
+
+### Development Lifecycle
+
+Common operations for iterating on the orchestrator during development.
+
+#### Restart Pod (Quick Refresh)
+
+```bash
+# Restart deployment (keeps Helm release, pulls same image)
+kubectl rollout restart deployment mastragen-orchestrator -n mastragen-test
+
+# Or delete pod directly (auto-recreates)
+kubectl delete pod -l app.kubernetes.io/name=mastragen -n mastragen-test
+```
+
+#### Upgrade After Code Changes
+
+```bash
+# 1. Rebuild the image
+docker build -t mastragen-orchestrator:local -f orchestrator/Dockerfile .
+
+# 2. Load into minikube
+minikube image load mastragen-orchestrator:local
+
+# 3. Upgrade the release (triggers pod restart)
+helm upgrade mastragen ./helm/mastragen \
+  -f ./helm/mastragen/values/development.yaml \
+  --namespace mastragen-test \
+  --set image.pullPolicy=Never \
+  --set image.orchestrator.tag=local
+```
+
+#### Full Teardown and Reinstall
+
+```bash
+# Uninstall the release
+helm uninstall mastragen -n mastragen-test
+
+# Reinstall
+helm install mastragen ./helm/mastragen \
+  -f ./helm/mastragen/values/development.yaml \
+  --namespace mastragen-test \
+  --set image.pullPolicy=Never \
+  --set image.orchestrator.tag=local
+```
+
+#### View Logs
+
+```bash
+# Stream logs
+kubectl logs -l app.kubernetes.io/name=mastragen -f -n mastragen-test
+
+# Or by pod name
+kubectl logs mastragen-orchestrator-<pod-id> -f -n mastragen-test
+```
 
 ---
 
@@ -329,7 +396,7 @@ Wait for all pods to show `Running` status with `1/1` ready.
 
 ```bash
 # Port-forward to orchestrator
-kubectl port-forward svc/mastragen-orchestrator 3000:3000 &
+kubectl port-forward svc/mastragen-orchestrator 3000:4000 &
 
 # Check health using mgen CLI
 mgen health

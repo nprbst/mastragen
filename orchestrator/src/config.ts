@@ -2,7 +2,7 @@
  * Application configuration loaded from environment variables.
  */
 export interface Config {
-  /** Server port (default: 3000) */
+  /** Server port (default: 4000) */
   port: number;
 
   /** Server host (default: 0.0.0.0) */
@@ -41,7 +41,7 @@ export interface Config {
  */
 export function loadConfig(): Config {
   return {
-    port: Number.parseInt(process.env.PORT ?? '3000', 10),
+    port: Number.parseInt(process.env.PORT ?? '4000', 10),
     host: process.env.HOST ?? '0.0.0.0',
     databasePath: process.env.DATABASE_PATH ?? './data/mastragen.db',
     githubToken: process.env.GITHUB_TOKEN,

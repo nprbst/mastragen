@@ -120,7 +120,7 @@ GITHUB_APP_PRIVATE_KEY_PATH=./mastragen-dev.pem
 
 GITHUB_APP_CLIENT_ID=Iv1.your_client_id
 GITHUB_APP_CLIENT_SECRET=your_client_secret
-GITHUB_REDIRECT_URI=http://localhost:3000/api/auth/callback
+GITHUB_REDIRECT_URI=http://localhost:4000/api/auth/callback
 
 JWT_SECRET=development-secret-change-in-production
 ```
