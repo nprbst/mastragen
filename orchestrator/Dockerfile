@@ -1,16 +1,17 @@
 FROM oven/bun:1-slim AS web-builder
 
-WORKDIR /web
+WORKDIR /app
 
-# Copy web package files
-COPY web/package.json web/bun.lock* ./
+# Copy workspace root files
+COPY package.json bun.lock ./
+COPY web/package.json ./web/
 
 # Install web dependencies
-RUN bun install --frozen-lockfile
+RUN bun install --frozen-lockfile --filter './web'
 
 # Copy web source and build
-COPY web/ ./
-RUN bun run build
+COPY web/ ./web/
+RUN cd web && bun run build
 
 # ---
 
@@ -23,11 +24,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy package files
-COPY orchestrator/package.json orchestrator/bun.lock ./
+# Copy workspace root files
+COPY package.json bun.lock ./
+COPY orchestrator/package.json ./orchestrator/
 
 # Install dependencies
-RUN bun install --frozen-lockfile --production
+RUN bun install --frozen-lockfile --filter './orchestrator' --production
 
 # Copy source code
 COPY orchestrator/src ./src

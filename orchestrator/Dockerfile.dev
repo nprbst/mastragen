@@ -7,11 +7,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy package files
-COPY orchestrator/package.json orchestrator/bun.lock ./
+# Copy workspace root files
+COPY package.json bun.lock ./
+COPY orchestrator/package.json ./orchestrator/
 
 # Install all dependencies (including dev)
-RUN bun install
+RUN bun install --filter './orchestrator'
 
 # Copy source code
 COPY orchestrator/src ./src
