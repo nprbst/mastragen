@@ -152,17 +152,10 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
         userGitEmail,
       });
 
-      // Generate session-scoped token for API authentication
-      const authService = new AuthService(db);
-      const sessionToken = await authService.generateSessionToken(
-        result.session.id,
-        body.userId ?? ''
-      );
-
       const response: SessionWithUrlsResponse = {
         ...toSessionResponse(result.session),
         urls: result.urls,
-        sessionToken,
+        sessionToken: result.sessionToken ?? '',
       };
 
       return c.json(response, 201);
@@ -313,17 +306,10 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
         userGitEmail,
       });
 
-      // Generate session-scoped token for API authentication
-      const authService = new AuthService(db);
-      const sessionToken = await authService.generateSessionToken(
-        result.session.id,
-        result.session.user_id ?? ''
-      );
-
       const response: SessionWithUrlsAndGitResponse = {
         ...toSessionWithGitResponse(result.session),
         urls: result.urls,
-        sessionToken,
+        sessionToken: result.sessionToken ?? '',
       };
       return c.json(response, 200);
     } catch (error) {

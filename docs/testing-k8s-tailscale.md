@@ -263,7 +263,7 @@ kubectl create secret generic mastragen-github \
   # or...
   # --from-file=private-key="$GITHUB_APP_PRIVATE_KEY_PATH"
 
-# Anthropic API key (optional)
+# Anthropic API key (for Mastra)
 kubectl create secret generic mastragen-anthropic \
   --from-literal=api-key="$ANTHROPIC_API_KEY"
 

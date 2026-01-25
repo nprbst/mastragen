@@ -87,6 +87,8 @@ spec:
                   key: {{ .Values.anthropic.secretKey | default "api-key" }}
                   optional: true
             {{- end }}
+            - name: ORCHESTRATOR_URL
+              value: {{ printf "http://%s-orchestrator:%d" (include "mastragen.fullname" .) (.Values.orchestrator.service.port | int) | quote }}
           {{- with .Values.orchestrator.envFrom }}
           envFrom:
             {{- toYaml . | nindent 12 }}

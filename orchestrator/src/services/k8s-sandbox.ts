@@ -24,6 +24,7 @@ export interface ClaudeConfigInjectionConfig {
   environment: string;
   sessionId: string;
   userId?: string;
+  sessionToken?: string;
   chromeMode?: 'sidecar' | 'local';
   userTailscaleHostname?: string;
 }
@@ -437,7 +438,7 @@ export class K8sSandboxService {
       } else if (podPhase === 'Running') {
         if (allReady) {
           phase = 'ready';
-          message = 'All services ready';
+          message = 'All services started';
         } else if (!tailscaleReady) {
           phase = 'starting';
           message = 'Connecting to Tailscale...';
@@ -809,6 +810,7 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
       environment: config.environment,
       sessionId: config.sessionId,
       userId: config.userId ?? '',
+      sessionToken: config.sessionToken,
     });
 
     // Build tar archive
@@ -1012,27 +1014,27 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
           // Chrome DevTools container for browser automation (optional)
           ...(this.config.chromeEnabled
             ? [
-                {
-                  name: 'chrome',
-                  image: SANDBOX_IMAGES.chrome,
-                  ports: [{ containerPort: SANDBOX_PORTS.chrome }],
-                  env: [
-                    { name: 'CONNECTION_TIMEOUT', value: '300000' },
-                    { name: 'MAX_CONCURRENT_SESSIONS', value: '2' },
-                    { name: 'PREBOOT_CHROME', value: 'true' },
-                    { name: 'DEFAULT_LAUNCH_ARGS', value: '["--disable-dev-shm-usage"]' },
-                  ],
-                  resources: {
-                    limits: { cpu: '1', memory: '2Gi' },
-                    requests: { cpu: '500m', memory: '1Gi' },
-                  },
-                  readinessProbe: {
-                    httpGet: { path: '/health', port: SANDBOX_PORTS.chrome },
-                    initialDelaySeconds: 10,
-                    periodSeconds: 10,
-                  },
+              {
+                name: 'chrome',
+                image: SANDBOX_IMAGES.chrome,
+                ports: [{ containerPort: SANDBOX_PORTS.chrome }],
+                env: [
+                  { name: 'CONNECTION_TIMEOUT', value: '300000' },
+                  { name: 'MAX_CONCURRENT_SESSIONS', value: '2' },
+                  { name: 'PREBOOT_CHROME', value: 'true' },
+                  { name: 'DEFAULT_LAUNCH_ARGS', value: '["--disable-dev-shm-usage"]' },
+                ],
+                resources: {
+                  limits: { cpu: '1', memory: '2Gi' },
+                  requests: { cpu: '500m', memory: '1Gi' },
                 },
-              ]
+                readinessProbe: {
+                  httpGet: { path: '/health', port: SANDBOX_PORTS.chrome },
+                  initialDelaySeconds: 10,
+                  periodSeconds: 10,
+                },
+              },
+            ]
             : []),
           // T095f, T095h: Tailscale sidecar with TS_PERMIT_CERT_UID=caddy
           {

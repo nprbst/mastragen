@@ -121,11 +121,13 @@ export interface CreateSandboxWithGitInput extends CreateSandboxInput {
 export interface CreateSandboxResult {
   session: Session;
   urls: ServiceUrls;
+  sessionToken?: string;
 }
 
 export interface ResumeSandboxResult {
   session: Session;
   urls: ServiceUrls;
+  sessionToken?: string;
 }
 
 export interface ResumeOptions {
@@ -317,12 +319,19 @@ export class SandboxService {
     // Cache project for URL generation
     this.sessionProjectCache.set(session.id, project);
 
+    // Generate session-scoped token for API authentication
+    let sessionToken: string | undefined;
+    if (this.db) {
+      const authService = new AuthService(this.db);
+      sessionToken = await authService.generateSessionToken(session.id, userId ?? '');
+    }
+
     // Start Docker containers if enabled
     console.log(`[SandboxService] create() - dockerEnabled: ${this.dockerEnabled}`);
     if (this.dockerEnabled) {
       console.log('[SandboxService] create() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken, userGitName, userGitEmail);
+        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken, userGitName, userGitEmail, sessionToken);
         console.log('[SandboxService] create() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] create() - startContainers failed:', err);
@@ -335,6 +344,7 @@ export class SandboxService {
     return {
       session,
       urls: this.getServiceUrls(session.id, project),
+      sessionToken,
     };
   }
 
@@ -423,12 +433,19 @@ export class SandboxService {
     // Cache project for URL generation
     this.sessionProjectCache.set(session.id, project);
 
+    // Generate session-scoped token for API authentication
+    let sessionToken: string | undefined;
+    if (this.db) {
+      const authService = new AuthService(this.db);
+      sessionToken = await authService.generateSessionToken(session.id, userId);
+    }
+
     // Start Docker containers if enabled (T046-T048)
     console.log(`[SandboxService] createWithGit() - dockerEnabled: ${this.dockerEnabled}`);
     if (this.dockerEnabled) {
       console.log('[SandboxService] createWithGit() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken, userGitName, userGitEmail);
+        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken, userGitName, userGitEmail, sessionToken);
         console.log('[SandboxService] createWithGit() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] createWithGit() - startContainers failed:', err);
@@ -441,6 +458,7 @@ export class SandboxService {
     return {
       session,
       urls: this.getServiceUrls(session.id, project),
+      sessionToken,
     };
   }
 
@@ -663,6 +681,13 @@ export class SandboxService {
     // Cache project for URL generation
     this.sessionProjectCache.set(sessionId, project);
 
+    // Generate session-scoped token for API authentication
+    let sessionToken: string | undefined;
+    if (this.db) {
+      const authService = new AuthService(this.db);
+      sessionToken = await authService.generateSessionToken(sessionId, session.user_id ?? '');
+    }
+
     // Start Docker containers if enabled
     if (this.dockerEnabled && env) {
       await this.startContainers(
@@ -673,13 +698,15 @@ export class SandboxService {
         session.user_id ?? undefined,
         options?.userGithubToken,
         options?.userGitName,
-        options?.userGitEmail
+        options?.userGitEmail,
+        sessionToken
       );
     }
 
     return {
       session: updatedSession,
       urls: this.getServiceUrls(sessionId, project),
+      sessionToken,
     };
   }
 
@@ -741,6 +768,13 @@ export class SandboxService {
     // Cache project for URL generation
     this.sessionProjectCache.set(sessionId, project);
 
+    // Generate session-scoped token for API authentication
+    let sessionToken: string | undefined;
+    if (this.db) {
+      const authService = new AuthService(this.db);
+      sessionToken = await authService.generateSessionToken(sessionId, session.user_id ?? '');
+    }
+
     // Start Docker containers if enabled
     if (this.dockerEnabled && env) {
       await this.startContainers(
@@ -751,7 +785,8 @@ export class SandboxService {
         session.user_id ?? undefined,
         options.userGithubToken,
         options.userGitName,
-        options.userGitEmail
+        options.userGitEmail,
+        sessionToken
       );
     }
 
@@ -763,6 +798,7 @@ export class SandboxService {
     return {
       session: updatedSession,
       urls: this.getServiceUrls(sessionId, project),
+      sessionToken,
     };
   }
 
@@ -1040,7 +1076,8 @@ export class SandboxService {
     userId?: string,
     userGithubToken?: string,
     userGitName?: string,
-    userGitEmail?: string
+    userGitEmail?: string,
+    sessionToken?: string
   ): Promise<void> {
     console.log(`[SandboxService] startContainers called for session ${session.id}`);
     console.log(`[SandboxService] dockerEnabled: ${this.dockerEnabled}`);
@@ -1078,6 +1115,7 @@ export class SandboxService {
             environment: session.environment,
             sessionId: session.id,
             userId,
+            sessionToken,
             chromeMode: session.chrome_mode ?? undefined,
             userTailscaleHostname: session.user_tailscale_hostname ?? undefined,
           }

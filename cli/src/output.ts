@@ -560,6 +560,6 @@ export async function waitForSession(
   }
 
   // Always do port checking at the end to warm up TLS certs
-  console.log(`${colors.dim}Warming up TLS certificates...${colors.reset}`);
+  console.log(`${colors.dim}Warming up...${colors.reset}`);
   await waitForPorts(session, { timeout: timeout - (Date.now() - startTime), interval, requestTimeout });
 }
