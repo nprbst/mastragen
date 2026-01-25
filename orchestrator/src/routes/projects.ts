@@ -12,7 +12,7 @@ import type {
   ProjectResponse,
   ProjectWithEnvironments,
 } from '../schemas/index.ts';
-import { AddEnvironmentRequestSchema, CreateProjectRequestSchema } from '../schemas/index.ts';
+import { AddEnvironmentRequestSchema, CreateProjectRequestSchema, UpdateProjectRequestSchema } from '../schemas/index.ts';
 import { IdleConfigService } from '../services/idle-config-service.ts';
 import { SetProjectIdleConfigRequestSchema } from '../schemas/idle-config.ts';
 import { requireAuth } from '../middleware/auth.ts';
@@ -168,6 +168,53 @@ export function projectsRoutes(db: Kysely<Database>): Hono {
     });
 
     return c.json(toProjectResponse(project), 201);
+  });
+
+  // PUT /projects/:id - Update a project
+  app.put('/:id', async (c) => {
+    const id = c.req.param('id');
+
+    // Verify project exists
+    const existingProject = await projectsRepo.findById(id);
+    if (!existingProject) {
+      return c.json({ error: `Project not found: ${id}` }, 404);
+    }
+
+    const body = await c.req.json();
+
+    // Validate request body
+    const result = v.safeParse(UpdateProjectRequestSchema, body);
+    if (!result.success) {
+      const issues = result.issues.map((i) => i.message).join(', ');
+      return c.json({ error: `Validation failed: ${issues}` }, 400);
+    }
+
+    const input = result.output;
+
+    // Check for duplicate name if name is being changed
+    if (input.name && input.name !== existingProject.name) {
+      const nameConflict = await projectsRepo.findByName(input.name);
+      if (nameConflict) {
+        return c.json({ error: `Project already exists: ${input.name}` }, 409);
+      }
+    }
+
+    // Build update object with snake_case field names
+    const updates: Record<string, string | null | undefined> = {};
+    if (input.name !== undefined) updates.name = input.name;
+    if (input.githubRepo !== undefined) updates.github_repo = input.githubRepo;
+    if (input.defaultBranch !== undefined) updates.default_branch = input.defaultBranch;
+    if (input.branchPrefix !== undefined) updates.branch_prefix = input.branchPrefix;
+    if (input.mastraPath !== undefined) updates.mastra_path = input.mastraPath;
+    if (input.uiSandboxPath !== undefined) updates.ui_sandbox_path = input.uiSandboxPath;
+
+    // Update the project
+    const project = await projectsRepo.update(id, updates);
+    if (!project) {
+      return c.json({ error: `Failed to update project: ${id}` }, 500);
+    }
+
+    return c.json(toProjectResponse(project), 200);
   });
 
   // POST /projects/:id/environments - Add environment to project

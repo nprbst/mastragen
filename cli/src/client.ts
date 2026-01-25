@@ -24,12 +24,13 @@ import type {
   ProjectResponse,
   ProjectWithEnvironments,
   CreateProjectRequest,
+  UpdateProjectRequest,
   AddEnvironmentRequest,
   EnvironmentResponse,
 } from '../../orchestrator/src/schemas/index.ts';
 
 // Re-export types for CLI consumers
-export type { HealthStatus, ServiceUrls, CreateSessionRequest, ListSessionsFilter, CreateProjectRequest, AddEnvironmentRequest };
+export type { HealthStatus, ServiceUrls, CreateSessionRequest, ListSessionsFilter, CreateProjectRequest, UpdateProjectRequest, AddEnvironmentRequest };
 
 // Alias for CLI usage (Session is the wire format)
 export type Session = SessionResponse;
@@ -343,6 +344,16 @@ export class MgenClient {
   async createProject(request: CreateProjectRequest): Promise<Project> {
     return this.request<Project>('/api/projects', {
       method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * Updates an existing project.
+   */
+  async updateProject(id: string, request: UpdateProjectRequest): Promise<Project> {
+    return this.request<Project>(`/api/projects/${id}`, {
+      method: 'PUT',
       body: JSON.stringify(request),
     });
   }

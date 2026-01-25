@@ -18,6 +18,19 @@ export const CreateProjectRequestSchema = v.object({
 export type CreateProjectRequest = v.InferInput<typeof CreateProjectRequestSchema>;
 
 /**
+ * Update project request schema. All fields optional for partial updates.
+ */
+export const UpdateProjectRequestSchema = v.object({
+  name: v.optional(v.pipe(v.string(), v.minLength(1, 'Project name is required'))),
+  githubRepo: v.optional(v.pipe(v.string(), v.regex(/^[^/]+\/[^/]+$/, 'Must be in org/repo format'))),
+  defaultBranch: v.optional(v.string()),
+  branchPrefix: v.optional(v.string()),
+  mastraPath: v.optional(v.string()),
+  uiSandboxPath: v.optional(v.nullable(v.string())),
+});
+export type UpdateProjectRequest = v.InferInput<typeof UpdateProjectRequestSchema>;
+
+/**
  * Add environment request schema.
  */
 export const AddEnvironmentRequestSchema = v.object({

@@ -133,4 +133,139 @@ describe('Projects Routes', () => {
       expect(body.environments).toEqual([]);
     });
   });
+
+  describe('PUT /projects/:id', () => {
+    test('returns 404 for nonexistent project', async () => {
+      const res = await app.request('/projects/AAAAAA', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'new-name' }),
+      });
+
+      expect(res.status).toBe(404);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.error).toBe('Project not found: AAAAAA');
+    });
+
+    test('updates a single field', async () => {
+      const project = await projectsRepo.create({
+        name: 'test-project',
+        github_repo: 'org/repo',
+        default_branch: 'main',
+      });
+
+      const res = await app.request(`/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ defaultBranch: 'develop' }),
+      });
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.id).toBe(project.id);
+      expect(body.name).toBe('test-project');
+      expect(body.defaultBranch).toBe('develop');
+    });
+
+    test('updates multiple fields', async () => {
+      const project = await projectsRepo.create({
+        name: 'test-project',
+        github_repo: 'org/repo',
+        default_branch: 'main',
+        branch_prefix: 'mg/',
+      });
+
+      const res = await app.request(`/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'updated-project',
+          defaultBranch: 'feature/mastragen',
+          branchPrefix: 'dev/',
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.id).toBe(project.id);
+      expect(body.name).toBe('updated-project');
+      expect(body.defaultBranch).toBe('feature/mastragen');
+      expect(body.branchPrefix).toBe('dev/');
+      expect(body.githubRepo).toBe('org/repo'); // unchanged
+    });
+
+    test('returns 400 for invalid githubRepo format', async () => {
+      const project = await projectsRepo.create({
+        name: 'test-project',
+        github_repo: 'org/repo',
+      });
+
+      const res = await app.request(`/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ githubRepo: 'invalid-format' }),
+      });
+
+      expect(res.status).toBe(400);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.error).toContain('Validation failed');
+    });
+
+    test('returns 409 for duplicate name conflict', async () => {
+      await projectsRepo.create({
+        name: 'existing-project',
+        github_repo: 'org/repo-one',
+      });
+      const project = await projectsRepo.create({
+        name: 'test-project',
+        github_repo: 'org/repo-two',
+      });
+
+      const res = await app.request(`/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'existing-project' }),
+      });
+
+      expect(res.status).toBe(409);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.error).toBe('Project already exists: existing-project');
+    });
+
+    test('allows keeping the same name', async () => {
+      const project = await projectsRepo.create({
+        name: 'test-project',
+        github_repo: 'org/repo',
+      });
+
+      const res = await app.request(`/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: 'test-project', defaultBranch: 'develop' }),
+      });
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.name).toBe('test-project');
+      expect(body.defaultBranch).toBe('develop');
+    });
+
+    test('can update uiSandboxPath to null', async () => {
+      const project = await projectsRepo.create({
+        name: 'test-project',
+        github_repo: 'org/repo',
+        ui_sandbox_path: 'packages/ui',
+      });
+
+      const res = await app.request(`/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ uiSandboxPath: null }),
+      });
+
+      expect(res.status).toBe(200);
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.uiSandboxPath).toBeNull();
+    });
+  });
 });

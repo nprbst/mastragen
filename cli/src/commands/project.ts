@@ -60,7 +60,21 @@ export function projectCommand(client: MgenClient): Command {
           repo = handleCancel(repoInput);
         }
 
-        // 3. UI sandbox path (optional)
+        // 3. Default branch
+        let branch = options.branch as string;
+        if (needsInteractive) {
+          const branchInput = await text({
+            message: 'Default branch:',
+            placeholder: 'main',
+            initialValue: 'main',
+          });
+          const branchValue = handleCancel(branchInput);
+          if (branchValue) {
+            branch = branchValue;
+          }
+        }
+
+        // 4. UI sandbox path (optional)
         let uiSandboxPath = options.uiSandboxPath as string | undefined;
         if (!uiSandboxPath && needsInteractive) {
           const uiPathInput = await text({
@@ -76,7 +90,7 @@ export function projectCommand(client: MgenClient): Command {
         const projectData = await client.createProject({
           name,
           githubRepo: repo,
-          defaultBranch: options.branch,
+          defaultBranch: branch,
           branchPrefix: options.prefix,
           mastraPath: options.mastraPath,
           uiSandboxPath,
@@ -174,6 +188,154 @@ export function projectCommand(client: MgenClient): Command {
         if (err instanceof ApiError) {
           if (err.status === 404) {
             console.error(error(`Project not found: ${idArg}`));
+          } else {
+            console.error(error(`API error: ${err.message}`));
+          }
+        } else if (err instanceof Error) {
+          console.error(error(`Failed: ${err.message}`));
+        }
+        process.exit(1);
+      }
+    });
+
+  // project update [id]
+  project
+    .command('update [id]')
+    .description('Update a project')
+    .option('-n, --name <name>', 'New project name')
+    .option('-r, --repo <org/repo>', 'GitHub repository (org/repo format)')
+    .option('-b, --branch <branch>', 'Default branch')
+    .option('-p, --prefix <prefix>', 'Branch prefix for sessions')
+    .option('-m, --mastra-path <path>', 'Path to Mastra code within repo')
+    .option('-u, --ui-sandbox-path <path>', 'Path to UI sandbox within repo')
+    .option('--json', 'Output as JSON')
+    .action(async (idArg, options) => {
+      try {
+        // Interactive mode if project ID is missing
+        let id = idArg as string | undefined;
+        if (!id && !options.json) {
+          const projects = await client.listProjects();
+
+          if (projects.length === 0) {
+            console.error(error('No projects found.'));
+            process.exit(1);
+          }
+
+          const selected = await select({
+            message: 'Select a project to update:',
+            options: projects.map((p) => ({
+              value: p.id,
+              label: p.name,
+              hint: p.githubRepo,
+            })),
+          });
+
+          id = handleCancel(selected);
+        }
+
+        if (!id) {
+          console.error(error('Project ID is required'));
+          process.exit(1);
+        }
+
+        // Get current project for display and interactive mode
+        const currentProject = await client.getProject(id);
+
+        // Check if any options provided
+        const hasOptions = options.name || options.repo || options.branch ||
+          options.prefix || options.mastraPath || options.uiSandboxPath !== undefined;
+
+        // Interactive mode if no options provided
+        if (!hasOptions && !options.json) {
+          intro(`Update project: ${currentProject.name}`);
+
+          // Prompt for each field with current value
+          const nameInput = await text({
+            message: 'Project name:',
+            initialValue: currentProject.name,
+          });
+          const nameValue = handleCancel(nameInput);
+
+          const repoInput = await text({
+            message: 'GitHub repository (org/repo):',
+            initialValue: currentProject.githubRepo,
+          });
+          const repoValue = handleCancel(repoInput);
+
+          const branchInput = await text({
+            message: 'Default branch:',
+            initialValue: currentProject.defaultBranch,
+          });
+          const branchValue = handleCancel(branchInput);
+
+          const prefixInput = await text({
+            message: 'Branch prefix:',
+            initialValue: currentProject.branchPrefix,
+          });
+          const prefixValue = handleCancel(prefixInput);
+
+          const mastraPathInput = await text({
+            message: 'Mastra path:',
+            initialValue: currentProject.mastraPath,
+          });
+          const mastraPathValue = handleCancel(mastraPathInput);
+
+          const uiPathInput = await text({
+            message: 'UI sandbox path (leave empty to clear):',
+            initialValue: currentProject.uiSandboxPath || '',
+          });
+          const uiPathValue = handleCancel(uiPathInput);
+
+          // Build update request with changed values
+          const updateRequest: Record<string, string | null | undefined> = {};
+          if (nameValue !== currentProject.name) updateRequest.name = nameValue;
+          if (repoValue !== currentProject.githubRepo) updateRequest.githubRepo = repoValue;
+          if (branchValue !== currentProject.defaultBranch) updateRequest.defaultBranch = branchValue;
+          if (prefixValue !== currentProject.branchPrefix) updateRequest.branchPrefix = prefixValue;
+          if (mastraPathValue !== currentProject.mastraPath) updateRequest.mastraPath = mastraPathValue;
+          if (uiPathValue !== (currentProject.uiSandboxPath || '')) {
+            updateRequest.uiSandboxPath = uiPathValue || null;
+          }
+
+          if (Object.keys(updateRequest).length === 0) {
+            outro('No changes made.');
+            return;
+          }
+
+          const projectData = await client.updateProject(id, updateRequest);
+          outro('Project updated!');
+          console.log(formatProjectCreated(projectData));
+        } else {
+          // Non-interactive: use provided options directly
+          const updateRequest: Record<string, string | null | undefined> = {};
+          if (options.name) updateRequest.name = options.name;
+          if (options.repo) updateRequest.githubRepo = options.repo;
+          if (options.branch) updateRequest.defaultBranch = options.branch;
+          if (options.prefix) updateRequest.branchPrefix = options.prefix;
+          if (options.mastraPath) updateRequest.mastraPath = options.mastraPath;
+          if (options.uiSandboxPath !== undefined) {
+            updateRequest.uiSandboxPath = options.uiSandboxPath || null;
+          }
+
+          if (Object.keys(updateRequest).length === 0) {
+            console.error(error('No update options provided'));
+            process.exit(1);
+          }
+
+          const projectData = await client.updateProject(id, updateRequest);
+
+          if (options.json) {
+            console.log(JSON.stringify(projectData, null, 2));
+          } else {
+            console.log(formatProjectCreated(projectData));
+          }
+        }
+      } catch (err) {
+        if (err instanceof ApiError) {
+          if (err.status === 404) {
+            console.error(error(`Project not found: ${idArg}`));
+          } else if (err.status === 409) {
+            console.error(error(`Project name already exists: ${options.name}`));
           } else {
             console.error(error(`API error: ${err.message}`));
           }
