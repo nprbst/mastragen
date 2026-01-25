@@ -1038,23 +1038,31 @@ export class SandboxService {
       // Create PVC (idempotent for resume)
       await this.k8sSandboxService.createWorkspacePVC(session.id);
 
-      // Create the sandbox pod
-      await this.k8sSandboxService.createSandboxPod(session, project, parsedEnvVars, claudeToken);
+      // Create Claude ConfigMap BEFORE pod (K8s mode uses ConfigMap instead of exec)
+      let claudeConfigMapName: string | undefined;
+      if (this.claudeInjectionService) {
+        claudeConfigMapName = await this.k8sSandboxService.createClaudeConfigMap(
+          session,
+          project,
+          this.claudeInjectionService,
+          {
+            projectId: project.id,
+            environment: session.environment,
+            sessionId: session.id,
+            userId,
+            chromeMode: session.chrome_mode ?? undefined,
+            userTailscaleHostname: session.user_tailscale_hostname ?? undefined,
+          }
+        );
+      }
+
+      // Create the sandbox pod with Claude ConfigMap reference
+      await this.k8sSandboxService.createSandboxPod(session, project, parsedEnvVars, claudeToken, claudeConfigMapName);
 
       // Wait for pod to be ready
       const ready = await this.k8sSandboxService.waitForPodReady(session.id);
       if (!ready) {
         throw new Error(`Sandbox pod failed to become ready for session ${session.id}`);
-      }
-
-      // Inject Claude config
-      if (this.claudeInjectionService) {
-        await this.k8sSandboxService.injectClaudeConfig(this.claudeInjectionService, {
-          projectId: project.id,
-          environment: session.environment,
-          sessionId: session.id,
-          userId,
-        });
       }
 
       console.log('[SandboxService] K8s sandbox pod started successfully');

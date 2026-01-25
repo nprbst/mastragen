@@ -11,7 +11,7 @@
  */
 
 import * as k8s from '@kubernetes/client-node';
-import { Writable } from 'node:stream';
+import * as tar from 'tar-stream';
 import type { Session, Project } from '../db/types.ts';
 import type { ClaudeInjectionService } from './claude-injection.ts';
 
@@ -67,6 +67,8 @@ export interface K8sSandboxConfig {
   imageTag: string;
   /** Image pull policy (e.g., "Always", "IfNotPresent", "Never") */
   imagePullPolicy: string;
+  /** Whether to include Chrome container in sandbox pods */
+  chromeEnabled: boolean;
 }
 
 export interface PodStatus {
@@ -77,13 +79,24 @@ export interface PodStatus {
 }
 
 /**
- * Default ports for sandbox services
+ * External ports exposed by Caddy (what users connect to)
  */
 const SANDBOX_PORTS = {
   mastra: 4111,
   astro: 4321,
   vscode: 8080,
   chrome: 3000,
+} as const;
+
+/**
+ * Internal ports for app containers (Caddy proxies to these)
+ * Different from external ports because containers share network namespace in a pod
+ */
+const INTERNAL_PORTS = {
+  mastra: 14111,
+  astro: 14321,
+  vscode: 18080,
+  chrome: 3000, // Chrome uses same port (Caddy doesn't proxy to it, just passes through)
 } as const;
 
 /**
@@ -137,27 +150,36 @@ export class K8sSandboxService {
     session: Session,
     project: Project,
     envVars: Record<string, string> = {},
-    claudeToken?: string
+    claudeToken?: string,
+    claudeConfigMapName?: string
   ): Promise<void> {
     const configMapName = this.getConfigMapName(session.id);
 
-    // Create Caddyfile ConfigMap first
+    // Create all PVCs first (idempotent, supports resume)
+    await this.createWorkspacePVC(session.id);
+    await this.createTailscalePVC(session.id);
+    await this.createCaddyPVC(session.id);
+
+    // Create Caddyfile ConfigMap
     await this.createCaddyfileConfigMap(session, configMapName);
 
     // Create the pod
-    const pod = this.buildPodSpec(session, project, configMapName, envVars, claudeToken);
+    const pod = this.buildPodSpec(session, project, configMapName, envVars, claudeToken, claudeConfigMapName);
     await this.coreApi.createNamespacedPod({ namespace: this.config.namespace, body: pod });
   }
 
   /**
-   * Delete a sandbox pod and its ConfigMap.
+   * Delete a sandbox pod and its resources.
    * @param sessionId - The session ID
-   * @param options.keepPVC - If true, keep the PVC for resume (default: false)
+   * @param options.keepPVC - If true, keep all PVCs for resume (default: false)
    */
   async deleteSandboxPod(sessionId: string, options?: { keepPVC?: boolean }): Promise<void> {
     const podName = this.getPodName(sessionId);
-    const configMapName = this.getConfigMapName(sessionId);
-    const pvcName = `workspace-${sessionId.slice(0, 12)}`;
+    const caddyConfigMapName = this.getConfigMapName(sessionId);
+    const claudeConfigMapName = this.getClaudeConfigMapName(sessionId);
+    const workspacePvcName = `workspace-${sessionId.slice(0, 12).toLowerCase()}`;
+    const tailscalePvcName = this.getTailscalePvcName(sessionId);
+    const caddyPvcName = this.getCaddyPvcName(sessionId);
 
     // Delete pod
     try {
@@ -170,11 +192,11 @@ export class K8sSandboxService {
       }
     }
 
-    // Delete ConfigMap
+    // Delete Caddy ConfigMap
     try {
-      console.log(`[K8sSandboxService] Deleting ConfigMap ${configMapName}`);
+      console.log(`[K8sSandboxService] Deleting ConfigMap ${caddyConfigMapName}`);
       await this.coreApi.deleteNamespacedConfigMap({
-        name: configMapName,
+        name: caddyConfigMapName,
         namespace: this.config.namespace,
       });
     } catch (error) {
@@ -184,22 +206,45 @@ export class K8sSandboxService {
       }
     }
 
-    // Delete PVC unless keepPVC is true (for suspend/resume)
-    if (!options?.keepPVC) {
-      try {
-        console.log(`[K8sSandboxService] Deleting PVC ${pvcName}`);
-        await this.coreApi.deleteNamespacedPersistentVolumeClaim({
-          name: pvcName,
-          namespace: this.config.namespace,
-        });
-      } catch (error) {
-        // Ignore 404 errors
-        if (!isK8s404Error(error)) {
-          throw error;
-        }
+    // Delete Claude ConfigMap
+    try {
+      console.log(`[K8sSandboxService] Deleting ConfigMap ${claudeConfigMapName}`);
+      await this.coreApi.deleteNamespacedConfigMap({
+        name: claudeConfigMapName,
+        namespace: this.config.namespace,
+      });
+    } catch (error) {
+      // Ignore 404 errors
+      if (!isK8s404Error(error)) {
+        throw error;
       }
+    }
+
+    // Delete PVCs unless keepPVC is true (for suspend/resume)
+    if (!options?.keepPVC) {
+      await this.deletePVC(workspacePvcName);
+      await this.deletePVC(tailscalePvcName);
+      await this.deletePVC(caddyPvcName);
     } else {
-      console.log(`[K8sSandboxService] Keeping PVC ${pvcName} for resume`);
+      console.log(`[K8sSandboxService] Keeping PVCs for resume: ${workspacePvcName}, ${tailscalePvcName}, ${caddyPvcName}`);
+    }
+  }
+
+  /**
+   * Delete a PVC by name, ignoring 404 errors.
+   */
+  private async deletePVC(name: string): Promise<void> {
+    try {
+      console.log(`[K8sSandboxService] Deleting PVC ${name}`);
+      await this.coreApi.deleteNamespacedPersistentVolumeClaim({
+        name,
+        namespace: this.config.namespace,
+      });
+    } catch (error) {
+      // Ignore 404 errors
+      if (!isK8s404Error(error)) {
+        throw error;
+      }
     }
   }
 
@@ -265,9 +310,10 @@ export class K8sSandboxService {
   /**
    * Get the hostname for a sandbox session.
    * Format: {sessionId}-mastragen-{env}.{tailnet}.ts.net
+   * Note: tailnet is normalized at initialization (without .ts.net suffix)
    */
   getHostname(sessionId: string): string {
-    const shortId = sessionId.slice(0, 8);
+    const shortId = sessionId.slice(0, 8).toLowerCase();
     return `${shortId}-mastragen-${this.config.environment}.${this.config.tailnet}.ts.net`;
   }
 
@@ -290,7 +336,7 @@ export class K8sSandboxService {
    * Must be called before createSandboxPod().
    */
   async createWorkspacePVC(sessionId: string): Promise<void> {
-    const pvcName = `workspace-${sessionId.slice(0, 12)}`;
+    const pvcName = `workspace-${sessionId.slice(0, 12).toLowerCase()}`;
 
     // Check if PVC already exists (resume case)
     try {
@@ -336,142 +382,129 @@ export class K8sSandboxService {
   }
 
   /**
-   * Inject Claude configuration into the vscode container.
-   * Uses K8s exec API to write files to the container.
+   * Create Tailscale state PVC for a session.
+   * Preserves device identity across suspend/resume (stable hostname).
+   * Idempotent - does nothing if PVC already exists.
    */
-  async injectClaudeConfig(
-    claudeInjectionService: ClaudeInjectionService,
-    config: ClaudeConfigInjectionConfig
-  ): Promise<void> {
-    const podName = this.getPodName(config.sessionId);
-    const containerName = 'vscode';
+  async createTailscalePVC(sessionId: string): Promise<void> {
+    const pvcName = this.getTailscalePvcName(sessionId);
 
-    console.log(`[K8sSandboxService] Injecting Claude config into pod ${podName}...`);
-
+    // Check if PVC already exists (resume case)
     try {
-      // Generate settings.json
-      const settings = await claudeInjectionService.generateSettings({
-        projectId: config.projectId,
-        environment: config.environment,
-        sessionId: config.sessionId,
-        chromeMode: config.chromeMode,
-        userTailscaleHostname: config.userTailscaleHostname,
+      await this.coreApi.readNamespacedPersistentVolumeClaim({
+        name: pvcName,
+        namespace: this.config.namespace,
       });
-
-      // Generate CLAUDE.md
-      const claudeMd = await claudeInjectionService.generateClaudeMd({
-        projectId: config.projectId,
-        environment: config.environment,
-        sessionId: config.sessionId,
-        chromeMode: config.chromeMode,
-        userTailscaleHostname: config.userTailscaleHostname,
-      });
-
-      // Get built-in and project-specific commands
-      const builtinCommands = await claudeInjectionService.getBuiltinCommands();
-      const projectCommands = await claudeInjectionService.getCommands({
-        projectId: config.projectId,
-        environment: config.environment,
-      });
-      const allCommands = [...builtinCommands, ...projectCommands];
-
-      // Get built-in skills
-      const builtinSkills = await claudeInjectionService.getBuiltinSkills();
-
-      // Get session environment variables
-      const envVars = await claudeInjectionService.getSessionEnvVars({
-        projectId: config.projectId,
-        environment: config.environment,
-        sessionId: config.sessionId,
-        userId: config.userId ?? '',
-      });
-
-      // Create directories
-      await this.execInPod(podName, containerName, ['mkdir', '-p', '/home/coder/.claude/commands']);
-      await this.execInPod(podName, containerName, ['mkdir', '-p', '/home/coder/.claude/skills']);
-
-      // Write settings.json (without mcpServers)
-      const { mcpServers, ...settingsWithoutMcp } = settings;
-      await this.writeFileToPod(podName, containerName, '/home/coder/.claude/settings.json', JSON.stringify(settingsWithoutMcp, null, 2));
-
-      // Write MCP config to ~/.claude.json
-      const claudeJsonConfig = { mcpServers };
-      await this.writeFileToPod(podName, containerName, '/home/coder/.claude.json', JSON.stringify(claudeJsonConfig, null, 2));
-
-      // Write CLAUDE.md
-      await this.writeFileToPod(podName, containerName, '/home/coder/.claude/CLAUDE.md', claudeMd);
-
-      // Write commands
-      for (const command of allCommands) {
-        await this.writeFileToPod(podName, containerName, `/home/coder/.claude/commands/${command.name}.md`, command.content);
+      console.log(`[K8sSandboxService] Tailscale PVC ${pvcName} already exists (resume)`);
+      return;
+    } catch (error) {
+      if (!isK8s404Error(error)) {
+        throw error;
       }
-
-      // Write skills
-      for (const skill of builtinSkills) {
-        await this.execInPod(podName, containerName, ['mkdir', '-p', `/home/coder/.claude/skills/${skill.name}`]);
-        await this.writeFileToPod(podName, containerName, `/home/coder/.claude/skills/${skill.name}/SKILL.md`, skill.content);
-      }
-
-      // Write environment variables
-      const envContent = Object.entries(envVars)
-        .map(([k, v]) => `export ${k}="${v}"`)
-        .join('\n');
-      await this.writeFileToPod(podName, containerName, '/home/coder/.claude/env.sh', envContent);
-
-      console.log('[K8sSandboxService] Claude config injection complete');
-    } catch (err) {
-      console.error('[K8sSandboxService] Failed to inject Claude config:', err);
-      // Don't throw - Claude config injection failure shouldn't prevent session creation
+      // PVC doesn't exist, create it
     }
-  }
 
-  /**
-   * Execute a command in a pod container.
-   */
-  private async execInPod(podName: string, containerName: string, command: string[]): Promise<void> {
-    const exec = new k8s.Exec(this.kc);
+    const pvc: k8s.V1PersistentVolumeClaim = {
+      apiVersion: 'v1',
+      kind: 'PersistentVolumeClaim',
+      metadata: {
+        name: pvcName,
+        namespace: this.config.namespace,
+        labels: {
+          'app.kubernetes.io/name': 'mastragen-sandbox',
+          'app.kubernetes.io/component': 'tailscale',
+          'mastragen.io/session-id': sessionId,
+        },
+      },
+      spec: {
+        accessModes: ['ReadWriteOnce'],
+        resources: {
+          requests: {
+            storage: '100Mi',
+          },
+        },
+      },
+    };
 
-    await new Promise<void>((resolve, reject) => {
-      exec.exec(
-        this.config.namespace,
-        podName,
-        containerName,
-        command,
-        // Use null streams - we don't need output
-        new Writable({ write: (_chunk, _encoding, callback) => callback() }),
-        new Writable({ write: (_chunk, _encoding, callback) => callback() }),
-        null, // stdin
-        false, // tty
-        (status) => {
-          if (status.status === 'Success') {
-            resolve();
-          } else {
-            reject(new Error(`Command failed: ${status.message}`));
-          }
-        }
-      );
+    console.log(`[K8sSandboxService] Creating Tailscale PVC ${pvcName}`);
+    await this.coreApi.createNamespacedPersistentVolumeClaim({
+      namespace: this.config.namespace,
+      body: pvc,
     });
   }
 
   /**
-   * Write a file to a pod container using exec with base64 encoding.
+   * Create Caddy data PVC for a session.
+   * Caches TLS certificates to avoid rate limits.
+   * Idempotent - does nothing if PVC already exists.
    */
-  private async writeFileToPod(podName: string, containerName: string, filePath: string, content: string): Promise<void> {
-    // Base64 encode the content to handle special characters
-    const base64Content = Buffer.from(content).toString('base64');
-    // Use sh -c to decode and write the file
-    const command = ['sh', '-c', `echo '${base64Content}' | base64 -d > ${filePath}`];
-    await this.execInPod(podName, containerName, command);
+  async createCaddyPVC(sessionId: string): Promise<void> {
+    const pvcName = this.getCaddyPvcName(sessionId);
+
+    // Check if PVC already exists (resume case)
+    try {
+      await this.coreApi.readNamespacedPersistentVolumeClaim({
+        name: pvcName,
+        namespace: this.config.namespace,
+      });
+      console.log(`[K8sSandboxService] Caddy PVC ${pvcName} already exists (resume)`);
+      return;
+    } catch (error) {
+      if (!isK8s404Error(error)) {
+        throw error;
+      }
+      // PVC doesn't exist, create it
+    }
+
+    const pvc: k8s.V1PersistentVolumeClaim = {
+      apiVersion: 'v1',
+      kind: 'PersistentVolumeClaim',
+      metadata: {
+        name: pvcName,
+        namespace: this.config.namespace,
+        labels: {
+          'app.kubernetes.io/name': 'mastragen-sandbox',
+          'app.kubernetes.io/component': 'caddy',
+          'mastragen.io/session-id': sessionId,
+        },
+      },
+      spec: {
+        accessModes: ['ReadWriteOnce'],
+        resources: {
+          requests: {
+            storage: '50Mi',
+          },
+        },
+      },
+    };
+
+    console.log(`[K8sSandboxService] Creating Caddy PVC ${pvcName}`);
+    await this.coreApi.createNamespacedPersistentVolumeClaim({
+      namespace: this.config.namespace,
+      body: pvc,
+    });
   }
 
   // Private methods
 
   private getPodName(sessionId: string): string {
-    return `sandbox-${sessionId.slice(0, 12)}`;
+    return `sandbox-${sessionId.slice(0, 12).toLowerCase()}`;
   }
 
   private getConfigMapName(sessionId: string): string {
-    return `sandbox-caddy-${sessionId.slice(0, 12)}`;
+    return `sandbox-caddy-${sessionId.slice(0, 12).toLowerCase()}`;
+  }
+
+  private getClaudeConfigMapName(sessionId: string): string {
+    return `sandbox-claude-${sessionId.slice(0, 12).toLowerCase()}`;
+  }
+
+  private getTailscalePvcName(sessionId: string): string {
+    return `tailscale-${sessionId.slice(0, 12).toLowerCase()}`;
+  }
+
+  private getCaddyPvcName(sessionId: string): string {
+    return `caddy-${sessionId.slice(0, 12).toLowerCase()}`;
   }
 
   /**
@@ -483,47 +516,47 @@ export class K8sSandboxService {
 
     const caddyfile = `# Dynamic Caddyfile for session ${session.id}
 # Generated by K8sSandboxService
-# Port-based routing: each service on its native port
+# Caddy listens on external ports, proxies to internal app ports
 
 {
   # Enable Tailscale TLS certificate provisioning
   tailscale
 }
 
-# VS Code on default HTTPS port (443)
+# VS Code on default HTTPS port (443) -> internal ${INTERNAL_PORTS.vscode}
 https://${hostname} {
   tls {
     get_certificate tailscale
   }
-  reverse_proxy localhost:${SANDBOX_PORTS.vscode}
+  reverse_proxy localhost:${INTERNAL_PORTS.vscode}
   log {
     output stdout
     format json
   }
 }
 
-# Mastra on port ${SANDBOX_PORTS.mastra}
+# Mastra on port ${SANDBOX_PORTS.mastra} -> internal ${INTERNAL_PORTS.mastra}
 https://${hostname}:${SANDBOX_PORTS.mastra} {
   tls {
     get_certificate tailscale
   }
-  reverse_proxy localhost:${SANDBOX_PORTS.mastra}
+  reverse_proxy localhost:${INTERNAL_PORTS.mastra}
 }
 
-# Astro on port ${SANDBOX_PORTS.astro}
+# Astro on port ${SANDBOX_PORTS.astro} -> internal ${INTERNAL_PORTS.astro}
 https://${hostname}:${SANDBOX_PORTS.astro} {
   tls {
     get_certificate tailscale
   }
-  reverse_proxy localhost:${SANDBOX_PORTS.astro}
+  reverse_proxy localhost:${INTERNAL_PORTS.astro}
 }
 
-# Chrome DevTools on port ${SANDBOX_PORTS.chrome}
+# Chrome DevTools on port ${SANDBOX_PORTS.chrome} -> internal ${INTERNAL_PORTS.chrome}
 https://${hostname}:${SANDBOX_PORTS.chrome} {
   tls {
     get_certificate tailscale
   }
-  reverse_proxy localhost:${SANDBOX_PORTS.chrome}
+  reverse_proxy localhost:${INTERNAL_PORTS.chrome}
 }
 `;
 
@@ -551,6 +584,137 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
   }
 
   /**
+   * Creates a ConfigMap containing a tar archive of all Claude config files.
+   * The archive preserves directory structure for multi-file skills.
+   */
+  async createClaudeConfigMap(
+    session: Session,
+    _project: Project,
+    claudeInjectionService: ClaudeInjectionService,
+    config: ClaudeConfigInjectionConfig
+  ): Promise<string> {
+    const configMapName = this.getClaudeConfigMapName(session.id);
+
+    console.log(`[K8sSandboxService] Creating Claude config ConfigMap ${configMapName}...`);
+
+    // Generate all config content
+    const settings = await claudeInjectionService.generateSettings({
+      projectId: config.projectId,
+      environment: config.environment,
+      sessionId: config.sessionId,
+      chromeMode: config.chromeMode,
+      userTailscaleHostname: config.userTailscaleHostname,
+    });
+
+    const claudeMd = await claudeInjectionService.generateClaudeMd({
+      projectId: config.projectId,
+      environment: config.environment,
+      sessionId: config.sessionId,
+      chromeMode: config.chromeMode,
+      userTailscaleHostname: config.userTailscaleHostname,
+    });
+
+    const builtinCommands = await claudeInjectionService.getBuiltinCommands();
+    const projectCommands = await claudeInjectionService.getCommands({
+      projectId: config.projectId,
+      environment: config.environment,
+    });
+    const builtinSkills = await claudeInjectionService.getBuiltinSkills();
+    const envVars = await claudeInjectionService.getSessionEnvVars({
+      projectId: config.projectId,
+      environment: config.environment,
+      sessionId: config.sessionId,
+      userId: config.userId ?? '',
+    });
+
+    // Build tar archive
+    const { mcpServers, ...settingsWithoutMcp } = settings;
+    const tarBase64 = await this.buildClaudeConfigTar({
+      settingsJson: JSON.stringify(settingsWithoutMcp, null, 2),
+      claudeJson: JSON.stringify({ mcpServers }, null, 2),
+      claudeMd,
+      envSh: Object.entries(envVars)
+        .map(([k, v]) => `export ${k}="${v}"`)
+        .join('\n'),
+      commands: [...builtinCommands, ...projectCommands],
+      skills: builtinSkills,
+    });
+
+    // Create ConfigMap with tar archive
+    await this.coreApi.createNamespacedConfigMap({
+      namespace: this.config.namespace,
+      body: {
+        apiVersion: 'v1',
+        kind: 'ConfigMap',
+        metadata: {
+          name: configMapName,
+          namespace: this.config.namespace,
+          labels: {
+            'app.kubernetes.io/name': 'mastragen-sandbox',
+            'app.kubernetes.io/component': 'claude-config',
+            'mastragen.io/session-id': session.id,
+          },
+        },
+        binaryData: {
+          'claude-config.tar.gz': tarBase64,
+        },
+      },
+    });
+
+    console.log(`[K8sSandboxService] Created Claude config ConfigMap ${configMapName}`);
+    return configMapName;
+  }
+
+  /**
+   * Build a gzipped tar archive of Claude config files.
+   * Returns base64-encoded string for ConfigMap binaryData.
+   */
+  private async buildClaudeConfigTar(config: {
+    settingsJson: string;
+    claudeJson: string;
+    claudeMd: string;
+    envSh: string;
+    commands: Array<{ name: string; content: string }>;
+    skills: Array<{ name: string; content: string }>;
+  }): Promise<string> {
+    const pack = tar.pack();
+    const chunks: Buffer[] = [];
+
+    // .claude/settings.json
+    pack.entry({ name: '.claude/settings.json' }, config.settingsJson);
+
+    // .claude.json (in home dir root)
+    pack.entry({ name: '.claude.json' }, config.claudeJson);
+
+    // .claude/CLAUDE.md
+    pack.entry({ name: '.claude/CLAUDE.md' }, config.claudeMd);
+
+    // .claude/env.sh
+    pack.entry({ name: '.claude/env.sh' }, config.envSh);
+
+    // .claude/commands/*.md
+    for (const cmd of config.commands) {
+      pack.entry({ name: `.claude/commands/${cmd.name}.md` }, cmd.content);
+    }
+
+    // .claude/skills/{name}/SKILL.md
+    for (const skill of config.skills) {
+      pack.entry({ name: `.claude/skills/${skill.name}/SKILL.md` }, skill.content);
+    }
+
+    pack.finalize();
+
+    // Collect chunks from the tar stream
+    for await (const chunk of pack) {
+      chunks.push(chunk);
+    }
+    const tarBuffer = Buffer.concat(chunks);
+    const gzipped = Bun.gzipSync(tarBuffer);
+
+    return Buffer.from(gzipped).toString('base64');
+  }
+
+  /**
    * Build the pod specification for a sandbox.
    */
   private buildPodSpec(
@@ -558,7 +722,8 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
     project: Project,
     configMapName: string,
     envVars: Record<string, string>,
-    claudeToken?: string
+    claudeToken?: string,
+    claudeConfigMapName?: string
   ): k8s.V1Pod {
     const podName = this.getPodName(session.id);
     const hostname = this.getHostname(session.id);
@@ -568,6 +733,8 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
       { name: 'SESSION_ID', value: session.id },
       { name: 'PROJECT_ID', value: project.id },
       { name: 'WORKSPACE_VOLUME', value: session.workspace_volume ?? undefined },
+      { name: 'GITHUB_REPO', value: project.github_repo },
+      ...(session.branch_name ? [{ name: 'BRANCH', value: session.branch_name }] : []),
       ...Object.entries(envVars).map(([name, value]) => ({ name, value })),
     ];
 
@@ -593,66 +760,82 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
         restartPolicy: 'Never',
         shareProcessNamespace: true,
         containers: [
-          // VS Code server container
+          // VS Code server container (internal port, Caddy proxies external)
           {
             name: 'vscode',
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.vscode}:${this.config.imageTag}`,
             imagePullPolicy: this.config.imagePullPolicy,
-            ports: [{ containerPort: SANDBOX_PORTS.vscode }],
-            env: baseEnv,
-            volumeMounts: [{ name: 'workspace', mountPath: '/workspace' }],
+            env: [
+              ...baseEnv,
+              { name: 'CODE_SERVER_PORT', value: String(INTERNAL_PORTS.vscode) },
+            ],
+            volumeMounts: [
+              { name: 'workspace', mountPath: '/workspace' },
+              // Claude config from ConfigMap (K8s mode)
+              ...(claudeConfigMapName
+                ? [{ name: 'claude-config', mountPath: '/home/coder/.claude-init', readOnly: true }]
+                : []),
+            ],
             resources: {
               limits: { cpu: '2', memory: '4Gi' },
               requests: { cpu: '500m', memory: '1Gi' },
             },
           },
-          // Mastra container
+          // Mastra container (internal port, Caddy proxies external)
           {
             name: 'mastra',
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.mastra}:${this.config.imageTag}`,
             imagePullPolicy: this.config.imagePullPolicy,
-            ports: [{ containerPort: SANDBOX_PORTS.mastra }],
-            env: baseEnv,
+            env: [
+              ...baseEnv,
+              { name: 'MASTRA_PORT', value: String(INTERNAL_PORTS.mastra) },
+            ],
             volumeMounts: [{ name: 'workspace', mountPath: '/workspace' }],
             resources: {
               limits: { cpu: '1', memory: '2Gi' },
               requests: { cpu: '250m', memory: '512Mi' },
             },
           },
-          // Astro preview container
+          // Astro preview container (internal port, Caddy proxies external)
           {
             name: 'astro',
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.astro}:${this.config.imageTag}`,
             imagePullPolicy: this.config.imagePullPolicy,
-            ports: [{ containerPort: SANDBOX_PORTS.astro }],
-            env: baseEnv,
+            env: [
+              ...baseEnv,
+              { name: 'ASTRO_PORT', value: String(INTERNAL_PORTS.astro) },
+            ],
             volumeMounts: [{ name: 'workspace', mountPath: '/workspace' }],
             resources: {
               limits: { cpu: '500m', memory: '1Gi' },
               requests: { cpu: '100m', memory: '256Mi' },
             },
           },
-          // Chrome DevTools container for browser automation
-          {
-            name: 'chrome',
-            image: SANDBOX_IMAGES.chrome,
-            ports: [{ containerPort: SANDBOX_PORTS.chrome }],
-            env: [
-              { name: 'CONNECTION_TIMEOUT', value: '300000' },
-              { name: 'MAX_CONCURRENT_SESSIONS', value: '2' },
-              { name: 'PREBOOT_CHROME', value: 'true' },
-              { name: 'DEFAULT_LAUNCH_ARGS', value: '["--disable-dev-shm-usage"]' },
-            ],
-            resources: {
-              limits: { cpu: '1', memory: '2Gi' },
-              requests: { cpu: '500m', memory: '1Gi' },
-            },
-            readinessProbe: {
-              httpGet: { path: '/health', port: SANDBOX_PORTS.chrome },
-              initialDelaySeconds: 10,
-              periodSeconds: 10,
-            },
-          },
+          // Chrome DevTools container for browser automation (optional)
+          ...(this.config.chromeEnabled
+            ? [
+                {
+                  name: 'chrome',
+                  image: SANDBOX_IMAGES.chrome,
+                  ports: [{ containerPort: SANDBOX_PORTS.chrome }],
+                  env: [
+                    { name: 'CONNECTION_TIMEOUT', value: '300000' },
+                    { name: 'MAX_CONCURRENT_SESSIONS', value: '2' },
+                    { name: 'PREBOOT_CHROME', value: 'true' },
+                    { name: 'DEFAULT_LAUNCH_ARGS', value: '["--disable-dev-shm-usage"]' },
+                  ],
+                  resources: {
+                    limits: { cpu: '1', memory: '2Gi' },
+                    requests: { cpu: '500m', memory: '1Gi' },
+                  },
+                  readinessProbe: {
+                    httpGet: { path: '/health', port: SANDBOX_PORTS.chrome },
+                    initialDelaySeconds: 10,
+                    periodSeconds: 10,
+                  },
+                },
+              ]
+            : []),
           // T095f, T095h: Tailscale sidecar with TS_PERMIT_CERT_UID=caddy
           {
             name: 'tailscale',
@@ -671,10 +854,13 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
                 },
               },
               { name: 'TS_KUBE_SECRET', value: '' },
+              { name: 'TS_STATE_DIR', value: '/var/lib/tailscale' },
               { name: 'TS_USERSPACE', value: 'false' },
               { name: 'TS_HOSTNAME', value: hostname.split('.')[0] }, // Just the prefix
               // T095h: Allow Caddy to fetch TLS certificates
-              { name: 'TS_PERMIT_CERT_UID', value: 'caddy' },
+              { name: 'TS_PERMIT_CERT_UID', value: '1000' }, // Must match Caddy's runAsUser
+              // Put socket directly in shared volume (not a symlink to /tmp)
+              { name: 'TS_SOCKET', value: '/var/run/tailscale/tailscaled.sock' },
             ],
             volumeMounts: [
               { name: 'tailscale-state', mountPath: '/var/lib/tailscale' },
@@ -703,6 +889,8 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
             volumeMounts: [
               { name: 'caddy-config', mountPath: '/etc/caddy', readOnly: true },
               { name: 'tailscale-socket', mountPath: '/var/run/tailscale', readOnly: true },
+              { name: 'caddy-data', mountPath: '/data/caddy' },
+              { name: 'caddy-config-data', mountPath: '/config/caddy' },
             ],
             resources: {
               limits: { cpu: '100m', memory: '64Mi' },
@@ -725,17 +913,31 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
           },
         ],
         volumes: [
-          // Workspace PVC (should be created separately)
+          // Workspace PVC (created via createWorkspacePVC)
           {
             name: 'workspace',
-            persistentVolumeClaim: { claimName: `workspace-${session.id.slice(0, 12)}` },
+            persistentVolumeClaim: { claimName: `workspace-${session.id.slice(0, 12).toLowerCase()}` },
           },
-          // Tailscale state (ephemeral)
-          { name: 'tailscale-state', emptyDir: {} },
-          // Tailscale socket for Caddy to access
+          // Tailscale state PVC (preserves identity across suspend/resume)
+          {
+            name: 'tailscale-state',
+            persistentVolumeClaim: { claimName: `tailscale-${session.id.slice(0, 12).toLowerCase()}` },
+          },
+          // Tailscale socket for Caddy to access (IPC, ephemeral)
           { name: 'tailscale-socket', emptyDir: {} },
           // Caddy config from ConfigMap
           { name: 'caddy-config', configMap: { name: configMapName } },
+          // Caddy data PVC (caches TLS certificates)
+          {
+            name: 'caddy-data',
+            persistentVolumeClaim: { claimName: `caddy-${session.id.slice(0, 12).toLowerCase()}` },
+          },
+          // Caddy config-data (autosave.json, ephemeral)
+          { name: 'caddy-config-data', emptyDir: {} },
+          // Claude config from ConfigMap (K8s mode)
+          ...(claudeConfigMapName
+            ? [{ name: 'claude-config', configMap: { name: claudeConfigMapName } }]
+            : []),
         ],
       },
     };
@@ -747,7 +949,8 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
  */
 export function createK8sSandboxService(): K8sSandboxService | null {
   const namespace = process.env.MASTRAGEN_NAMESPACE;
-  const tailnet = process.env.TAILSCALE_TAILNET;
+  // Normalize tailnet by stripping .ts.net suffix if present (like orchestrator's TS_HOSTNAME)
+  const tailnet = process.env.TAILSCALE_TAILNET?.replace(/\.ts\.net$/, '');
   const environment = process.env.MASTRAGEN_ENVIRONMENT ?? 'dev';
   const imageRegistry = process.env.IMAGE_REGISTRY ?? 'ghcr.io/nprbst';
   const imageTag = process.env.IMAGE_TAG ?? 'latest';
@@ -767,5 +970,6 @@ export function createK8sSandboxService(): K8sSandboxService | null {
     imageRegistry,
     imageTag,
     imagePullPolicy,
+    chromeEnabled: process.env.SANDBOX_CHROME_ENABLED !== 'false',
   });
 }

@@ -31,10 +31,11 @@
     "k8s:status": "kubectl get pods,svc,pvc -n mastragen-dev -l app.kubernetes.io/name=mastragen",
     "k8s:status:staging": "kubectl get pods,svc,pvc -n mastragen-staging -l app.kubernetes.io/name=mastragen",
     "k8s:status:prod": "kubectl get pods,svc,pvc -n mastragen-prod -l app.kubernetes.io/name=mastragen",
-    "minikube:build": "minikube image build -t mastragen-orchestrator:local . -f orchestrator/Dockerfile && minikube image build -t mastragen-caddy:local docker/caddy",
-    "minikube:build:orchestrator": "minikube image build -t mastragen-orchestrator:local . -f orchestrator/Dockerfile",
+    "minikube:build": "./scripts/minikube-build-all.sh",
+    "minikube:build:orchestrator": "./scripts/minikube-build-all.sh --orchestrator-only",
     "minikube:build:caddy": "minikube image build -t mastragen-caddy:local docker/caddy",
-    "minikube:deploy": "bun run minikube:build && bun run helm:upgrade:dev && kubectl rollout restart deployment/mastragen-orchestrator -n mastragen-dev || true"
+    "minikube:deploy": "bun run minikube:build && bun run helm:upgrade:dev && kubectl rollout restart deployment/mastragen-orchestrator -n mastragen-dev || true",
+    "minikube:deploy:quick": "bun run minikube:build:orchestrator && bun run helm:upgrade:dev && kubectl rollout restart deployment/mastragen-orchestrator -n mastragen-dev || true"
   },
   "devDependencies": {
     "@types/bun": "latest"

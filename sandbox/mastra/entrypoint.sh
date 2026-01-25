@@ -15,5 +15,9 @@ while [ ! -f "/workspace/.init-complete" ]; do
 done
 echo "Init complete, starting mastra..."
 
-# Execute the main command with restart wrapper
-exec /app/restart-wrapper.sh mastra "$@"
+# Port configurable for K8s mode where Caddy proxies external port to internal
+# Mastra reads PORT env var for its HTTP server
+export PORT="${MASTRA_PORT:-4111}"
+
+# Execute the dev server with restart wrapper
+exec /app/restart-wrapper.sh mastra bun run mastra dev

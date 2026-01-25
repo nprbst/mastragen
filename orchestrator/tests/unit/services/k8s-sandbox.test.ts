@@ -53,6 +53,7 @@ describe('K8sSandboxService', () => {
         imageRegistry: 'ghcr.io/test',
         imageTag: 'latest',
         imagePullPolicy: 'IfNotPresent',
+        chromeEnabled: true,
       });
 
       const sessionId = 'abc123def456';
@@ -99,6 +100,7 @@ describe('K8sSandboxService', () => {
         imageRegistry: 'ghcr.io/test',
         imageTag: 'latest',
         imagePullPolicy: 'IfNotPresent',
+        chromeEnabled: true,
       });
 
       const urls = service.getServiceUrls('abc123def456');
@@ -147,6 +149,7 @@ describe('K8sSandboxService', () => {
         imageRegistry: 'ghcr.io/test',
         imageTag: 'latest',
         imagePullPolicy: 'IfNotPresent',
+        chromeEnabled: true,
       });
 
       // Access private methods via any type for testing

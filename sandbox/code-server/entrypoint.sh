@@ -22,7 +22,17 @@ fi
 
 # Ensure .claude directory structure exists
 mkdir -p /home/coder/.claude/commands
+mkdir -p /home/coder/.claude/skills
 mkdir -p /home/coder/.claude/projects/-workspace
+
+# Initialize Claude config from ConfigMap tar archive (K8s mode)
+# In Docker mode, the orchestrator injects these files via exec after container starts
+if [ -f /home/coder/.claude-init/claude-config.tar.gz ]; then
+    echo "Extracting Claude config from ConfigMap..."
+    cd /home/coder
+    tar -xzf /home/coder/.claude-init/claude-config.tar.gz
+    echo "Claude config extracted successfully"
+fi
 
 # Source session environment variables if present (injected by orchestrator)
 if [ -f /home/coder/.claude/env.sh ]; then
@@ -91,5 +101,5 @@ cat > /workspace/.vscode/tasks.json << EOF
 }
 EOF
 
-# Start code-server
-exec code-server --bind-addr 0.0.0.0:8080 --auth none --log warn /workspace
+# Start code-server (port configurable for K8s mode where Caddy proxies)
+exec code-server --bind-addr "0.0.0.0:${CODE_SERVER_PORT:-8080}" --auth none --log warn /workspace

@@ -30,4 +30,4 @@ USER node
 EXPOSE 4321
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["bun", "run", "dev", "--", "--host", "0.0.0.0", "--port", "4321"]
+# Port configured via ASTRO_PORT env var in entrypoint (default 4321)

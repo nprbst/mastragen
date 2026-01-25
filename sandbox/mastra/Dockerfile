@@ -20,4 +20,4 @@ USER bun
 EXPOSE 4111
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["bun", "run", "mastra", "dev"]
+# Port configured via MASTRA_PORT env var in entrypoint (default 4111)

@@ -213,6 +213,9 @@ rbac:
       resources: ["pods"]
       verbs: ["get", "list", "watch", "create", "delete"]
     - apiGroups: [""]
+      resources: ["pods/status"]
+      verbs: ["get"]
+    - apiGroups: [""]
       resources: ["pods/exec"]
       verbs: ["create"]
     - apiGroups: [""]
@@ -220,6 +223,9 @@ rbac:
       verbs: ["get", "list", "watch", "create", "delete"]
     - apiGroups: [""]
       resources: ["services"]
+      verbs: ["get", "list", "watch", "create", "delete"]
+    - apiGroups: [""]
+      resources: ["configmaps"]
       verbs: ["get", "list", "watch", "create", "delete"]
 
 # Ingress configuration

@@ -30,6 +30,7 @@ orchestrator:
     IMAGE_REGISTRY: "mastragen"  # Local image prefix (no registry)
     IMAGE_TAG: "local"
     IMAGE_PULL_POLICY: "Never"  # Use locally built images
+    SANDBOX_CHROME_ENABLED: "false"  # Disable Chrome container for now
 
   persistence:
     enabled: true

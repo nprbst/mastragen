@@ -74,6 +74,10 @@ spec:
                   name: {{ .Values.tailscale.apiSecretName }}
                   key: tailnet
                   optional: true
+            - name: TAILSCALE_SECRET_NAME
+              value: {{ .Values.tailscale.authKeySecretName | quote }}
+            - name: TAILSCALE_SECRET_KEY
+              value: {{ .Values.tailscale.authKeySecretKey | quote }}
             {{- end }}
           {{- with .Values.orchestrator.envFrom }}
           envFrom:
