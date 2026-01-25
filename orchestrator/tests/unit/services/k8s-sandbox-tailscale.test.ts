@@ -84,6 +84,28 @@ describe('K8sSandboxService Tailscale deregistration', () => {
       return Promise.resolve({ ok: false, status: 404 });
     });
 
+    // Mock getTailscaleService to return a properly configured instance
+    mock.module('../../../src/services/tailscale.ts', () => ({
+      getTailscaleService: () => ({
+        isConfigured: () => true,
+        async findDevice(hostname: string) {
+          const response = await fetch('https://api.tailscale.com/api/v2/tailnet/test-tailnet/devices');
+          if (!response.ok) return undefined;
+          const data = await response.json() as { devices?: Array<{ name: string; hostname: string; id: string }> };
+          return data.devices?.find((d) =>
+            d.name === hostname || d.hostname === hostname.split('.')[0]
+          );
+        },
+        async deleteDevice(deviceId: string) {
+          const response = await fetch(`https://api.tailscale.com/api/v2/device/${deviceId}`, {
+            method: 'DELETE',
+            headers: { Authorization: 'Bearer test-api-key' },
+          });
+          return response.ok;
+        },
+      }),
+    }));
+
     // Mock k8s client
     const mockKc = {
       loadFromCluster: mock(() => {
