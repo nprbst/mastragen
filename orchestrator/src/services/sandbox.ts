@@ -858,6 +858,10 @@ export class SandboxService {
     // K8s mode: cleanup via K8sSandboxService
     if (this.k8sSandboxService) {
       console.log(`[SandboxService] K8s mode: cleaning up session ${sessionId}`);
+
+      // Deregister Tailscale device BEFORE deleting the pod to prevent orphaned devices
+      await this.k8sSandboxService.deregisterTailscaleDevice(sessionId);
+
       // deleteSandboxPod handles pod, ConfigMap, and optionally PVC
       await this.k8sSandboxService.deleteSandboxPod(sessionId, { keepPVC: !options.removeVolume });
     } else if (this.dockerEnabled) {

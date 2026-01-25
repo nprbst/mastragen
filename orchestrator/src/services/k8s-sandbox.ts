@@ -14,6 +14,7 @@ import * as k8s from '@kubernetes/client-node';
 import * as tar from 'tar-stream';
 import type { Session, Project } from '../db/types.ts';
 import type { ClaudeInjectionService } from './claude-injection.ts';
+import { getTailscaleService } from './tailscale.ts';
 
 /**
  * Configuration for Claude config injection.
@@ -269,6 +270,45 @@ export class K8sSandboxService {
       if (!isK8s404Error(error)) {
         throw error;
       }
+    }
+  }
+
+  /**
+   * Deregister a session's Tailscale device from the tailnet.
+   * Called during permanent cleanup (not suspend) to prevent orphaned devices.
+   */
+  async deregisterTailscaleDevice(sessionId: string): Promise<boolean> {
+    const hostname = this.getHostname(sessionId);
+    const tailscaleService = getTailscaleService();
+
+    if (!tailscaleService.isConfigured()) {
+      console.log(
+        `[K8sSandboxService] Tailscale not configured, skipping deregistration for ${hostname}`
+      );
+      return true;
+    }
+
+    console.log(`[K8sSandboxService] Deregistering Tailscale device: ${hostname}`);
+
+    try {
+      const device = await tailscaleService.findDevice(hostname);
+      if (!device) {
+        console.log(`[K8sSandboxService] Tailscale device not found: ${hostname}`);
+        return true; // Already gone
+      }
+
+      const deleted = await tailscaleService.deleteDevice(device.id);
+      if (deleted) {
+        console.log(`[K8sSandboxService] Tailscale device deleted: ${hostname} (${device.id})`);
+      } else {
+        console.warn(
+          `[K8sSandboxService] Failed to delete Tailscale device: ${hostname} (${device.id})`
+        );
+      }
+      return deleted;
+    } catch (error) {
+      console.error(`[K8sSandboxService] Error deregistering Tailscale device ${hostname}:`, error);
+      return false;
     }
   }
 
