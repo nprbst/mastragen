@@ -1,5 +1,5 @@
 /**
- * Valibot schema for .mastragen/config.yaml project configuration.
+ * Valibot schema for .mastragen/config.toml project configuration.
  *
  * This schema validates project-level configuration that controls
  * component enablement and settings, including Phoenix observability.
@@ -40,17 +40,6 @@ export const AstroComponentConfigSchema = v.object({
 export type AstroComponentConfig = v.InferOutput<typeof AstroComponentConfigSchema>;
 
 /**
- * Components configuration section.
- */
-export const ComponentsConfigSchema = v.object({
-  /** Phoenix observability settings */
-  phoenix: v.optional(PhoenixComponentConfigSchema),
-  /** Astro UI sandbox settings */
-  astro: v.optional(AstroComponentConfigSchema),
-});
-export type ComponentsConfig = v.InferOutput<typeof ComponentsConfigSchema>;
-
-/**
  * Paths configuration section.
  */
 export const PathsConfigSchema = v.object({
@@ -62,33 +51,33 @@ export const PathsConfigSchema = v.object({
 export type PathsConfig = v.InferOutput<typeof PathsConfigSchema>;
 
 /**
- * Root schema for .mastragen/config.yaml
+ * Root schema for .mastragen/config.toml
  */
 export const MastragenConfigFileSchema = v.object({
   /** Config file version - must be "1" */
   version: v.literal('1'),
-  /** Component enablement settings */
-  components: v.optional(ComponentsConfigSchema),
+  /** Phoenix observability settings */
+  phoenix: v.optional(PhoenixComponentConfigSchema),
+  /** Astro UI sandbox settings */
+  astro: v.optional(AstroComponentConfigSchema),
   /** Workspace paths */
   paths: v.optional(PathsConfigSchema),
 });
 export type MastragenConfigFile = v.InferOutput<typeof MastragenConfigFileSchema>;
 
 /**
- * Default config when .mastragen/config.yaml is missing or empty.
+ * Default config when .mastragen/config.toml is missing or empty.
  */
 export const MASTRAGEN_CONFIG_DEFAULTS: MastragenConfigFile = {
   version: '1',
-  components: {
-    phoenix: {
-      enabled: false,
-      retention: {
-        traces_days: 30,
-        experiments_days: 90,
-      },
+  phoenix: {
+    enabled: false,
+    retention: {
+      traces_days: 30,
+      experiments_days: 90,
     },
-    astro: {
-      enabled: false,
-    },
+  },
+  astro: {
+    enabled: false,
   },
 };

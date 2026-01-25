@@ -21,19 +21,11 @@ export const ScaffoldAstroConfigSchema = v.object({
 export type ScaffoldAstroConfig = v.InferOutput<typeof ScaffoldAstroConfigSchema>;
 
 /**
- * Components configuration for scaffolding request.
- */
-export const ScaffoldComponentsSchema = v.object({
-  phoenix: v.optional(ScaffoldPhoenixConfigSchema),
-  astro: v.optional(ScaffoldAstroConfigSchema),
-});
-export type ScaffoldComponents = v.InferOutput<typeof ScaffoldComponentsSchema>;
-
-/**
  * Request body for POST /sessions/:id/scaffold-config.
  */
 export const ScaffoldConfigRequestSchema = v.object({
-  components: ScaffoldComponentsSchema,
+  phoenix: v.optional(ScaffoldPhoenixConfigSchema),
+  astro: v.optional(ScaffoldAstroConfigSchema),
 });
 export type ScaffoldConfigRequest = v.InferOutput<typeof ScaffoldConfigRequestSchema>;
 

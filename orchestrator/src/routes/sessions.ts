@@ -699,7 +699,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
     return c.json(status, 200);
   });
 
-  // POST /sessions/:id/scaffold-config - Create .mastragen/config.yaml in workspace
+  // POST /sessions/:id/scaffold-config - Create .mastragen/config.toml in workspace
   app.post('/:id/scaffold-config', requireSessionAuth(), async (c) => {
     const id = c.req.param('id');
 
@@ -721,7 +721,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
     }
 
     try {
-      const result = await sandboxService.scaffoldConfig(id, parseResult.output.components);
+      const result = await sandboxService.scaffoldConfig(id, parseResult.output);
 
       return c.json({
         success: result.success,

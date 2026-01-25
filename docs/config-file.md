@@ -1,6 +1,6 @@
 # Project Configuration File
 
-Mastragen uses a `.mastragen/config.yaml` file in each project's root directory to configure optional components and settings. This file is read when a session is created.
+Mastragen uses a `.mastragen/config.toml` file in each project's root directory to configure optional components and settings. This file is read when a session is created.
 
 ## Quick Start
 
@@ -8,17 +8,17 @@ Copy the template to your project:
 
 ```bash
 mkdir -p .mastragen
-curl -o .mastragen/config.yaml \
-  https://raw.githubusercontent.com/nprbst/mastragen/main/templates/mastragen-config.yaml
+curl -o .mastragen/config.toml \
+  https://raw.githubusercontent.com/nprbst/mastragen/main/templates/mastragen-config.toml
 ```
 
 Or create a minimal config manually:
 
-```yaml
-version: "1"
-components:
-  phoenix:
-    enabled: true
+```toml
+version = "1"
+
+[phoenix]
+enabled = true
 ```
 
 ## File Location
@@ -26,7 +26,7 @@ components:
 ```
 your-project/
 ├── .mastragen/
-│   └── config.yaml    # Project configuration
+│   └── config.toml    # Project configuration
 ├── src/
 │   └── mastra/
 │       └── ...
@@ -35,39 +35,38 @@ your-project/
 
 ## Configuration Schema
 
-```yaml
+```toml
 # Version is required and must be "1"
-version: "1"
+version = "1"
 
-# Component enablement settings
-components:
-  # Phoenix observability settings
-  phoenix:
-    enabled: true          # Enable Phoenix tracing (default: false)
-    retention:
-      traces_days: 30      # Days to retain traces (default: 30)
-      experiments_days: 90 # Days to retain experiments (default: 90)
+# Phoenix observability settings
+[phoenix]
+enabled = true          # Enable Phoenix tracing (default: false)
 
-  # Astro UI sandbox settings
-  astro:
-    enabled: true          # Enable Astro preview (default: false)
-    path: ./ui             # Path to Astro project (optional)
+[phoenix.retention]
+traces_days = 30        # Days to retain traces (default: 30)
+experiments_days = 90   # Days to retain experiments (default: 90)
+
+# Astro UI sandbox settings
+[astro]
+enabled = true          # Enable Astro preview (default: false)
+path = "./ui"           # Path to Astro project (optional)
 
 # Workspace paths (optional)
-paths:
-  mastra: ./src/mastra     # Path to Mastra directory
-  workspace: /workspace    # Custom workspace path
+[paths]
+mastra = "./src/mastra"     # Path to Mastra directory
+workspace = "/workspace"    # Custom workspace path
 ```
 
 ## Minimal Configuration
 
 To enable Phoenix observability with default settings:
 
-```yaml
-version: "1"
-components:
-  phoenix:
-    enabled: true
+```toml
+version = "1"
+
+[phoenix]
+enabled = true
 ```
 
 ## Default Values
@@ -76,14 +75,14 @@ When the config file is missing or fields are omitted, these defaults apply:
 
 | Field | Default |
 |-------|---------|
-| `components.phoenix.enabled` | `false` |
-| `components.phoenix.retention.traces_days` | `30` |
-| `components.phoenix.retention.experiments_days` | `90` |
-| `components.astro.enabled` | `false` |
+| `phoenix.enabled` | `false` |
+| `phoenix.retention.traces_days` | `30` |
+| `phoenix.retention.experiments_days` | `90` |
+| `astro.enabled` | `false` |
 
 ## Phoenix Integration
 
-When Phoenix is enabled (`components.phoenix.enabled: true`):
+When Phoenix is enabled (`phoenix.enabled = true`):
 
 1. A Phoenix container starts alongside other session containers
 2. The Mastra container receives environment variables:
@@ -129,4 +128,4 @@ Common validation errors:
 - Missing `version` field
 - Invalid version (must be `"1"`)
 - Non-numeric retention values
-- Invalid YAML syntax
+- Invalid TOML syntax

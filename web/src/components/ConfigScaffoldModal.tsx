@@ -18,7 +18,7 @@ interface ScaffoldResponse {
 }
 
 /**
- * ConfigScaffoldModal - Modal dialog for creating .mastragen/config.yaml.
+ * ConfigScaffoldModal - Modal dialog for creating .mastragen/config.toml.
  *
  * Features:
  * - Checkboxes for Phoenix and Astro components
@@ -49,14 +49,14 @@ export function ConfigScaffoldModal({
     setError(null);
 
     try {
-      const components: Record<string, unknown> = {};
+      const body: Record<string, unknown> = {};
 
       if (phoenixEnabled) {
-        components.phoenix = { enabled: true };
+        body.phoenix = { enabled: true };
       }
 
       if (astroEnabled) {
-        components.astro = { enabled: true, path: astroPath || undefined };
+        body.astro = { enabled: true, path: astroPath || undefined };
       }
 
       const res = await fetch(`${API_BASE}/sessions/${sessionId}/scaffold-config`, {
@@ -65,7 +65,7 @@ export function ConfigScaffoldModal({
           'Content-Type': 'application/json',
           Authorization: `Bearer ${sessionToken}`,
         },
-        body: JSON.stringify({ components }),
+        body: JSON.stringify(body),
       });
 
       if (!res.ok) {

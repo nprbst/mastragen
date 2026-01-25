@@ -6,7 +6,7 @@ export interface ConfigMissingBannerProps {
 }
 
 /**
- * ConfigMissingBanner - Display banner when .mastragen/config.yaml is missing.
+ * ConfigMissingBanner - Display banner when .mastragen/config.toml is missing.
  *
  * Shows:
  * - Blue info banner with settings icon
@@ -66,7 +66,7 @@ export function ConfigMissingBanner({
             Enable Phoenix observability?
           </p>
           <p className="mt-1 text-xs text-blue-700 dark:text-blue-300">
-            No <code className="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">.mastragen/config.yaml</code> found.
+            No <code className="bg-blue-100 dark:bg-blue-800/50 px-1 rounded">.mastragen/config.toml</code> found.
             Configure to enable AI trace collection and experiment tracking.
           </p>
         </div>

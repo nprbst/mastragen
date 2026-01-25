@@ -1,12 +1,12 @@
 /**
  * Project configuration file parser.
  *
- * Reads and parses .mastragen/config.yaml from a workspace directory,
+ * Reads and parses .mastragen/config.toml from a workspace directory,
  * merging with defaults for missing values.
  */
 import { readFile, access } from 'node:fs/promises';
 import { join } from 'node:path';
-import yaml from 'js-yaml';
+import { parse as parseToml } from 'smol-toml';
 import * as v from 'valibot';
 import {
   MastragenConfigFileSchema,
@@ -20,17 +20,17 @@ export { type MastragenConfigFile, MASTRAGEN_CONFIG_DEFAULTS } from './project-c
 /**
  * Path to config file relative to workspace root.
  */
-const CONFIG_PATH = '.mastragen/config.yaml';
+const CONFIG_PATH = '.mastragen/config.toml';
 
 /**
  * Load and parse project configuration from workspace.
  *
- * Reads .mastragen/config.yaml if it exists, validates against schema,
+ * Reads .mastragen/config.toml if it exists, validates against schema,
  * and merges with defaults for any missing values.
  *
  * @param workspacePath - Root directory of the workspace
  * @returns Parsed and validated configuration with defaults applied
- * @throws Error if config file exists but contains invalid YAML or fails validation
+ * @throws Error if config file exists but contains invalid TOML or fails validation
  */
 export async function loadProjectConfig(workspacePath: string): Promise<MastragenConfigFile> {
   const configPath = join(workspacePath, CONFIG_PATH);
@@ -51,12 +51,12 @@ export async function loadProjectConfig(workspacePath: string): Promise<Mastrage
     return MASTRAGEN_CONFIG_DEFAULTS;
   }
 
-  // Parse YAML
-  const parsed = yaml.load(content) as unknown;
-
-  // Handle null/undefined from YAML parse
-  if (parsed === null || parsed === undefined) {
-    return MASTRAGEN_CONFIG_DEFAULTS;
+  // Parse TOML
+  let parsed: unknown;
+  try {
+    parsed = parseToml(content);
+  } catch (err) {
+    throw new Error(`Invalid TOML syntax: ${err instanceof Error ? err.message : 'parse error'}`);
   }
 
   // Validate against schema
@@ -81,24 +81,22 @@ function mergeWithDefaults(config: MastragenConfigFile): MastragenConfigFile {
 
   return {
     version: config.version,
-    components: {
-      phoenix: {
-        enabled: config.components?.phoenix?.enabled ?? defaults.components?.phoenix?.enabled ?? false,
-        retention: {
-          traces_days:
-            config.components?.phoenix?.retention?.traces_days ??
-            defaults.components?.phoenix?.retention?.traces_days ??
-            30,
-          experiments_days:
-            config.components?.phoenix?.retention?.experiments_days ??
-            defaults.components?.phoenix?.retention?.experiments_days ??
-            90,
-        },
+    phoenix: {
+      enabled: config.phoenix?.enabled ?? defaults.phoenix?.enabled ?? false,
+      retention: {
+        traces_days:
+          config.phoenix?.retention?.traces_days ??
+          defaults.phoenix?.retention?.traces_days ??
+          30,
+        experiments_days:
+          config.phoenix?.retention?.experiments_days ??
+          defaults.phoenix?.retention?.experiments_days ??
+          90,
       },
-      astro: {
-        enabled: config.components?.astro?.enabled ?? defaults.components?.astro?.enabled ?? false,
-        path: config.components?.astro?.path,
-      },
+    },
+    astro: {
+      enabled: config.astro?.enabled ?? defaults.astro?.enabled ?? false,
+      path: config.astro?.path,
     },
     paths: config.paths,
   };
@@ -114,5 +112,5 @@ function mergeWithDefaults(config: MastragenConfigFile): MastragenConfigFile {
  */
 export async function isPhoenixEnabled(workspacePath: string): Promise<boolean> {
   const config = await loadProjectConfig(workspacePath);
-  return config.components?.phoenix?.enabled ?? false;
+  return config.phoenix?.enabled ?? false;
 }

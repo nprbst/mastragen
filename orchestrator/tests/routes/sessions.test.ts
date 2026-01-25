@@ -135,9 +135,7 @@ describe('Sessions Routes', () => {
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({
-          components: {
-            phoenix: { enabled: true },
-          },
+          phoenix: { enabled: true },
         }),
       });
 
@@ -145,7 +143,7 @@ describe('Sessions Routes', () => {
 
       const body = (await res.json()) as Record<string, unknown>;
       expect(body.success).toBe(true);
-      expect(body.configPath).toBe('.mastragen/config.yaml');
+      expect(body.configPath).toBe('.mastragen/config.toml');
     });
 
     test('returns 401 without auth token', async () => {
@@ -153,14 +151,14 @@ describe('Sessions Routes', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          components: { phoenix: { enabled: true } },
+          phoenix: { enabled: true },
         }),
       });
 
       expect(res.status).toBe(401);
     });
 
-    test('returns 400 for invalid request body', async () => {
+    test('returns 400 for invalid phoenix config', async () => {
       // Create a session first
       const createRes = await app.request('/sessions', {
         method: 'POST',
@@ -174,14 +172,14 @@ describe('Sessions Routes', () => {
       });
       const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
 
-      // Send invalid body (missing components)
+      // Send invalid body (phoenix.enabled should be boolean, not string)
       const res = await app.request(`/sessions/${id}/scaffold-config`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${sessionToken}`,
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ phoenix: { enabled: 'yes' } }),
       });
 
       expect(res.status).toBe(400);

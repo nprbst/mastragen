@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { pack } from 'tar-stream';
 import Docker from 'dockerode';
+import { parse as parseToml } from 'smol-toml';
 import type { Kysely } from 'kysely';
 import type { Database, Project, Session } from '../db/types.ts';
 import type { ProjectsRepository } from '../repositories/projects.ts';
@@ -913,7 +914,7 @@ export class SandboxService {
   }
 
   /**
-   * Scaffolds a .mastragen/config.yaml file in the session's workspace.
+   * Scaffolds a .mastragen/config.toml file in the session's workspace.
    * Writes the config file and creates a git commit on the session's branch.
    *
    * @param sessionId - The session ID
@@ -933,21 +934,23 @@ export class SandboxService {
       throw new SessionNotActiveError(sessionId);
     }
 
-    const configPath = '.mastragen/config.yaml';
+    const configPath = '.mastragen/config.toml';
 
-    // Build the config YAML content
-    const configLines = ['# Mastragen Project Configuration', 'version: "1"', '', 'components:'];
+    // Build the config TOML content
+    const configLines = ['# Mastragen Project Configuration', 'version = "1"'];
 
     if (components.phoenix) {
-      configLines.push('  phoenix:');
-      configLines.push(`    enabled: ${components.phoenix.enabled}`);
+      configLines.push('');
+      configLines.push('[phoenix]');
+      configLines.push(`enabled = ${components.phoenix.enabled}`);
     }
 
     if (components.astro) {
-      configLines.push('  astro:');
-      configLines.push(`    enabled: ${components.astro.enabled}`);
+      configLines.push('');
+      configLines.push('[astro]');
+      configLines.push(`enabled = ${components.astro.enabled}`);
       if (components.astro.path) {
-        configLines.push(`    path: ${components.astro.path}`);
+        configLines.push(`path = "${components.astro.path}"`);
       }
     }
 
@@ -1691,7 +1694,7 @@ export class SandboxService {
       // Create temporary container to read the config file
       const container = await this.docker.createContainer({
         Image: 'alpine:latest',
-        Cmd: ['cat', '/workspace/.mastragen/config.yaml'],
+        Cmd: ['cat', '/workspace/.mastragen/config.toml'],
         HostConfig: {
           Binds: [`${volumeName}:/workspace:ro`],
           AutoRemove: true,
@@ -1719,15 +1722,21 @@ export class SandboxService {
         return defaults;
       }
 
-      // Parse YAML (simple parsing for the specific fields we need)
-      const phoenixEnabledMatch = output.match(/phoenix:\s*\n\s*enabled:\s*(true|false)/);
-      const retentionMatch = output.match(/traces_days:\s*(\d+)/);
+      // Parse TOML properly
+      try {
+        const config = parseToml(output) as {
+          phoenix?: { enabled?: boolean; retention?: { traces_days?: number } };
+        };
 
-      return {
-        phoenixEnabled: phoenixEnabledMatch?.[1] === 'true',
-        phoenixRetentionDays: retentionMatch?.[1] ? parseInt(retentionMatch[1], 10) : 30,
-        configExists: true,
-      };
+        return {
+          phoenixEnabled: config.phoenix?.enabled ?? false,
+          phoenixRetentionDays: config.phoenix?.retention?.traces_days ?? 30,
+          configExists: true,
+        };
+      } catch (parseErr) {
+        console.log('[SandboxService] Failed to parse config TOML:', parseErr);
+        return { ...defaults, configExists: true };
+      }
     } catch (err) {
       console.log('[SandboxService] Error reading project config:', err);
       return defaults;
