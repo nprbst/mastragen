@@ -1,17 +1,26 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { pack } from 'tar-stream';
 import Docker from 'dockerode';
-import { parse as parseToml } from 'smol-toml';
 import type { Kysely } from 'kysely';
+import { parse as parseToml } from 'smol-toml';
+import { pack } from 'tar-stream';
 import type { Database, Project, Session } from '../db/types.ts';
 import type { ProjectsRepository } from '../repositories/projects.ts';
 import type { SessionsRepository } from '../repositories/sessions.ts';
-import type { GitStatus, CommitResult } from './git.ts';
-import { InsufficientPermissionsError, GitHubService, type PRResult, type PRCreateInput } from './github.ts';
-import { ClaudeInjectionService } from './claude-injection.ts';
 import { AuthService } from './auth.ts';
-import { K8sSandboxService, createK8sSandboxService, type SessionStatus } from './k8s-sandbox.ts';
+import { ClaudeInjectionService } from './claude-injection.ts';
+import type { CommitResult, GitStatus } from './git.ts';
+import {
+  GitHubService,
+  InsufficientPermissionsError,
+  type PRCreateInput,
+  type PRResult,
+} from './github.ts';
+import {
+  type K8sSandboxService,
+  type SessionStatus,
+  createK8sSandboxService,
+} from './k8s-sandbox.ts';
 
 export { InsufficientPermissionsError };
 
@@ -293,7 +302,16 @@ export class SandboxService {
    * Creates a new sandbox session.
    */
   async create(input: CreateSandboxInput): Promise<CreateSandboxResult> {
-    const { projectId, artifactName, environment, claudeToken, userId, userGithubToken, userGitName, userGitEmail } = input;
+    const {
+      projectId,
+      artifactName,
+      environment,
+      claudeToken,
+      userId,
+      userGithubToken,
+      userGitName,
+      userGitEmail,
+    } = input;
 
     // Validate project exists
     const project = await this.projectsRepo.findById(projectId);
@@ -343,7 +361,17 @@ export class SandboxService {
     if (this.dockerEnabled) {
       console.log('[SandboxService] create() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken, userGitName, userGitEmail, sessionToken);
+        await this.startContainers(
+          session,
+          project,
+          env.env_vars,
+          claudeToken,
+          userId,
+          userGithubToken,
+          userGitName,
+          userGitEmail,
+          sessionToken
+        );
         console.log('[SandboxService] create() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] create() - startContainers failed:', err);
@@ -386,7 +414,16 @@ export class SandboxService {
     input: CreateSandboxWithGitInput,
     gitHubService: GitHubServiceCreateInterface
   ): Promise<CreateSandboxResult> {
-    const { projectId, artifactName, environment, userId, claudeToken, userGithubToken, userGitName, userGitEmail } = input;
+    const {
+      projectId,
+      artifactName,
+      environment,
+      userId,
+      claudeToken,
+      userGithubToken,
+      userGitName,
+      userGitEmail,
+    } = input;
 
     // Validate project exists
     const project = await this.projectsRepo.findById(projectId);
@@ -460,14 +497,26 @@ export class SandboxService {
     if (this.dockerEnabled) {
       console.log('[SandboxService] createWithGit() - calling startContainers...');
       try {
-        await this.startContainers(session, project, env.env_vars, claudeToken, userId, userGithubToken, userGitName, userGitEmail, sessionToken);
+        await this.startContainers(
+          session,
+          project,
+          env.env_vars,
+          claudeToken,
+          userId,
+          userGithubToken,
+          userGitName,
+          userGitEmail,
+          sessionToken
+        );
         console.log('[SandboxService] createWithGit() - startContainers completed');
       } catch (err) {
         console.error('[SandboxService] createWithGit() - startContainers failed:', err);
         throw err;
       }
     } else {
-      console.log('[SandboxService] createWithGit() - Docker disabled, skipping container creation');
+      console.log(
+        '[SandboxService] createWithGit() - Docker disabled, skipping container creation'
+      );
       // When Docker is disabled, we can't check config - assume missing
       this.sessionConfigMissingCache.set(session.id, true);
     }
@@ -506,9 +555,7 @@ export class SandboxService {
         ? `http://localhost:${SandboxService.PORTS.astro}`
         : null,
       vscode: `http://localhost:${SandboxService.PORTS.vscode}`,
-      phoenix: phoenixEnabled
-        ? `http://localhost:${SandboxService.PORTS.phoenix}`
-        : null,
+      phoenix: phoenixEnabled ? `http://localhost:${SandboxService.PORTS.phoenix}` : null,
     };
   }
 
@@ -673,7 +720,11 @@ export class SandboxService {
   /**
    * Resumes a suspended session.
    */
-  async resume(sessionId: string, claudeToken?: string, options?: ResumeOptions): Promise<ResumeSandboxResult> {
+  async resume(
+    sessionId: string,
+    claudeToken?: string,
+    options?: ResumeOptions
+  ): Promise<ResumeSandboxResult> {
     const session = await this.sessionsRepo.findById(sessionId);
     if (!session) {
       throw new SessionNotFoundError(sessionId);
@@ -954,7 +1005,7 @@ export class SandboxService {
       }
     }
 
-    const configContent = configLines.join('\n') + '\n';
+    const configContent = `${configLines.join('\n')}\n`;
 
     // Docker mode: write to container and commit
     if (this.dockerEnabled) {
@@ -1182,7 +1233,9 @@ export class SandboxService {
     userGithubToken?: string
   ): Promise<void> {
     const containerName = `${sessionId}-init`;
-    console.log(`[SandboxService] Running init container to clone ${githubRepo}${branch ? ` (branch: ${branch})` : ''}...`);
+    console.log(
+      `[SandboxService] Running init container to clone ${githubRepo}${branch ? ` (branch: ${branch})` : ''}...`
+    );
 
     try {
       const container = await this.docker.createContainer({
@@ -1288,7 +1341,13 @@ export class SandboxService {
 
       // Create the sandbox pod with Claude ConfigMap reference
       // Note: Don't wait for pod ready here - CLI polls /status endpoint for progress
-      await this.k8sSandboxService.createSandboxPod(session, project, parsedEnvVars, claudeToken, claudeConfigMapName);
+      await this.k8sSandboxService.createSandboxPod(
+        session,
+        project,
+        parsedEnvVars,
+        claudeToken,
+        claudeConfigMapName
+      );
 
       console.log('[SandboxService] K8s sandbox pod created, CLI will poll for ready status');
       return;
@@ -1318,11 +1377,19 @@ export class SandboxService {
     }
 
     // Run init container to clone the repo (using session branch if available)
-    await this.runInitContainer(session.id, volumeName, project.github_repo, session.branch_name ?? undefined, userGithubToken);
+    await this.runInitContainer(
+      session.id,
+      volumeName,
+      project.github_repo,
+      session.branch_name ?? undefined,
+      userGithubToken
+    );
 
     // Read project config from workspace to check if Phoenix should be enabled
     const projectConfig = await this.readProjectConfigFromVolume(volumeName);
-    console.log(`[SandboxService] Project config: Phoenix enabled=${projectConfig.phoenixEnabled}, configExists=${projectConfig.configExists}`);
+    console.log(
+      `[SandboxService] Project config: Phoenix enabled=${projectConfig.phoenixEnabled}, configExists=${projectConfig.configExists}`
+    );
 
     // Cache Phoenix enablement for URL generation
     this.sessionPhoenixCache.set(session.id, projectConfig.phoenixEnabled);
@@ -1368,29 +1435,31 @@ export class SandboxService {
       env: string[];
       workingDir?: string;
     }> = [
-        {
-          name: `${session.id}-mastra`,
-          image: SandboxService.IMAGES.mastra,
-          port: SandboxService.PORTS.mastra,
-          env: [
-            ...baseEnv,
-            ...phoenixEnv,
-            `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY || ''}`, // Mastra SDK needs actual API key
-            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
-          ],
-          workingDir: mastraWorkDir,
-        },
-        {
-          name: `${session.id}-vscode`,
-          image: SandboxService.IMAGES.vscode,
-          port: SandboxService.PORTS.vscode,
-          env: [
-            ...baseEnv,
-            // Claude Code extension uses OAuth token for authentication
-            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`, `ANTHROPIC_API_KEY=${claudeToken}`] : []),
-          ],
-        },
-      ];
+      {
+        name: `${session.id}-mastra`,
+        image: SandboxService.IMAGES.mastra,
+        port: SandboxService.PORTS.mastra,
+        env: [
+          ...baseEnv,
+          ...phoenixEnv,
+          `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY || ''}`, // Mastra SDK needs actual API key
+          ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
+        ],
+        workingDir: mastraWorkDir,
+      },
+      {
+        name: `${session.id}-vscode`,
+        image: SandboxService.IMAGES.vscode,
+        port: SandboxService.PORTS.vscode,
+        env: [
+          ...baseEnv,
+          // Claude Code extension uses OAuth token for authentication
+          ...(claudeToken
+            ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`, `ANTHROPIC_API_KEY=${claudeToken}`]
+            : []),
+        ],
+      },
+    ];
 
     // T047: Add astro container only if project has UI sandbox path
     if (project.ui_sandbox_path) {
@@ -1493,7 +1562,9 @@ export class SandboxService {
   private async stopContainers(session: Session): Promise<void> {
     // K8s mode: delete pod but keep PVC for resume
     if (this.k8sSandboxService) {
-      console.log(`[SandboxService] K8s mode: deleting pod for session ${session.id} (keeping PVC)`);
+      console.log(
+        `[SandboxService] K8s mode: deleting pod for session ${session.id} (keeping PVC)`
+      );
       await this.k8sSandboxService.deleteSandboxPod(session.id, { keepPVC: true });
       return;
     }
@@ -1545,7 +1616,9 @@ export class SandboxService {
     }
   ): Promise<void> {
     if (!this.claudeInjectionService) {
-      console.log('[SandboxService] Claude injection service not available, skipping config injection');
+      console.log(
+        '[SandboxService] Claude injection service not available, skipping config injection'
+      );
       return;
     }
 
@@ -1590,12 +1663,20 @@ export class SandboxService {
       // Write settings.json (without mcpServers - those go in ~/.claude.json)
       const { mcpServers, ...settingsWithoutMcp } = settings;
       const settingsJsonClean = JSON.stringify(settingsWithoutMcp, null, 2);
-      await this.writeFileToContainer(container, '/home/coder/.claude/settings.json', settingsJsonClean);
+      await this.writeFileToContainer(
+        container,
+        '/home/coder/.claude/settings.json',
+        settingsJsonClean
+      );
       console.log('[SandboxService] Wrote settings.json to container');
 
       // Write MCP servers to ~/.claude.json (the correct location for MCP config)
       const claudeJsonConfig = { mcpServers };
-      await this.writeFileToContainer(container, '/home/coder/.claude.json', JSON.stringify(claudeJsonConfig, null, 2));
+      await this.writeFileToContainer(
+        container,
+        '/home/coder/.claude.json',
+        JSON.stringify(claudeJsonConfig, null, 2)
+      );
       console.log('[SandboxService] Wrote MCP config to ~/.claude.json');
 
       // Write CLAUDE.md to .claude directory (global instructions)

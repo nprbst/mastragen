@@ -1,10 +1,10 @@
-import { describe, expect, test, beforeEach, afterEach, beforeAll, afterAll } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../../helpers/test-db.ts';
 import { ProjectClaudeConfigRepository } from '../../../src/repositories/index.ts';
 import { createTestJwt } from '../../helpers/jwt.ts';
+import { cleanupTestDb, createTestDb } from '../../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-claude-config-routes.db';
 
@@ -92,10 +92,14 @@ describe('claude-config routes', () => {
       .execute();
 
     // Create auth token
-    authToken = await createTestJwt({ sub: testUserId, email: 'cuiconfig@test.com', name: 'Test User' });
+    authToken = await createTestJwt({
+      sub: testUserId,
+      email: 'cuiconfig@test.com',
+      name: 'Test User',
+    });
     authHeaders = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authToken}`,
+      Authorization: `Bearer ${authToken}`,
     };
 
     // Mock GitHub API calls for auth middleware
@@ -104,15 +108,21 @@ describe('claude-config routes', () => {
       const urlStr = url instanceof Request ? url.url : url.toString();
 
       if (urlStr.includes('api.github.com/repos/')) {
-        return new Response(JSON.stringify({
-          permissions: { admin: true, push: true, pull: true }
-        }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            permissions: { admin: true, push: true, pull: true },
+          }),
+          { status: 200 }
+        );
       }
 
       if (urlStr.includes('api.github.com/user/installations')) {
-        return new Response(JSON.stringify({
-          installations: [{ id: 99999 }]
-        }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            installations: [{ id: 99999 }],
+          }),
+          { status: 200 }
+        );
       }
 
       return originalFetch(url);
@@ -339,7 +349,9 @@ describe('claude-config routes', () => {
       // Create config
       await claudeConfigRepo.create({
         project_id: testProjectId,
-        mcp_servers: JSON.stringify({ filesystem: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem'] } }),
+        mcp_servers: JSON.stringify({
+          filesystem: { command: 'npx', args: ['-y', '@modelcontextprotocol/server-filesystem'] },
+        }),
         claude_md: '# Project: {{projectName}}',
         auto_approve_file_patterns: JSON.stringify(['*.ts', '*.tsx']),
       });

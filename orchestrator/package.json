@@ -5,7 +5,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "preflight": "bun run check && bun run typecheck && bun run test",
+    "preflight": "bun run check && bun run test",
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
     "test": "bun test",
@@ -16,9 +16,8 @@
     "lint:fix": "biome lint --write src tests",
     "format": "biome format --write src tests",
     "format:check": "biome format src tests",
-    "check": "biome check src tests",
+    "check": "biome check src tests && tsc --noEmit",
     "check:fix": "biome check --write src tests",
-    "typecheck": "tsc --noEmit",
     "db:migrate": "bun run src/db/migrate.ts",
     "db:seed": "bun run scripts/seed.ts"
   },

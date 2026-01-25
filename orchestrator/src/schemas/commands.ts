@@ -7,7 +7,10 @@ export const CommandNameSchema = v.pipe(
   v.string(),
   v.minLength(1, 'Command name is required'),
   v.maxLength(50, 'Command name must be 50 characters or less'),
-  v.regex(/^[a-zA-Z][a-zA-Z0-9-]*$/, 'Command name must start with a letter and contain only letters, numbers, and hyphens')
+  v.regex(
+    /^[a-zA-Z][a-zA-Z0-9-]*$/,
+    'Command name must start with a letter and contain only letters, numbers, and hyphens'
+  )
 );
 
 /**

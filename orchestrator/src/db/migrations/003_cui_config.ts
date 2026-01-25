@@ -67,7 +67,11 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   await db.schema.createIndex('users_github_id_idx').on('users').column('github_id').execute();
 
-  await db.schema.createIndex('users_github_login_idx').on('users').column('github_login').execute();
+  await db.schema
+    .createIndex('users_github_login_idx')
+    .on('users')
+    .column('github_login')
+    .execute();
 
   // Extend projects table with installation_id FK
   await sql`ALTER TABLE projects ADD COLUMN installation_id TEXT REFERENCES github_app_installations(id)`.execute(

@@ -1,9 +1,9 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../../helpers/test-db.ts';
 import { createTestJwt } from '../../helpers/jwt.ts';
+import { cleanupTestDb, createTestDb } from '../../helpers/test-db.ts';
 
 // Test T009: Unit test for JWT validation middleware
 
@@ -27,15 +27,21 @@ describe('JWT validation middleware', () => {
 
       // Mock GitHub API - deny access by default for these tests
       if (urlStr.includes('api.github.com/repos/')) {
-        return new Response(JSON.stringify({
-          permissions: { admin: false, push: false, pull: false }
-        }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            permissions: { admin: false, push: false, pull: false },
+          }),
+          { status: 200 }
+        );
       }
 
       if (urlStr.includes('api.github.com/user/installations')) {
-        return new Response(JSON.stringify({
-          installations: []
-        }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            installations: [],
+          }),
+          { status: 200 }
+        );
       }
 
       return originalFetch(url);
@@ -190,16 +196,19 @@ describe('JWT validation middleware', () => {
 
       // Create test user for valid JWT
       const testUserId = 'user-access-test';
-      await db.insertInto('users').values({
-        id: testUserId,
-        email: 'access@test.com',
-        name: 'Test User',
-        github_id: 12345,
-        github_login: 'testuser',
-        github_access_token: 'test-token',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: testUserId,
+          email: 'access@test.com',
+          name: 'Test User',
+          github_id: 12345,
+          github_login: 'testuser',
+          github_access_token: 'test-token',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
 
       const validToken = await createTestJwt({ sub: testUserId, email: 'access@test.com' });
 
@@ -240,61 +249,76 @@ describe('JWT validation middleware', () => {
 
       // Create test user
       const testUserId = 'user-admin-test';
-      await db.insertInto('users').values({
-        id: testUserId,
-        email: 'admin@test.com',
-        name: 'Test User',
-        github_id: 12345,
-        github_login: 'testuser',
-        github_access_token: 'test-token',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).execute();
+      await db
+        .insertInto('users')
+        .values({
+          id: testUserId,
+          email: 'admin@test.com',
+          name: 'Test User',
+          github_id: 12345,
+          github_login: 'testuser',
+          github_access_token: 'test-token',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
 
       // Create installation
       const testInstallationId = 'inst-admin-test';
-      await db.insertInto('github_app_installations').values({
-        id: testInstallationId,
-        installation_id: 99999,
-        account_type: 'Organization',
-        account_login: 'test-org',
-        account_id: 67890,
-        permissions: '{}',
-        repository_selection: 'all',
-        suspended_at: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).execute();
+      await db
+        .insertInto('github_app_installations')
+        .values({
+          id: testInstallationId,
+          installation_id: 99999,
+          account_type: 'Organization',
+          account_login: 'test-org',
+          account_id: 67890,
+          permissions: '{}',
+          repository_selection: 'all',
+          suspended_at: null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
 
       // Create project linked to installation
       const testProjectId = 'proj-1';
-      await db.insertInto('projects').values({
-        id: testProjectId,
-        name: 'Test Project',
-        github_repo: 'test-org/test-repo',
-        default_branch: 'main',
-        branch_prefix: 'mg/',
-        mastra_path: '.',
-        ui_sandbox_path: null,
-        installation_id: testInstallationId,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).execute();
+      await db
+        .insertInto('projects')
+        .values({
+          id: testProjectId,
+          name: 'Test Project',
+          github_repo: 'test-org/test-repo',
+          default_branch: 'main',
+          branch_prefix: 'mg/',
+          mastra_path: '.',
+          ui_sandbox_path: null,
+          installation_id: testInstallationId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
 
       // Mock GitHub API to return non-admin permissions
       globalThis.fetch = (async (url: string | URL | Request) => {
         const urlStr = url instanceof Request ? url.url : url.toString();
 
         if (urlStr.includes('api.github.com/repos/')) {
-          return new Response(JSON.stringify({
-            permissions: { admin: false, push: true, pull: true }
-          }), { status: 200 });
+          return new Response(
+            JSON.stringify({
+              permissions: { admin: false, push: true, pull: true },
+            }),
+            { status: 200 }
+          );
         }
 
         if (urlStr.includes('api.github.com/user/installations')) {
-          return new Response(JSON.stringify({
-            installations: [{ id: 99999 }]
-          }), { status: 200 });
+          return new Response(
+            JSON.stringify({
+              installations: [{ id: 99999 }],
+            }),
+            { status: 200 }
+          );
         }
 
         return originalFetch(url);

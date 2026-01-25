@@ -1,10 +1,15 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
-import type { Kysely } from 'kysely';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
+import type { Kysely } from 'kysely';
 import type { Database } from '../../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../../helpers/test-db.ts';
-import { ProjectsRepository, SessionsRepository, UsersRepository, SessionSharesRepository } from '../../../src/repositories/index.ts';
+import {
+  ProjectsRepository,
+  SessionSharesRepository,
+  SessionsRepository,
+  UsersRepository,
+} from '../../../src/repositories/index.ts';
 import { sessionsRoutes } from '../../../src/routes/sessions.ts';
+import { cleanupTestDb, createTestDb } from '../../helpers/test-db.ts';
 
 // Test T026: Unit test for sessions list filtering
 

@@ -1,12 +1,12 @@
-import { describe, expect, test, beforeAll, afterAll, beforeEach, afterEach } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database as DatabaseSchema } from '../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
-import { createTestJwt } from '../helpers/jwt.ts';
 import { claudeConfigRoutes } from '../../src/routes/claude-config.ts';
 import { commandsRoutes } from '../../src/routes/commands.ts';
 import { skillsRoutes } from '../../src/routes/skills.ts';
+import { createTestJwt } from '../helpers/jwt.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-project-admin-integration.db';
 
@@ -103,10 +103,14 @@ describe('Project admin workflow', () => {
       .execute();
 
     // Create auth token
-    authToken = await createTestJwt({ sub: testUserId, email: 'admin@test.com', name: 'Test Admin' });
+    authToken = await createTestJwt({
+      sub: testUserId,
+      email: 'admin@test.com',
+      name: 'Test Admin',
+    });
     authHeaders = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authToken}`,
+      Authorization: `Bearer ${authToken}`,
     };
 
     // Create app with all admin routes and db in context
@@ -128,16 +132,22 @@ describe('Project admin workflow', () => {
 
       // Mock /repos/{owner}/{repo} for admin check
       if (urlStr.includes('api.github.com/repos/')) {
-        return new Response(JSON.stringify({
-          permissions: { admin: true, push: true, pull: true }
-        }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            permissions: { admin: true, push: true, pull: true },
+          }),
+          { status: 200 }
+        );
       }
 
       // Mock /user/installations for access check
       if (urlStr.includes('api.github.com/user/installations')) {
-        return new Response(JSON.stringify({
-          installations: [{ id: 99999 }]  // Match testInstallationId
-        }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            installations: [{ id: 99999 }], // Match testInstallationId
+          }),
+          { status: 200 }
+        );
       }
 
       return originalFetch(url);

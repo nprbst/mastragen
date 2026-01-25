@@ -50,8 +50,10 @@ export class SessionCleanupJob {
       errors: [],
     };
 
-    console.log(`[SessionCleanup] Starting cleanup job...`);
-    console.log(`[SessionCleanup] Config: retentionDays=${cfg.retentionDays}, dryRun=${cfg.dryRun}`);
+    console.log('[SessionCleanup] Starting cleanup job...');
+    console.log(
+      `[SessionCleanup] Config: retentionDays=${cfg.retentionDays}, dryRun=${cfg.dryRun}`
+    );
 
     // Calculate cutoff date
     const cutoffDate = new Date();
@@ -89,7 +91,7 @@ export class SessionCleanupJob {
       }
     }
 
-    console.log(`[SessionCleanup] Cleanup complete:`, result);
+    console.log('[SessionCleanup] Cleanup complete:', result);
     return result;
   }
 
@@ -132,10 +134,7 @@ export class SessionCleanupJob {
 
     // Delete session shares
     if (!dryRun) {
-      await this.db
-        .deleteFrom('session_shares')
-        .where('session_id', '=', session.id)
-        .execute();
+      await this.db.deleteFrom('session_shares').where('session_id', '=', session.id).execute();
     }
 
     // Delete the session

@@ -74,7 +74,7 @@ const stateStore = new Map<string, AuthState>();
 /**
  * Generate a random string for state/nonce.
  */
-function generateRandomString(length: number = 32): string {
+function generateRandomString(length = 32): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   let result = '';
   const array = new Uint8Array(length);
@@ -88,10 +88,7 @@ function generateRandomString(length: number = 32): string {
 /**
  * Create a JWT token using jose with proper HMAC-SHA256 signing.
  */
-async function createJwt(
-  payload: Record<string, unknown>,
-  expirySeconds: number
-): Promise<string> {
+async function createJwt(payload: Record<string, unknown>, expirySeconds: number): Promise<string> {
   const jwt = await new jose.SignJWT(payload as jose.JWTPayload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -421,8 +418,8 @@ export class AuthService {
   async getInstallationRepositories(
     userId: string,
     installationId: number,
-    page: number = 1,
-    perPage: number = 30
+    page = 1,
+    perPage = 30
   ): Promise<{
     repositories: Array<{
       id: number;
@@ -648,9 +645,7 @@ export class AuthService {
    * Verify a session-scoped JWT token.
    * Returns the session and user IDs if valid, null if invalid.
    */
-  async verifySessionToken(
-    token: string
-  ): Promise<{ sessionId: string; userId: string } | null> {
+  async verifySessionToken(token: string): Promise<{ sessionId: string; userId: string } | null> {
     try {
       const payload = await verifyJwt(token);
 

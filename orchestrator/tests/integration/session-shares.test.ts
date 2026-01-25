@@ -1,8 +1,8 @@
-import { describe, expect, test, beforeAll, afterAll, beforeEach } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import type { Kysely } from 'kysely';
-import type { Database } from '../../src/db/types.ts';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrator.ts';
+import type { Database } from '../../src/db/types.ts';
 import { SessionSharesRepository } from '../../src/repositories/session-shares.ts';
 
 /**
@@ -53,7 +53,7 @@ describe('Session shares integration', () => {
       .execute();
   }
 
-  async function createTestProject(id: string, name: string = 'test-project') {
+  async function createTestProject(id: string, name = 'test-project') {
     await db
       .insertInto('projects')
       .values({
@@ -108,12 +108,12 @@ describe('Session shares integration', () => {
       });
 
       expect(share).not.toBeNull();
-      expect(share!.id).toBeDefined();
-      expect(share!.session_id).toBe(sessionId);
-      expect(share!.shared_by_user_id).toBe(ownerId);
-      expect(share!.shared_with_user_id).toBe(sharedWithId);
-      expect(share!.granted_at).toBeDefined();
-      expect(share!.revoked_at).toBeNull();
+      expect(share?.id).toBeDefined();
+      expect(share?.session_id).toBe(sessionId);
+      expect(share?.shared_by_user_id).toBe(ownerId);
+      expect(share?.shared_with_user_id).toBe(sharedWithId);
+      expect(share?.granted_at).toBeDefined();
+      expect(share?.revoked_at).toBeNull();
     });
 
     test('should allow access check via hasAccess', async () => {
@@ -188,7 +188,7 @@ describe('Session shares integration', () => {
       });
 
       // Revoke the share
-      await sessionSharesRepo.revoke(share!.id);
+      await sessionSharesRepo.revoke(share?.id);
 
       // List should return empty
       const shares = await sessionSharesRepo.getSessionShares(sessionId);
@@ -215,15 +215,15 @@ describe('Session shares integration', () => {
       });
 
       // Before revoke
-      expect(share!.revoked_at).toBeNull();
+      expect(share?.revoked_at).toBeNull();
 
       // Revoke
-      await sessionSharesRepo.revoke(share!.id);
+      await sessionSharesRepo.revoke(share?.id);
 
       // After revoke
-      const revokedShare = await sessionSharesRepo.findById(share!.id);
+      const revokedShare = await sessionSharesRepo.findById(share?.id);
       expect(revokedShare).not.toBeNull();
-      expect(revokedShare!.revoked_at).not.toBeNull();
+      expect(revokedShare?.revoked_at).not.toBeNull();
     });
 
     test('should remove access after revoke', async () => {
@@ -248,7 +248,7 @@ describe('Session shares integration', () => {
       expect(hasAccessBefore).toBe(true);
 
       // Revoke
-      await sessionSharesRepo.revoke(share!.id);
+      await sessionSharesRepo.revoke(share?.id);
 
       // No access after revoke
       const hasAccessAfter = await sessionSharesRepo.hasAccess(sessionId, sharedWithId);
@@ -300,7 +300,7 @@ describe('Session shares integration', () => {
       });
 
       // Revoke
-      await sessionSharesRepo.revoke(share1!.id);
+      await sessionSharesRepo.revoke(share1?.id);
 
       // Second share should succeed (new share after revoke)
       const existingShare = await sessionSharesRepo.findActiveShare(sessionId, sharedWithId);
@@ -312,7 +312,7 @@ describe('Session shares integration', () => {
         sharedWithUserId: sharedWithId,
       });
       expect(share2).not.toBeNull();
-      expect(share2!.id).not.toBe(share1!.id);
+      expect(share2?.id).not.toBe(share1?.id);
     });
   });
 

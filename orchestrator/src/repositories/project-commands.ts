@@ -1,10 +1,6 @@
 import type { Kysely } from 'kysely';
 import { nanoid } from 'nanoid';
-import type {
-  Database,
-  ProjectCommand,
-  ProjectCommandUpdate,
-} from '../db/types.ts';
+import type { Database, ProjectCommand, ProjectCommandUpdate } from '../db/types.ts';
 
 /**
  * Input for creating a new project command.
@@ -123,10 +119,7 @@ export class ProjectCommandsRepository {
    * Delete a command by ID.
    */
   async delete(id: string): Promise<boolean> {
-    const result = await this.db
-      .deleteFrom('project_commands')
-      .where('id', '=', id)
-      .execute();
+    const result = await this.db.deleteFrom('project_commands').where('id', '=', id).execute();
 
     return (result[0]?.numDeletedRows ?? 0n) > 0n;
   }

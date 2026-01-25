@@ -5,7 +5,7 @@ import { RPCHandler } from '@orpc/server/fetch';
 import type { Context } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.ts';
-import { router, type ORPCContext } from './router.ts';
+import { type ORPCContext, router } from './router.ts';
 
 /**
  * Create an oRPC handler configured for the application.
@@ -25,10 +25,7 @@ export function createORPCHandler(_db: Kysely<Database>) {
  * });
  * ```
  */
-export async function handleORPCRequest(
-  c: Context,
-  db: Kysely<Database>
-): Promise<Response> {
+export async function handleORPCRequest(c: Context, db: Kysely<Database>): Promise<Response> {
   const handler = createORPCHandler(db);
 
   // Extract auth user from Hono context if present

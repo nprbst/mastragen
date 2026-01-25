@@ -32,15 +32,17 @@ export function tailscaleRoutes(): Hono {
 
     const devices = await tailscaleService.listDevices();
 
-    return c.json(devices.map(d => ({
-      id: d.id,
-      name: d.name,
-      hostname: d.hostname,
-      addresses: d.addresses,
-      tags: d.tags,
-      authorized: d.authorized,
-      user: d.user,
-    })));
+    return c.json(
+      devices.map((d) => ({
+        id: d.id,
+        name: d.name,
+        hostname: d.hostname,
+        addresses: d.addresses,
+        tags: d.tags,
+        authorized: d.authorized,
+        user: d.user,
+      }))
+    );
   });
 
   // GET /tailscale/devices/:name - Get a device by name

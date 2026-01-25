@@ -7,7 +7,7 @@
  *
  * Per specs/004-production-readiness/contracts/metrics.md
  */
-import type { Context, Next, MiddlewareHandler } from 'hono';
+import type { Context, MiddlewareHandler, Next } from 'hono';
 import { getMetricsService } from '../services/metrics-service.ts';
 
 /**

@@ -1,7 +1,7 @@
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.ts';
-import { verifyJwt, JWTExpired, AuthService } from '../services/auth.ts';
+import { AuthService, JWTExpired, verifyJwt } from '../services/auth.ts';
 
 // Symbol for storing auth user in context
 const AUTH_USER_KEY = 'authUser';
@@ -33,7 +33,7 @@ function extractBearerToken(authHeader: string | null): string | null {
   }
 
   const parts = authHeader.split(' ');
-  if (parts.length !== 2 || parts[0]!.toLowerCase() !== 'bearer') {
+  if (parts.length !== 2 || parts[0]?.toLowerCase() !== 'bearer') {
     return null;
   }
 
@@ -331,10 +331,7 @@ export function requireProjectAdmin(): MiddlewareHandler {
     }
 
     // Check if user has admin permissions on the repository
-    const isAdmin = await verifyRepositoryAdmin(
-      dbUser.github_access_token,
-      project.github_repo
-    );
+    const isAdmin = await verifyRepositoryAdmin(dbUser.github_access_token, project.github_repo);
 
     if (!isAdmin) {
       return c.json({ error: 'Admin access required' }, 403);
@@ -383,10 +380,7 @@ async function verifyInstallationAccess(
 /**
  * Verify that a user has admin permissions on a GitHub repository.
  */
-async function verifyRepositoryAdmin(
-  accessToken: string,
-  repoFullName: string
-): Promise<boolean> {
+async function verifyRepositoryAdmin(accessToken: string, repoFullName: string): Promise<boolean> {
   try {
     const response = await fetch(`https://api.github.com/repos/${repoFullName}`, {
       headers: {

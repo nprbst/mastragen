@@ -25,7 +25,12 @@ export type AlertSeverity = v.InferOutput<typeof AlertSeveritySchema>;
 /**
  * Alert event status.
  */
-export const AlertEventStatusSchema = v.picklist(['pending', 'delivered', 'failed', 'acknowledged']);
+export const AlertEventStatusSchema = v.picklist([
+  'pending',
+  'delivered',
+  'failed',
+  'acknowledged',
+]);
 export type AlertEventStatus = v.InferOutput<typeof AlertEventStatusSchema>;
 
 /**
@@ -127,7 +132,12 @@ export const ListAlertEventsFilterSchema = v.object({
   status: v.optional(AlertEventStatusSchema),
   ruleId: v.optional(v.string()),
   since: v.optional(TimestampSchema),
-  limit: v.optional(v.pipe(v.string(), v.transform((s) => Number.parseInt(s, 10)))),
+  limit: v.optional(
+    v.pipe(
+      v.string(),
+      v.transform((s) => Number.parseInt(s, 10))
+    )
+  ),
 });
 export type ListAlertEventsFilter = v.InferOutput<typeof ListAlertEventsFilterSchema>;
 
@@ -157,7 +167,9 @@ export const AcknowledgeAlertEventResponseSchema = v.object({
   acknowledgedAt: TimestampSchema,
   acknowledgedBy: v.string(),
 });
-export type AcknowledgeAlertEventResponse = v.InferOutput<typeof AcknowledgeAlertEventResponseSchema>;
+export type AcknowledgeAlertEventResponse = v.InferOutput<
+  typeof AcknowledgeAlertEventResponseSchema
+>;
 
 /**
  * Webhook payload for alert delivery.

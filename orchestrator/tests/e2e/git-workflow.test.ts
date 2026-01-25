@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, mock, test } from 'bun:test';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import { SessionsRepository } from '../../src/repositories/sessions.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-e2e-git-workflow.db';
 

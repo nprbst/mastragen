@@ -50,7 +50,10 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('artifact_name', 'text', (col) => col.notNull())
     .addColumn('environment', 'text', (col) => col.notNull())
     .addColumn('state', 'text', (col) =>
-      col.notNull().defaultTo('active').check(sql`state IN ('active', 'suspended', 'pr_open', 'closed')`)
+      col
+        .notNull()
+        .defaultTo('active')
+        .check(sql`state IN ('active', 'suspended', 'pr_open', 'closed')`)
     )
     .addColumn('container_id', 'text')
     .addColumn('workspace_volume', 'text')
@@ -61,7 +64,11 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   // Create indexes for sessions
-  await db.schema.createIndex('idx_sessions_project_id').on('sessions').column('project_id').execute();
+  await db.schema
+    .createIndex('idx_sessions_project_id')
+    .on('sessions')
+    .column('project_id')
+    .execute();
 
   await db.schema.createIndex('idx_sessions_state').on('sessions').column('state').execute();
 }

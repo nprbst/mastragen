@@ -46,7 +46,7 @@ export class IdleSuspendJob {
       errors: [],
     };
 
-    console.log(`[IdleSuspend] Starting idle check...`);
+    console.log('[IdleSuspend] Starting idle check...');
 
     const now = new Date();
 
@@ -72,7 +72,7 @@ export class IdleSuspendJob {
       }
     }
 
-    console.log(`[IdleSuspend] Check complete:`, result);
+    console.log('[IdleSuspend] Check complete:', result);
     return result;
   }
 

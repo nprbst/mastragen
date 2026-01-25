@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 /**
  * T086: Unit test for session share service
@@ -17,15 +17,25 @@ describe('SessionShareService', () => {
     test('should create share record in database', async () => {
       const { SessionShareService } = await import('../../../src/services/session-share.ts');
 
-      let insertedData: { session_id?: string; shared_with_user_id?: string; shared_by_user_id?: string } = {};
+      let insertedData: {
+        session_id?: string;
+        shared_with_user_id?: string;
+        shared_by_user_id?: string;
+      } = {};
       const mockDb = {
         insertInto: mock(() => ({
-          values: mock((data: { session_id?: string; shared_with_user_id?: string; shared_by_user_id?: string }) => {
-            insertedData = data;
-            return {
-              execute: mock(() => Promise.resolve()),
-            };
-          }),
+          values: mock(
+            (data: {
+              session_id?: string;
+              shared_with_user_id?: string;
+              shared_by_user_id?: string;
+            }) => {
+              insertedData = data;
+              return {
+                execute: mock(() => Promise.resolve()),
+              };
+            }
+          ),
         })),
       };
 
@@ -246,9 +256,7 @@ describe('SessionShareService', () => {
 
       const service = new SessionShareService(mockDb as never, mockTailscale as never);
 
-      await expect(service.revoke('non-existent', 'sandbox.ts.net')).rejects.toThrow(
-        /not found/
-      );
+      await expect(service.revoke('non-existent', 'sandbox.ts.net')).rejects.toThrow(/not found/);
     });
   });
 

@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 /**
  * T041a: Unit tests for K8sMetricsCollector
@@ -147,9 +147,7 @@ describe('K8sMetricsCollector', () => {
 
   describe('parseResourceValue', () => {
     test('should parse CPU millicores', async () => {
-      const { parseResourceValue } = await import(
-        '../../../src/services/k8s-metrics-collector.ts'
-      );
+      const { parseResourceValue } = await import('../../../src/services/k8s-metrics-collector.ts');
 
       expect(parseResourceValue('100m', 'cpu')).toBe(100);
       expect(parseResourceValue('1000m', 'cpu')).toBe(1000);
@@ -157,9 +155,7 @@ describe('K8sMetricsCollector', () => {
     });
 
     test('should parse CPU cores to millicores', async () => {
-      const { parseResourceValue } = await import(
-        '../../../src/services/k8s-metrics-collector.ts'
-      );
+      const { parseResourceValue } = await import('../../../src/services/k8s-metrics-collector.ts');
 
       expect(parseResourceValue('1', 'cpu')).toBe(1000);
       expect(parseResourceValue('2', 'cpu')).toBe(2000);
@@ -167,9 +163,7 @@ describe('K8sMetricsCollector', () => {
     });
 
     test('should parse memory in bytes', async () => {
-      const { parseResourceValue } = await import(
-        '../../../src/services/k8s-metrics-collector.ts'
-      );
+      const { parseResourceValue } = await import('../../../src/services/k8s-metrics-collector.ts');
 
       expect(parseResourceValue('256Mi', 'memory')).toBe(268435456);
       expect(parseResourceValue('1Gi', 'memory')).toBe(1073741824);
@@ -177,9 +171,7 @@ describe('K8sMetricsCollector', () => {
     });
 
     test('should parse memory without suffix as bytes', async () => {
-      const { parseResourceValue } = await import(
-        '../../../src/services/k8s-metrics-collector.ts'
-      );
+      const { parseResourceValue } = await import('../../../src/services/k8s-metrics-collector.ts');
 
       expect(parseResourceValue('1048576', 'memory')).toBe(1048576);
     });

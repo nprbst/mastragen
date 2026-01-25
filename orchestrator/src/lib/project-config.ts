@@ -4,14 +4,14 @@
  * Reads and parses .mastragen/config.toml from a workspace directory,
  * merging with defaults for missing values.
  */
-import { readFile, access } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parse as parseToml } from 'smol-toml';
 import * as v from 'valibot';
 import {
-  MastragenConfigFileSchema,
   MASTRAGEN_CONFIG_DEFAULTS,
   type MastragenConfigFile,
+  MastragenConfigFileSchema,
 } from './project-config.schema.ts';
 
 // Re-export types and defaults for convenience
@@ -85,9 +85,7 @@ function mergeWithDefaults(config: MastragenConfigFile): MastragenConfigFile {
       enabled: config.phoenix?.enabled ?? defaults.phoenix?.enabled ?? false,
       retention: {
         traces_days:
-          config.phoenix?.retention?.traces_days ??
-          defaults.phoenix?.retention?.traces_days ??
-          30,
+          config.phoenix?.retention?.traces_days ?? defaults.phoenix?.retention?.traces_days ?? 30,
         experiments_days:
           config.phoenix?.retention?.experiments_days ??
           defaults.phoenix?.retention?.experiments_days ??

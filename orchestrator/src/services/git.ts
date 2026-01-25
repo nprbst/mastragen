@@ -1,4 +1,4 @@
-import Docker from 'dockerode';
+import type Docker from 'dockerode';
 
 /**
  * Error thrown when a git operation fails.
@@ -107,7 +107,7 @@ export class GitService {
         }
 
         let stdout = '';
-        let stderr = '';
+        const stderr = '';
 
         // Docker multiplexes stdout/stderr into a single stream
         // Each frame has an 8-byte header: [type (1), 0, 0, 0, size (4)]
@@ -228,10 +228,7 @@ export class GitService {
       const commitResult = await this.execGit(['commit', '-m', message]);
 
       // Check if there was nothing to commit
-      if (
-        commitResult.stdout.includes('nothing to commit') ||
-        commitResult.exitCode !== 0
-      ) {
+      if (commitResult.stdout.includes('nothing to commit') || commitResult.exitCode !== 0) {
         const duration = Date.now() - startTime;
         console.log(`[GitService] commitAll - nothing to commit (${duration}ms)`);
         return null;
@@ -251,10 +248,7 @@ export class GitService {
     } catch (error) {
       const duration = Date.now() - startTime;
       // "nothing to commit" is not an error
-      if (
-        error instanceof Error &&
-        error.message.includes('nothing to commit')
-      ) {
+      if (error instanceof Error && error.message.includes('nothing to commit')) {
         console.log(`[GitService] commitAll - nothing to commit (${duration}ms)`);
         return null;
       }
@@ -300,9 +294,7 @@ export class GitService {
     console.log(`[GitService] push - pushing branch '${branch}' to origin`);
 
     try {
-      const args = setUpstream
-        ? ['push', '-u', 'origin', branch]
-        : ['push', 'origin', branch];
+      const args = setUpstream ? ['push', '-u', 'origin', branch] : ['push', 'origin', branch];
 
       const result = await this.execGit(args);
 
@@ -410,9 +402,11 @@ export class GitService {
       const exportIgnoreEntry = '.claude-history/ export-ignore';
 
       // Check if .gitattributes exists and read it
-      const catResult = await this.execGit(['show', `HEAD:.gitattributes`]).catch(
-        () => ({ stdout: '', exitCode: 1, stderr: '' })
-      );
+      const catResult = await this.execGit(['show', 'HEAD:.gitattributes']).catch(() => ({
+        stdout: '',
+        exitCode: 1,
+        stderr: '',
+      }));
 
       // Check if the entry already exists
       if (catResult.stdout.includes(exportIgnoreEntry)) {
@@ -424,11 +418,7 @@ export class GitService {
       const container = this.docker.getContainer(this.containerId);
 
       const exec = await container.exec({
-        Cmd: [
-          'sh',
-          '-c',
-          `echo '${exportIgnoreEntry}' >> ${gitattributesPath}`,
-        ],
+        Cmd: ['sh', '-c', `echo '${exportIgnoreEntry}' >> ${gitattributesPath}`],
         AttachStdout: true,
         AttachStderr: true,
       });

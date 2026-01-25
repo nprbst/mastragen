@@ -3,9 +3,20 @@
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "workspaces": [
+    "web",
+    "orchestrator",
+    "cli",
+    "experiments"
+  ],
   "scripts": {
-    "preflight": "cd orchestrator && bun run typecheck && bun test && cd ../web && bun run check",
-    "preflight:quick": "cd orchestrator && bun run typecheck && cd ../web && bun run check",
+    "preflight": "bun run --filter './orchestrator' check && bun run --filter './orchestrator' test && bun run --filter './web' check",
+    "preflight:quick": "bun run --filter './orchestrator' check && bun run --filter './web' check",
+    "test": "bun run --filter './orchestrator' test",
+    "check": "bun run --filter './orchestrator' check && bun run --filter './web' check",
+    "lint": "bun run --filter '*' lint",
+    "dev:orchestrator": "bun run --filter './orchestrator' dev",
+    "dev:web": "bun run --filter './web' dev",
     "prepare": "[ -d .git ] && cp scripts/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push || true",
     "helm:lint": "helm lint helm/mastragen",
     "helm:template:dev": "helm template mastragen helm/mastragen -f helm/mastragen/values/development.yaml",

@@ -3,7 +3,7 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../src/db/types.ts';
 import { healthRoutes } from '../../src/routes/health.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-health-routes.db';
 

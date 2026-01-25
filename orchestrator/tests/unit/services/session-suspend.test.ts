@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 /**
  * T084: Unit test for session suspend service
@@ -19,9 +19,7 @@ describe('SessionSuspendService', () => {
       const { SessionSuspendService } = await import('../../../src/services/session-suspend.ts');
 
       const mockSandboxClient = {
-        exec: mock(() =>
-          Promise.resolve({ exitCode: 0, stdout: 'abc123\n', stderr: '' })
-        ),
+        exec: mock(() => Promise.resolve({ exitCode: 0, stdout: 'abc123\n', stderr: '' })),
         stop: mock(() => Promise.resolve()),
       };
 
@@ -77,9 +75,7 @@ describe('SessionSuspendService', () => {
 
       let statusUpdate: { state?: string } = {};
       const mockSandboxClient = {
-        exec: mock(() =>
-          Promise.resolve({ exitCode: 0, stdout: 'abc123\n', stderr: '' })
-        ),
+        exec: mock(() => Promise.resolve({ exitCode: 0, stdout: 'abc123\n', stderr: '' })),
         stop: mock(() => Promise.resolve()),
       };
 
@@ -107,9 +103,7 @@ describe('SessionSuspendService', () => {
 
       let stopCalled = false;
       const mockSandboxClient = {
-        exec: mock(() =>
-          Promise.resolve({ exitCode: 0, stdout: 'abc123\n', stderr: '' })
-        ),
+        exec: mock(() => Promise.resolve({ exitCode: 0, stdout: 'abc123\n', stderr: '' })),
         stop: mock(() => {
           stopCalled = true;
           return Promise.resolve();
@@ -224,9 +218,7 @@ describe('SessionSuspendService', () => {
           startCalled = true;
           return Promise.resolve();
         }),
-        exec: mock(() =>
-          Promise.resolve({ exitCode: 0, stdout: '', stderr: '' })
-        ),
+        exec: mock(() => Promise.resolve({ exitCode: 0, stdout: '', stderr: '' })),
       };
 
       const mockDb = {
@@ -251,9 +243,7 @@ describe('SessionSuspendService', () => {
       let statusUpdate: { state?: string } = {};
       const mockSandboxClient = {
         start: mock(() => Promise.resolve()),
-        exec: mock(() =>
-          Promise.resolve({ exitCode: 0, stdout: '', stderr: '' })
-        ),
+        exec: mock(() => Promise.resolve({ exitCode: 0, stdout: '', stderr: '' })),
       };
 
       const mockDb = {

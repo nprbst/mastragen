@@ -1,4 +1,4 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 
 // Test T010: Unit test for audit logger service
 
@@ -86,9 +86,7 @@ describe('AuditLogger service', () => {
         reason: 'Invalid credentials',
       });
 
-      const auditLog = loggedMessages.find(
-        (l) => l.level === 'warn' && l.message.includes('AUTH')
-      );
+      const auditLog = loggedMessages.find((l) => l.level === 'warn' && l.message.includes('AUTH'));
       expect(auditLog).toBeDefined();
       expect(auditLog?.data).toMatchObject({
         action: 'login',

@@ -1,5 +1,5 @@
+import { createHmac, timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
-import { createHmac, timingSafeEqual } from 'crypto';
 import type { Kysely } from 'kysely';
 import { nanoid } from 'nanoid';
 import type { Database, GitHubAccountType } from '../db/types.ts';

@@ -1,12 +1,12 @@
-import { describe, expect, test, beforeAll, afterAll } from 'bun:test';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
-import type { Database } from '../../src/db/types.ts';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrator.ts';
-import { initializeMetricsService, getMetricsService } from '../../src/services/metrics-service.ts';
-import { metricsRoutes } from '../../src/routes/metrics.ts';
+import type { Database } from '../../src/db/types.ts';
 import { metricsMiddleware } from '../../src/middleware/metrics-middleware.ts';
+import { metricsRoutes } from '../../src/routes/metrics.ts';
+import { getMetricsService, initializeMetricsService } from '../../src/services/metrics-service.ts';
 
 /**
  * T049: Integration tests for Prometheus metrics endpoint
@@ -98,7 +98,7 @@ describe('Metrics integration', () => {
       const metricsService = getMetricsService();
       expect(metricsService).not.toBeNull();
 
-      metricsService!.incrementSessionCreation('test-project');
+      metricsService?.incrementSessionCreation('test-project');
 
       const res = await app.request('/metrics');
       const body = await res.text();
@@ -111,8 +111,8 @@ describe('Metrics integration', () => {
       const metricsService = getMetricsService();
       expect(metricsService).not.toBeNull();
 
-      metricsService!.incrementAlertFired('pod_creation_failed');
-      metricsService!.incrementAlertFired('pod_creation_failed');
+      metricsService?.incrementAlertFired('pod_creation_failed');
+      metricsService?.incrementAlertFired('pod_creation_failed');
 
       const res = await app.request('/metrics');
       const body = await res.text();

@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 /**
  * T048: Unit tests for MetricsService
@@ -280,7 +280,9 @@ describe('MetricsService', () => {
       const output = await service.formatPrometheus();
 
       // Check CPU gauge format
-      expect(output).toContain('# HELP mastragen_pod_cpu_usage_ratio Pod CPU usage as ratio of limit');
+      expect(output).toContain(
+        '# HELP mastragen_pod_cpu_usage_ratio Pod CPU usage as ratio of limit'
+      );
       expect(output).toContain('# TYPE mastragen_pod_cpu_usage_ratio gauge');
       expect(output).toContain(
         'mastragen_pod_cpu_usage_ratio{pod="sandbox-abc123",namespace="mastragen"} 0.25'

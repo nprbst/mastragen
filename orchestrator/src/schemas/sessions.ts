@@ -116,7 +116,9 @@ export const SessionWithUrlsAndGitResponseSchema = v.object({
   sessionToken: v.optional(v.string()),
   configMissing: v.optional(v.boolean()),
 });
-export type SessionWithUrlsAndGitResponse = v.InferOutput<typeof SessionWithUrlsAndGitResponseSchema>;
+export type SessionWithUrlsAndGitResponse = v.InferOutput<
+  typeof SessionWithUrlsAndGitResponseSchema
+>;
 
 /**
  * List sessions query filter with pagination.
@@ -127,8 +129,18 @@ export const ListSessionsFilterSchema = v.object({
   userId: v.optional(v.string()),
   sharedWithMe: v.optional(v.picklist(['true', 'false'])),
   includeProject: v.optional(v.picklist(['true', 'false'])),
-  limit: v.optional(v.pipe(v.string(), v.transform((s) => Number.parseInt(s, 10)))),
-  offset: v.optional(v.pipe(v.string(), v.transform((s) => Number.parseInt(s, 10)))),
+  limit: v.optional(
+    v.pipe(
+      v.string(),
+      v.transform((s) => Number.parseInt(s, 10))
+    )
+  ),
+  offset: v.optional(
+    v.pipe(
+      v.string(),
+      v.transform((s) => Number.parseInt(s, 10))
+    )
+  ),
 });
 export type ListSessionsFilter = v.InferOutput<typeof ListSessionsFilterSchema>;
 

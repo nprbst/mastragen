@@ -42,17 +42,16 @@ export class SessionSharesRepository {
    * Find a share by ID.
    */
   async findById(id: string): Promise<SessionShare | undefined> {
-    return this.db
-      .selectFrom('session_shares')
-      .selectAll()
-      .where('id', '=', id)
-      .executeTakeFirst();
+    return this.db.selectFrom('session_shares').selectAll().where('id', '=', id).executeTakeFirst();
   }
 
   /**
    * Find an active share for a user on a session.
    */
-  async findActiveShare(sessionId: string, sharedWithUserId: string): Promise<SessionShare | undefined> {
+  async findActiveShare(
+    sessionId: string,
+    sharedWithUserId: string
+  ): Promise<SessionShare | undefined> {
     return this.db
       .selectFrom('session_shares')
       .selectAll()
@@ -73,9 +72,9 @@ export class SessionSharesRepository {
   /**
    * Get all active shares for a session.
    */
-  async getSessionShares(sessionId: string): Promise<
-    Array<SessionShare & { shared_with_email: string; shared_with_name: string | null }>
-  > {
+  async getSessionShares(
+    sessionId: string
+  ): Promise<Array<SessionShare & { shared_with_email: string; shared_with_name: string | null }>> {
     return this.db
       .selectFrom('session_shares')
       .innerJoin('users', 'users.id', 'session_shares.shared_with_user_id')
@@ -98,9 +97,9 @@ export class SessionSharesRepository {
   /**
    * Get all sessions shared with a user.
    */
-  async getSharedWithUser(userId: string): Promise<
-    Array<SessionShare & { session_artifact_name: string; shared_by_email: string }>
-  > {
+  async getSharedWithUser(
+    userId: string
+  ): Promise<Array<SessionShare & { session_artifact_name: string; shared_by_email: string }>> {
     return this.db
       .selectFrom('session_shares')
       .innerJoin('sessions', 'sessions.id', 'session_shares.session_id')

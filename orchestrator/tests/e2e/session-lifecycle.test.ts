@@ -2,11 +2,11 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
+import { IdleSuspendJob } from '../../src/jobs/idle-suspend.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import { healthRoutes } from '../../src/routes/health.ts';
 import { sessionsRoutes } from '../../src/routes/sessions.ts';
-import { IdleSuspendJob } from '../../src/jobs/idle-suspend.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-e2e-lifecycle.db';
 

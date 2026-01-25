@@ -12,7 +12,7 @@
 
 import * as k8s from '@kubernetes/client-node';
 import * as tar from 'tar-stream';
-import type { Session, Project } from '../db/types.ts';
+import type { Project, Session } from '../db/types.ts';
 import type { ClaudeInjectionService } from './claude-injection.ts';
 import { getTailscaleService } from './tailscale.ts';
 
@@ -209,7 +209,15 @@ export class K8sSandboxService {
     await this.createCaddyfileConfigMap(session, configMapName, phoenixConfig);
 
     // Create the pod (includes Phoenix container if enabled)
-    const pod = this.buildPodSpec(session, project, configMapName, envVars, claudeToken, claudeConfigMapName, phoenixConfig);
+    const pod = this.buildPodSpec(
+      session,
+      project,
+      configMapName,
+      envVars,
+      claudeToken,
+      claudeConfigMapName,
+      phoenixConfig
+    );
     await this.coreApi.createNamespacedPod({ namespace: this.config.namespace, body: pod });
   }
 
@@ -274,7 +282,9 @@ export class K8sSandboxService {
       await this.deletePVC(tailscalePvcName);
       await this.deletePVC(caddyPvcName);
     } else {
-      console.log(`[K8sSandboxService] Keeping PVCs for resume: ${workspacePvcName}, ${tailscalePvcName}, ${caddyPvcName}`);
+      console.log(
+        `[K8sSandboxService] Keeping PVCs for resume: ${workspacePvcName}, ${tailscalePvcName}, ${caddyPvcName}`
+      );
     }
   }
 
@@ -529,7 +539,12 @@ export class K8sSandboxService {
    * Uses port-based routing to avoid path prefix issues.
    * Phoenix URL is included when enabled for the session.
    */
-  getServiceUrls(sessionId: string): { mastra: string; astro: string; vscode: string; phoenix: string | null } {
+  getServiceUrls(sessionId: string): {
+    mastra: string;
+    astro: string;
+    vscode: string;
+    phoenix: string | null;
+  } {
     const hostname = this.getHostname(sessionId);
     const phoenixEnabled = this.sessionPhoenixCache.get(sessionId);
     return {
@@ -975,7 +990,10 @@ ${phoenixEntry}`;
     const phoenixEnv: k8s.V1EnvVar[] = phoenixConfig?.enabled
       ? [
           { name: 'PHOENIX_ENABLED', value: 'true' },
-          { name: 'PHOENIX_ENDPOINT', value: `http://127.0.0.1:${INTERNAL_PORTS.phoenix}/v1/traces` },
+          {
+            name: 'PHOENIX_ENDPOINT',
+            value: `http://127.0.0.1:${INTERNAL_PORTS.phoenix}/v1/traces`,
+          },
           { name: 'PHOENIX_PROJECT_NAME', value: `session-${session.id.slice(0, 8)}` },
         ]
       : [{ name: 'PHOENIX_ENABLED', value: 'false' }];
@@ -985,7 +1003,9 @@ ${phoenixEntry}`;
     const mastraEnv: k8s.V1EnvVar[] = [
       ...baseEnv,
       ...phoenixEnv,
-      ...(process.env.ANTHROPIC_API_KEY ? [{ name: 'ANTHROPIC_API_KEY', value: process.env.ANTHROPIC_API_KEY }] : []),
+      ...(process.env.ANTHROPIC_API_KEY
+        ? [{ name: 'ANTHROPIC_API_KEY', value: process.env.ANTHROPIC_API_KEY }]
+        : []),
     ];
 
     const vscodeEnv: k8s.V1EnvVar[] = [
@@ -1054,10 +1074,7 @@ ${phoenixEntry}`;
             name: 'astro',
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.astro}:${this.config.imageTag}`,
             imagePullPolicy: this.config.imagePullPolicy,
-            env: [
-              ...baseEnv,
-              { name: 'ASTRO_PORT', value: String(INTERNAL_PORTS.astro) },
-            ],
+            env: [...baseEnv, { name: 'ASTRO_PORT', value: String(INTERNAL_PORTS.astro) }],
             volumeMounts: [{ name: 'workspace', mountPath: '/workspace' }],
             resources: {
               limits: { cpu: '500m', memory: '1Gi' },
@@ -1067,53 +1084,51 @@ ${phoenixEntry}`;
           // Chrome DevTools container for browser automation (optional)
           ...(this.config.chromeEnabled
             ? [
-              {
-                name: 'chrome',
-                image: SANDBOX_IMAGES.chrome,
-                ports: [{ containerPort: SANDBOX_PORTS.chrome }],
-                env: [
-                  { name: 'CONNECTION_TIMEOUT', value: '300000' },
-                  { name: 'MAX_CONCURRENT_SESSIONS', value: '2' },
-                  { name: 'PREBOOT_CHROME', value: 'true' },
-                  { name: 'DEFAULT_LAUNCH_ARGS', value: '["--disable-dev-shm-usage"]' },
-                ],
-                resources: {
-                  limits: { cpu: '1', memory: '2Gi' },
-                  requests: { cpu: '500m', memory: '1Gi' },
+                {
+                  name: 'chrome',
+                  image: SANDBOX_IMAGES.chrome,
+                  ports: [{ containerPort: SANDBOX_PORTS.chrome }],
+                  env: [
+                    { name: 'CONNECTION_TIMEOUT', value: '300000' },
+                    { name: 'MAX_CONCURRENT_SESSIONS', value: '2' },
+                    { name: 'PREBOOT_CHROME', value: 'true' },
+                    { name: 'DEFAULT_LAUNCH_ARGS', value: '["--disable-dev-shm-usage"]' },
+                  ],
+                  resources: {
+                    limits: { cpu: '1', memory: '2Gi' },
+                    requests: { cpu: '500m', memory: '1Gi' },
+                  },
+                  readinessProbe: {
+                    httpGet: { path: '/health', port: SANDBOX_PORTS.chrome },
+                    initialDelaySeconds: 10,
+                    periodSeconds: 10,
+                  },
                 },
-                readinessProbe: {
-                  httpGet: { path: '/health', port: SANDBOX_PORTS.chrome },
-                  initialDelaySeconds: 10,
-                  periodSeconds: 10,
-                },
-              },
-            ]
+              ]
             : []),
           // Phoenix observability sidecar (optional)
           ...(phoenixConfig?.enabled
             ? [
-              {
-                name: 'phoenix',
-                image: SANDBOX_IMAGES.phoenix,
-                ports: [{ containerPort: INTERNAL_PORTS.phoenix }],
-                env: [
-                  { name: 'PHOENIX_PORT', value: String(INTERNAL_PORTS.phoenix) },
-                  { name: 'PHOENIX_WORKING_DIR', value: '/phoenix/data' },
-                ],
-                volumeMounts: [
-                  { name: 'phoenix-data', mountPath: '/phoenix/data' },
-                ],
-                resources: {
-                  limits: { cpu: '500m', memory: '1Gi' },
-                  requests: { cpu: '100m', memory: '256Mi' },
+                {
+                  name: 'phoenix',
+                  image: SANDBOX_IMAGES.phoenix,
+                  ports: [{ containerPort: INTERNAL_PORTS.phoenix }],
+                  env: [
+                    { name: 'PHOENIX_PORT', value: String(INTERNAL_PORTS.phoenix) },
+                    { name: 'PHOENIX_WORKING_DIR', value: '/phoenix/data' },
+                  ],
+                  volumeMounts: [{ name: 'phoenix-data', mountPath: '/phoenix/data' }],
+                  resources: {
+                    limits: { cpu: '500m', memory: '1Gi' },
+                    requests: { cpu: '100m', memory: '256Mi' },
+                  },
+                  readinessProbe: {
+                    httpGet: { path: '/health', port: INTERNAL_PORTS.phoenix },
+                    initialDelaySeconds: 5,
+                    periodSeconds: 10,
+                  },
                 },
-                readinessProbe: {
-                  httpGet: { path: '/health', port: INTERNAL_PORTS.phoenix },
-                  initialDelaySeconds: 5,
-                  periodSeconds: 10,
-                },
-              },
-            ]
+              ]
             : []),
           // T095f, T095h: Tailscale sidecar with TS_PERMIT_CERT_UID=caddy
           {
@@ -1199,12 +1214,16 @@ ${phoenixEntry}`;
           // Workspace PVC (created via createWorkspacePVC)
           {
             name: 'workspace',
-            persistentVolumeClaim: { claimName: `workspace-${session.id.slice(0, 12).toLowerCase()}` },
+            persistentVolumeClaim: {
+              claimName: `workspace-${session.id.slice(0, 12).toLowerCase()}`,
+            },
           },
           // Tailscale state PVC (preserves identity across suspend/resume)
           {
             name: 'tailscale-state',
-            persistentVolumeClaim: { claimName: `tailscale-${session.id.slice(0, 12).toLowerCase()}` },
+            persistentVolumeClaim: {
+              claimName: `tailscale-${session.id.slice(0, 12).toLowerCase()}`,
+            },
           },
           // Tailscale socket for Caddy to access (IPC, ephemeral)
           { name: 'tailscale-socket', emptyDir: {} },
@@ -1242,7 +1261,9 @@ export function createK8sSandboxService(): K8sSandboxService | null {
   const imagePullPolicy = process.env.IMAGE_PULL_POLICY ?? 'IfNotPresent';
 
   if (!namespace || !tailnet) {
-    console.warn('K8s sandbox service not configured (missing MASTRAGEN_NAMESPACE or TAILSCALE_TAILNET)');
+    console.warn(
+      'K8s sandbox service not configured (missing MASTRAGEN_NAMESPACE or TAILSCALE_TAILNET)'
+    );
     return null;
   }
 

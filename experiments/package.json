@@ -8,9 +8,8 @@
     "dev": "bun run cli.ts",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "typecheck": "tsc --noEmit",
     "lint": "biome lint .",
-    "check": "biome check ."
+    "check": "biome check . && tsc --noEmit"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

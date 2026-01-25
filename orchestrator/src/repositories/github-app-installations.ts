@@ -2,10 +2,10 @@ import type { Kysely } from 'kysely';
 import { nanoid } from 'nanoid';
 import type {
   Database,
-  GithubAppInstallation,
-  NewGithubAppInstallation,
-  GithubAppInstallationUpdate,
   GitHubAccountType,
+  GithubAppInstallation,
+  GithubAppInstallationUpdate,
+  NewGithubAppInstallation,
 } from '../db/types.ts';
 
 /**

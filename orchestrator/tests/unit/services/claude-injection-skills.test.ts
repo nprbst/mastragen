@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 /**
  * T105: Unit test for skills injection
@@ -95,11 +95,7 @@ describe('Skills injection', () => {
 
     test('should inject built-in skills from claude-skills directory', async () => {
       // Built-in skills that should be available
-      const builtInSkills = [
-        'mastra-development',
-        'artifact-extraction',
-        'session-management',
-      ];
+      const builtInSkills = ['mastra-development', 'artifact-extraction', 'session-management'];
 
       const writtenFiles: string[] = [];
       const mockFs = {
@@ -115,11 +111,7 @@ describe('Skills injection', () => {
         }),
       };
 
-      async function injectBuiltInSkills(
-        sourceDir: string,
-        targetPath: string,
-        fs: typeof mockFs
-      ) {
+      async function injectBuiltInSkills(sourceDir: string, targetPath: string, fs: typeof mockFs) {
         await fs.mkdir(targetPath);
         const files = await fs.readdir(sourceDir);
         for (const file of files) {
@@ -146,11 +138,7 @@ describe('Skills injection', () => {
         mkdir: mock((_path: string) => Promise.resolve()),
       };
 
-      async function injectSkills(
-        skills: unknown[],
-        targetPath: string,
-        fs: typeof mockFs
-      ) {
+      async function injectSkills(skills: unknown[], targetPath: string, fs: typeof mockFs) {
         await fs.mkdir(targetPath);
         for (const skill of skills) {
           const s = skill as { name: string; content: string };

@@ -63,7 +63,10 @@ describe('ClaudeHistoryService', () => {
   describe('saveClaudeHistory', () => {
     test('creates .claude-history directory and copies history files', async () => {
       const execResults = new Map<string, string>([
-        ['ls -1', '/home/coder/.claude/projects/-workspace/session1.jsonl\n/home/coder/.claude/projects/-workspace/session2.jsonl'],
+        [
+          'ls -1',
+          '/home/coder/.claude/projects/-workspace/session1.jsonl\n/home/coder/.claude/projects/-workspace/session2.jsonl',
+        ],
       ]);
 
       const { mockDocker, executedCommands } = createMockDocker(execResults);
@@ -77,18 +80,23 @@ describe('ClaudeHistoryService', () => {
       await service.saveClaudeHistory();
 
       // Verify mkdir was called
-      expect(executedCommands.some((cmd) => cmd.includes('mkdir -p /workspace/.claude-history'))).toBe(true);
+      expect(
+        executedCommands.some((cmd) => cmd.includes('mkdir -p /workspace/.claude-history'))
+      ).toBe(true);
 
       // Verify ls was called to check for files
       expect(
-        executedCommands.some((cmd) => cmd.includes('ls -1 /home/coder/.claude/projects/-workspace/*.jsonl'))
+        executedCommands.some((cmd) =>
+          cmd.includes('ls -1 /home/coder/.claude/projects/-workspace/*.jsonl')
+        )
       ).toBe(true);
 
       // Verify cp was called to copy files
       expect(
-        executedCommands.some(
-          (cmd) =>
-            cmd.includes('cp -f /home/coder/.claude/projects/-workspace/*.jsonl /workspace/.claude-history/')
+        executedCommands.some((cmd) =>
+          cmd.includes(
+            'cp -f /home/coder/.claude/projects/-workspace/*.jsonl /workspace/.claude-history/'
+          )
         )
       ).toBe(true);
     });
@@ -112,7 +120,9 @@ describe('ClaudeHistoryService', () => {
       expect(executedCommands.some((cmd) => cmd.includes('mkdir -p'))).toBe(true);
 
       // cp should not be called (no files to copy)
-      const cpCommands = executedCommands.filter((cmd) => cmd.includes('cp -f') && cmd.includes('.jsonl'));
+      const cpCommands = executedCommands.filter(
+        (cmd) => cmd.includes('cp -f') && cmd.includes('.jsonl')
+      );
       expect(cpCommands.length).toBe(0);
     });
   });
@@ -120,7 +130,10 @@ describe('ClaudeHistoryService', () => {
   describe('restoreClaudeHistory', () => {
     test('copies history files from workspace to vscode container', async () => {
       const execResults = new Map<string, string>([
-        ['ls -1 /workspace/.claude-history', '/workspace/.claude-history/session1.jsonl\n/workspace/.claude-history/session2.jsonl'],
+        [
+          'ls -1 /workspace/.claude-history',
+          '/workspace/.claude-history/session1.jsonl\n/workspace/.claude-history/session2.jsonl',
+        ],
       ]);
 
       const { mockDocker, executedCommands } = createMockDocker(execResults);
@@ -134,20 +147,23 @@ describe('ClaudeHistoryService', () => {
       await service.restoreClaudeHistory();
 
       // Verify ls was called to check for files
-      expect(executedCommands.some((cmd) => cmd.includes('ls -1 /workspace/.claude-history/*.jsonl'))).toBe(
-        true
-      );
+      expect(
+        executedCommands.some((cmd) => cmd.includes('ls -1 /workspace/.claude-history/*.jsonl'))
+      ).toBe(true);
 
       // Verify mkdir was called for Claude history dir
       expect(
-        executedCommands.some((cmd) => cmd.includes('mkdir -p /home/coder/.claude/projects/-workspace'))
+        executedCommands.some((cmd) =>
+          cmd.includes('mkdir -p /home/coder/.claude/projects/-workspace')
+        )
       ).toBe(true);
 
       // Verify cp was called to restore files
       expect(
-        executedCommands.some(
-          (cmd) =>
-            cmd.includes('cp -f /workspace/.claude-history/*.jsonl /home/coder/.claude/projects/-workspace/')
+        executedCommands.some((cmd) =>
+          cmd.includes(
+            'cp -f /workspace/.claude-history/*.jsonl /home/coder/.claude/projects/-workspace/'
+          )
         )
       ).toBe(true);
     });
@@ -168,7 +184,9 @@ describe('ClaudeHistoryService', () => {
       await service.restoreClaudeHistory();
 
       // ls should be called to check
-      expect(executedCommands.some((cmd) => cmd.includes('ls -1 /workspace/.claude-history'))).toBe(true);
+      expect(executedCommands.some((cmd) => cmd.includes('ls -1 /workspace/.claude-history'))).toBe(
+        true
+      );
 
       // mkdir for Claude history should not be called (nothing to restore)
       const mkdirClaudeCommands = executedCommands.filter(

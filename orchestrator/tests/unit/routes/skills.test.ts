@@ -1,9 +1,9 @@
-import { describe, expect, test, beforeEach, afterEach, beforeAll, afterAll } from 'bun:test';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../../helpers/test-db.ts';
 import { createTestJwt } from '../../helpers/jwt.ts';
+import { cleanupTestDb, createTestDb } from '../../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-skills-routes.db';
 
@@ -90,10 +90,14 @@ describe('skills routes', () => {
       .execute();
 
     // Create auth token
-    authToken = await createTestJwt({ sub: testUserId, email: 'skills@test.com', name: 'Test User' });
+    authToken = await createTestJwt({
+      sub: testUserId,
+      email: 'skills@test.com',
+      name: 'Test User',
+    });
     authHeaders = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${authToken}`,
+      Authorization: `Bearer ${authToken}`,
     };
 
     // Mock GitHub API calls for auth middleware
@@ -102,15 +106,21 @@ describe('skills routes', () => {
       const urlStr = url instanceof Request ? url.url : url.toString();
 
       if (urlStr.includes('api.github.com/repos/')) {
-        return new Response(JSON.stringify({
-          permissions: { admin: true, push: true, pull: true }
-        }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            permissions: { admin: true, push: true, pull: true },
+          }),
+          { status: 200 }
+        );
       }
 
       if (urlStr.includes('api.github.com/user/installations')) {
-        return new Response(JSON.stringify({
-          installations: [{ id: 99999 }]
-        }), { status: 200 });
+        return new Response(
+          JSON.stringify({
+            installations: [{ id: 99999 }],
+          }),
+          { status: 200 }
+        );
       }
 
       return originalFetch(url);

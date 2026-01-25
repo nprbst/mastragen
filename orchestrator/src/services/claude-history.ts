@@ -1,4 +1,4 @@
-import Docker from 'dockerode';
+import type Docker from 'dockerode';
 
 /**
  * Service for persisting and restoring Claude Code conversation history.
@@ -26,7 +26,9 @@ export class ClaudeHistoryService {
   /**
    * Executes a shell command inside the vscode container.
    */
-  private async execShell(cmd: string): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  private async execShell(
+    cmd: string
+  ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
     const container = this.docker.getContainer(this.containerId);
 
     const exec = await container.exec({
@@ -48,7 +50,7 @@ export class ClaudeHistoryService {
         }
 
         let stdout = '';
-        let stderr = '';
+        const stderr = '';
 
         stream.on('data', (chunk: Buffer) => {
           stdout += chunk.toString();

@@ -1,15 +1,15 @@
-import { describe, expect, test, beforeEach, beforeAll, afterAll } from 'bun:test';
-import type { Kysely } from 'kysely';
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
+import type { Kysely } from 'kysely';
 import type { Database } from '../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
 import {
   ProjectsRepository,
+  SessionSharesRepository,
   SessionsRepository,
   UsersRepository,
-  SessionSharesRepository,
 } from '../../src/repositories/index.ts';
 import { sessionsRoutes } from '../../src/routes/sessions.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 // Test T027: Integration test for GET /sessions with dashboard query params
 

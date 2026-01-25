@@ -1,8 +1,8 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import type { Kysely } from 'kysely';
-import { createTestDb, cleanupTestDb } from '../../helpers/test-db.ts';
 import type { Database } from '../../../src/db/types.ts';
 import { ProjectsRepository } from '../../../src/repositories/index.ts';
+import { cleanupTestDb, createTestDb } from '../../helpers/test-db.ts';
 
 // Test T038: Unit test for claude-injection service config generation
 
@@ -57,21 +57,24 @@ describe('claude-injection service', () => {
 
     test('should include project-specific MCP servers', async () => {
       // Configure MCP server for project
-      await db.insertInto('project_claude_config').values({
-        id: 'config-1',
-        project_id: testProjectId,
-        mcp_servers: JSON.stringify({
-          'mastragen-orchestrator': {
-            command: 'npx',
-            args: ['-y', '@mastragen/mcp-server'],
-            env: {
-              API_URL: '${MASTRAGEN_API_URL}',
+      await db
+        .insertInto('project_claude_config')
+        .values({
+          id: 'config-1',
+          project_id: testProjectId,
+          mcp_servers: JSON.stringify({
+            'mastragen-orchestrator': {
+              command: 'npx',
+              args: ['-y', '@mastragen/mcp-server'],
+              env: {
+                API_URL: '${MASTRAGEN_API_URL}',
+              },
             },
-          },
-        }),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).execute();
+          }),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
 
       const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
       const service = new ClaudeInjectionService(db);
@@ -87,20 +90,23 @@ describe('claude-injection service', () => {
     });
 
     test('should interpolate environment variables', async () => {
-      await db.insertInto('project_claude_config').values({
-        id: 'config-2',
-        project_id: testProjectId,
-        mcp_servers: JSON.stringify({
-          database: {
-            command: 'db-server',
-            env: {
-              DATABASE_URL: '${DATABASE_URL}',
+      await db
+        .insertInto('project_claude_config')
+        .values({
+          id: 'config-2',
+          project_id: testProjectId,
+          mcp_servers: JSON.stringify({
+            database: {
+              command: 'db-server',
+              env: {
+                DATABASE_URL: '${DATABASE_URL}',
+              },
             },
-          },
-        }),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).execute();
+          }),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
 
       const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
       const service = new ClaudeInjectionService(db);
@@ -112,7 +118,9 @@ describe('claude-injection service', () => {
       });
 
       // Environment variable should be interpolated
-      expect(settings.mcpServers?.database?.env?.DATABASE_URL).toBe('postgres://localhost:5432/dev');
+      expect(settings.mcpServers?.database?.env?.DATABASE_URL).toBe(
+        'postgres://localhost:5432/dev'
+      );
     });
   });
 
@@ -131,13 +139,16 @@ describe('claude-injection service', () => {
     });
 
     test('should include custom CLAUDE.md content from config', async () => {
-      await db.insertInto('project_claude_config').values({
-        id: 'config-3',
-        project_id: testProjectId,
-        claude_md: '## Custom Instructions\n\nAlways use TypeScript.\n',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).execute();
+      await db
+        .insertInto('project_claude_config')
+        .values({
+          id: 'config-3',
+          project_id: testProjectId,
+          claude_md: '## Custom Instructions\n\nAlways use TypeScript.\n',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
 
       const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
       const service = new ClaudeInjectionService(db);
@@ -208,15 +219,18 @@ describe('claude-injection service', () => {
 
     test('should include project-specific custom commands', async () => {
       // Add a custom command
-      await db.insertInto('project_commands').values({
-        id: 'cmd-1',
-        project_id: testProjectId,
-        name: 'deploy',
-        description: 'Deploy to production',
-        content: '## /deploy\n\nDeploy the application to production.\n',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).execute();
+      await db
+        .insertInto('project_commands')
+        .values({
+          id: 'cmd-1',
+          project_id: testProjectId,
+          name: 'deploy',
+          description: 'Deploy to production',
+          content: '## /deploy\n\nDeploy the application to production.\n',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
 
       const { ClaudeInjectionService } = await import('../../../src/services/claude-injection.ts');
       const service = new ClaudeInjectionService(db);
@@ -226,7 +240,7 @@ describe('claude-injection service', () => {
         environment: 'dev',
       });
 
-      const deployCmd = commands.find(c => c.name === 'deploy');
+      const deployCmd = commands.find((c) => c.name === 'deploy');
       expect(deployCmd).toBeDefined();
       expect(deployCmd?.content).toContain('Deploy the application');
     });

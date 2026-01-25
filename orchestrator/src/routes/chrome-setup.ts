@@ -9,32 +9,38 @@ import { Hono } from 'hono';
 import * as jose from 'jose';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.ts';
+import { getAuthUser, requireAuth } from '../middleware/auth.ts';
 import { SessionsRepository } from '../repositories/sessions.ts';
-import { requireAuth, getAuthUser } from '../middleware/auth.ts';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'development-secret-change-in-production';
 const CHROME_SETUP_TOKEN_EXPIRY = 300; // 5 minutes
 
 // In-memory store for pending chrome setup sessions
 // Maps token -> { sessionId, userId, status, hostname?, ip? }
-const pendingSetups = new Map<string, {
-  sessionId: string;
-  userId: string;
-  status: 'pending' | 'connected';
-  hostname?: string;
-  ip?: string;
-  createdAt: number;
-}>();
+const pendingSetups = new Map<
+  string,
+  {
+    sessionId: string;
+    userId: string;
+    status: 'pending' | 'connected';
+    hostname?: string;
+    ip?: string;
+    createdAt: number;
+  }
+>();
 
 // Clean up old pending setups every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [token, setup] of pendingSetups.entries()) {
-    if (now - setup.createdAt > CHROME_SETUP_TOKEN_EXPIRY * 1000 * 2) {
-      pendingSetups.delete(token);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [token, setup] of pendingSetups.entries()) {
+      if (now - setup.createdAt > CHROME_SETUP_TOKEN_EXPIRY * 1000 * 2) {
+        pendingSetups.delete(token);
+      }
     }
-  }
-}, 5 * 60 * 1000);
+  },
+  5 * 60 * 1000
+);
 
 /**
  * Get the secret key for JWT operations.

@@ -1,11 +1,11 @@
 import { Hono } from 'hono';
-import { setCookie, getCookie, deleteCookie } from 'hono/cookie';
-import { AuthService } from '../services/auth.ts';
-import { requireAuth, getAuthUser } from '../middleware/auth.ts';
-import { getAuditLogger } from '../services/audit-logger.ts';
-import { getPublicKey } from '../lib/crypto.ts';
+import { deleteCookie, getCookie, setCookie } from 'hono/cookie';
 import type { Kysely } from 'kysely';
 import type { Database } from '../db/types.ts';
+import { getPublicKey } from '../lib/crypto.ts';
+import { getAuthUser, requireAuth } from '../middleware/auth.ts';
+import { getAuditLogger } from '../services/audit-logger.ts';
+import { AuthService } from '../services/auth.ts';
 
 // Cookie configuration
 const COOKIE_OPTIONS = {
@@ -208,13 +208,13 @@ export function createAuthRoutes(db: Kysely<Database>): Hono {
       return c.json({ error: 'Unauthorized' }, 401);
     }
 
-    const installationId = parseInt(c.req.param('installationId'), 10);
-    if (isNaN(installationId)) {
+    const installationId = Number.parseInt(c.req.param('installationId'), 10);
+    if (Number.isNaN(installationId)) {
       return c.json({ error: 'Invalid installation ID' }, 400);
     }
 
-    const page = parseInt(c.req.query('page') || '1', 10);
-    const perPage = Math.min(parseInt(c.req.query('per_page') || '30', 10), 100);
+    const page = Number.parseInt(c.req.query('page') || '1', 10);
+    const perPage = Math.min(Number.parseInt(c.req.query('per_page') || '30', 10), 100);
 
     const result = await authService.getInstallationRepositories(
       authUser.id,

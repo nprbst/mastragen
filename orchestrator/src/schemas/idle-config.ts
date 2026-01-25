@@ -47,7 +47,9 @@ export const UpdateGlobalIdleConfigRequestSchema = v.object({
   warningMinutes: v.optional(WarningMinutesSchema),
   enabled: v.optional(v.boolean()),
 });
-export type UpdateGlobalIdleConfigRequest = v.InferOutput<typeof UpdateGlobalIdleConfigRequestSchema>;
+export type UpdateGlobalIdleConfigRequest = v.InferOutput<
+  typeof UpdateGlobalIdleConfigRequestSchema
+>;
 
 /**
  * Create/update project idle config request (PUT /api/projects/:id/idle-config).

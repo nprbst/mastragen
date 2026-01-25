@@ -8,7 +8,7 @@
  * - Attempts delivery to configured destinations
  */
 import type { Kysely } from 'kysely';
-import type { Database, AlertConditionType } from '../db/types.ts';
+import type { AlertConditionType, Database } from '../db/types.ts';
 import { AlertService } from '../services/alert-service.ts';
 import { MetricsService } from '../services/metrics-service.ts';
 

@@ -1,11 +1,8 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import {
-  loadProjectConfig,
-  MASTRAGEN_CONFIG_DEFAULTS,
-} from '../../src/lib/project-config.ts';
+import { join } from 'node:path';
+import { MASTRAGEN_CONFIG_DEFAULTS, loadProjectConfig } from '../../src/lib/project-config.ts';
 
 describe('loadProjectConfig', () => {
   let testDir: string;

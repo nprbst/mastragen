@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { createHmac } from 'node:crypto';
 import { Hono } from 'hono';
-import { createHmac } from 'crypto';
 
 // Test T011.1: Unit test for GitHub webhook handler
 
@@ -373,9 +373,7 @@ describe('GitHub webhook handler', () => {
       const payload = JSON.stringify({
         action: 'added',
         installation: { id: 99999 },
-        repositories_added: [
-          { id: 123, name: 'new-repo', full_name: 'my-org/new-repo' },
-        ],
+        repositories_added: [{ id: 123, name: 'new-repo', full_name: 'my-org/new-repo' }],
         repositories_removed: [],
       });
       const signature = createSignature(payload, WEBHOOK_SECRET);
@@ -419,9 +417,7 @@ describe('GitHub webhook handler', () => {
         action: 'removed',
         installation: { id: 99999 },
         repositories_added: [],
-        repositories_removed: [
-          { id: 123, name: 'old-repo', full_name: 'my-org/old-repo' },
-        ],
+        repositories_removed: [{ id: 123, name: 'old-repo', full_name: 'my-org/old-repo' }],
       });
       const signature = createSignature(payload, WEBHOOK_SECRET);
 

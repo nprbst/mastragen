@@ -1,9 +1,6 @@
 import { describe, expect, it, mock } from 'bun:test';
 import type Docker from 'dockerode';
-import {
-  GitService,
-  GitOperationError,
-} from '../../src/services/git.ts';
+import { GitOperationError, GitService } from '../../src/services/git.ts';
 
 // Helper to create a mock exec that simulates Docker exec behavior
 function createMockExec(stdout: string, exitCode = 0) {
@@ -112,10 +109,7 @@ A  staged-file.ts`;
         if (callCount === 1) {
           // git add -A
           return Promise.resolve({
-            start: (
-              _opts: unknown,
-              cb: (err: null, stream: unknown) => void
-            ) => {
+            start: (_opts: unknown, cb: (err: null, stream: unknown) => void) => {
               const stream = {
                 on: (event: string, handler: () => void) => {
                   if (event === 'end') setTimeout(handler, 0);
@@ -130,14 +124,10 @@ A  staged-file.ts`;
         if (callCount === 2) {
           // git commit
           return Promise.resolve({
-            start: (
-              _opts: unknown,
-              cb: (err: null, stream: unknown) => void
-            ) => {
+            start: (_opts: unknown, cb: (err: null, stream: unknown) => void) => {
               const stream = {
                 on: (event: string, handler: (data?: Buffer) => void) => {
-                  if (event === 'data')
-                    handler(Buffer.from('[main abc1234] Test commit'));
+                  if (event === 'data') handler(Buffer.from('[main abc1234] Test commit'));
                   if (event === 'end') setTimeout(() => handler(), 0);
                   return stream;
                 },
@@ -149,16 +139,11 @@ A  staged-file.ts`;
         }
         // git rev-parse HEAD
         return Promise.resolve({
-          start: (
-            _opts: unknown,
-            cb: (err: null, stream: unknown) => void
-          ) => {
+          start: (_opts: unknown, cb: (err: null, stream: unknown) => void) => {
             const stream = {
               on: (event: string, handler: (data?: Buffer) => void) => {
                 if (event === 'data')
-                  handler(
-                    Buffer.from('abc1234567890abcdef1234567890abcdef123456\n')
-                  );
+                  handler(Buffer.from('abc1234567890abcdef1234567890abcdef123456\n'));
                 if (event === 'end') setTimeout(() => handler(), 0);
                 return stream;
               },
@@ -193,10 +178,7 @@ A  staged-file.ts`;
         if (callCount === 1) {
           // git add -A
           return Promise.resolve({
-            start: (
-              _opts: unknown,
-              cb: (err: null, stream: unknown) => void
-            ) => {
+            start: (_opts: unknown, cb: (err: null, stream: unknown) => void) => {
               const stream = {
                 on: (event: string, handler: () => void) => {
                   if (event === 'end') setTimeout(handler, 0);
@@ -210,16 +192,10 @@ A  staged-file.ts`;
         }
         // git commit - nothing to commit
         return Promise.resolve({
-          start: (
-            _opts: unknown,
-            cb: (err: null, stream: unknown) => void
-          ) => {
+          start: (_opts: unknown, cb: (err: null, stream: unknown) => void) => {
             const stream = {
               on: (event: string, handler: (data?: Buffer) => void) => {
-                if (event === 'data')
-                  handler(
-                    Buffer.from('nothing to commit, working tree clean')
-                  );
+                if (event === 'data') handler(Buffer.from('nothing to commit, working tree clean'));
                 if (event === 'end') setTimeout(() => handler(), 0);
                 return stream;
               },
@@ -248,9 +224,7 @@ A  staged-file.ts`;
 
   describe('createBranch', () => {
     it('creates a new branch from base', async () => {
-      const mockExec = createMockExec(
-        "Switched to a new branch 'feature-branch'"
-      );
+      const mockExec = createMockExec("Switched to a new branch 'feature-branch'");
       const mockDocker = {
         getContainer: () => ({ exec: mockExec }),
       } as unknown as Docker;
@@ -261,16 +235,14 @@ A  staged-file.ts`;
         workspacePath: testWorkspacePath,
       });
 
-      await expect(
-        gitService.createBranch('feature-branch', 'main')
-      ).resolves.toBeUndefined();
+      await expect(gitService.createBranch('feature-branch', 'main')).resolves.toBeUndefined();
     });
   });
 
   describe('push', () => {
     it('pushes branch to origin', async () => {
       const mockExec = createMockExec(
-        "To github.com:org/repo.git\n * [new branch]      feature-branch -> feature-branch"
+        'To github.com:org/repo.git\n * [new branch]      feature-branch -> feature-branch'
       );
       const mockDocker = {
         getContainer: () => ({ exec: mockExec }),
@@ -299,9 +271,7 @@ A  staged-file.ts`;
         workspacePath: testWorkspacePath,
       });
 
-      await expect(
-        gitService.clone('https://github.com/org/repo.git')
-      ).resolves.toBeUndefined();
+      await expect(gitService.clone('https://github.com/org/repo.git')).resolves.toBeUndefined();
     });
 
     it('clones specific branch when provided', async () => {
@@ -339,9 +309,7 @@ A  staged-file.ts`;
     });
 
     it('checks out a specific commit SHA', async () => {
-      const mockExec = createMockExec(
-        'HEAD is now at abc1234 Previous commit message'
-      );
+      const mockExec = createMockExec('HEAD is now at abc1234 Previous commit message');
       const mockDocker = {
         getContainer: () => ({ exec: mockExec }),
       } as unknown as Docker;
@@ -366,10 +334,7 @@ A  staged-file.ts`;
         if (callCount === 1) {
           // git show - file doesn't contain the entry
           return Promise.resolve({
-            start: (
-              _opts: unknown,
-              cb: (err: null, stream: unknown) => void
-            ) => {
+            start: (_opts: unknown, cb: (err: null, stream: unknown) => void) => {
               const stream = {
                 on: (event: string, handler: (data?: Buffer) => void) => {
                   if (event === 'data') handler(Buffer.from('*.log text\n'));
@@ -384,10 +349,7 @@ A  staged-file.ts`;
         }
         // Shell command to append
         return Promise.resolve({
-          start: (
-            _opts: unknown,
-            cb: (err: null, stream: unknown) => void
-          ) => {
+          start: (_opts: unknown, cb: (err: null, stream: unknown) => void) => {
             const stream = {
               on: (event: string, handler: () => void) => {
                 if (event === 'end') setTimeout(handler, 0);
@@ -420,14 +382,10 @@ A  staged-file.ts`;
         callCount++;
         // git show - already contains the entry
         return Promise.resolve({
-          start: (
-            _opts: unknown,
-            cb: (err: null, stream: unknown) => void
-          ) => {
+          start: (_opts: unknown, cb: (err: null, stream: unknown) => void) => {
             const stream = {
               on: (event: string, handler: (data?: Buffer) => void) => {
-                if (event === 'data')
-                  handler(Buffer.from('.claude-history/ export-ignore\n'));
+                if (event === 'data') handler(Buffer.from('.claude-history/ export-ignore\n'));
                 if (event === 'end') setTimeout(() => handler(), 0);
                 return stream;
               },
@@ -474,9 +432,7 @@ A  staged-file.ts`;
 
   describe('getCurrentSha', () => {
     it('returns current commit SHA', async () => {
-      const mockExec = createMockExec(
-        'abc1234567890abcdef1234567890abcdef123456\n'
-      );
+      const mockExec = createMockExec('abc1234567890abcdef1234567890abcdef123456\n');
       const mockDocker = {
         getContainer: () => ({ exec: mockExec }),
       } as unknown as Docker;

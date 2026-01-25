@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 
 /**
  * T085: Unit test for session PR service
@@ -78,7 +78,7 @@ describe('SessionPrService', () => {
       globalThis.fetch = mock((url: string, opts?: RequestInit) => {
         if (url.includes('/pulls')) {
           apiCalled = true;
-          apiBody = JSON.parse(opts?.body as string || '{}');
+          apiBody = JSON.parse((opts?.body as string) || '{}');
           return Promise.resolve(
             new Response(
               JSON.stringify({
@@ -231,10 +231,9 @@ describe('SessionPrService', () => {
 
       globalThis.fetch = mock(() =>
         Promise.resolve(
-          new Response(
-            JSON.stringify({ message: 'Validation Failed', errors: [] }),
-            { status: 422 }
-          )
+          new Response(JSON.stringify({ message: 'Validation Failed', errors: [] }), {
+            status: 422,
+          })
         )
       ) as unknown as typeof fetch;
 

@@ -1,8 +1,8 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import type { Kysely } from 'kysely';
-import type { Database } from '../../../src/db/types.ts';
 import { createDatabase } from '../../../src/db/index.ts';
 import { runMigrations } from '../../../src/db/migrator.ts';
+import type { Database } from '../../../src/db/types.ts';
 import { AlertCheckerJob, createAlertCheckerScheduler } from '../../../src/jobs/alert-checker.ts';
 import { AlertService } from '../../../src/services/alert-service.ts';
 import { MetricsService } from '../../../src/services/metrics-service.ts';
@@ -139,9 +139,7 @@ describe('AlertCheckerJob', () => {
     test('should attempt delivery after firing', async () => {
       // Configure a rule with a webhook destination
       await alertService.updateRule('alert-database-failed', {
-        destinations: [
-          { type: 'webhook', url: 'https://example.com/test-webhook' },
-        ],
+        destinations: [{ type: 'webhook', url: 'https://example.com/test-webhook' }],
       });
 
       const customJob = new AlertCheckerJob(db, alertService, metricsService, {

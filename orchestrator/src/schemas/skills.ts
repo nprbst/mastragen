@@ -7,7 +7,10 @@ export const SkillNameSchema = v.pipe(
   v.string(),
   v.minLength(1, 'Skill name is required'),
   v.maxLength(100, 'Skill name must be 100 characters or less'),
-  v.regex(/^[a-zA-Z][a-zA-Z0-9_-]*$/, 'Skill name must start with a letter and contain only letters, numbers, hyphens, and underscores')
+  v.regex(
+    /^[a-zA-Z][a-zA-Z0-9_-]*$/,
+    'Skill name must start with a letter and contain only letters, numbers, hyphens, and underscores'
+  )
 );
 
 /**

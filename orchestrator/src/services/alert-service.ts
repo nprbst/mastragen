@@ -12,20 +12,20 @@
  */
 import type { Kysely } from 'kysely';
 import type {
-  Database,
-  AlertRule,
   AlertConditionType,
-  AlertSeverityType,
   AlertEventStatusType,
+  AlertRule,
+  AlertSeverityType,
+  Database,
 } from '../db/types.ts';
-import type { MetricsService } from './metrics-service.ts';
 import type {
-  CreateAlertRuleRequest,
-  UpdateAlertRuleRequest,
   AlertDestination,
   AlertWebhookPayload,
+  CreateAlertRuleRequest,
   ListAlertEventsFilter,
+  UpdateAlertRuleRequest,
 } from '../schemas/alerts.ts';
+import type { MetricsService } from './metrics-service.ts';
 
 export interface AlertRuleResponse {
   id: string;
@@ -165,11 +165,7 @@ export class AlertService {
       updates.destinations = JSON.stringify(data.destinations);
     }
 
-    await this.db
-      .updateTable('alert_rules')
-      .set(updates)
-      .where('id', '=', id)
-      .execute();
+    await this.db.updateTable('alert_rules').set(updates).where('id', '=', id).execute();
 
     return this.getRule(id);
   }
@@ -585,7 +581,9 @@ export class AlertService {
         .where('id', '=', eventId)
         .execute();
 
-      console.log(`[Alert] Event ${eventId} marked as failed after ${MAX_DELIVERY_ATTEMPTS} attempts`);
+      console.log(
+        `[Alert] Event ${eventId} marked as failed after ${MAX_DELIVERY_ATTEMPTS} attempts`
+      );
     }
   }
 
@@ -593,7 +591,7 @@ export class AlertService {
    * T058: Calculate exponential backoff delay.
    */
   calculateBackoffMs(attempt: number): number {
-    const backoff = Math.pow(2, attempt) * BASE_BACKOFF_MS;
+    const backoff = 2 ** attempt * BASE_BACKOFF_MS;
     return Math.min(backoff, MAX_BACKOFF_MS);
   }
 

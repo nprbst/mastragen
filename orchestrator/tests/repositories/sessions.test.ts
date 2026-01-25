@@ -3,7 +3,7 @@ import type { Kysely } from 'kysely';
 import type { Database } from '../../src/db/types.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import { SessionsRepository } from '../../src/repositories/sessions.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-sessions-repo.db';
 

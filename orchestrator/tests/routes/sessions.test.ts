@@ -2,9 +2,9 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import { sessionsRoutes } from '../../src/routes/sessions.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-sessions-routes.db';
 

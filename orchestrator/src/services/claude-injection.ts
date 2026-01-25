@@ -86,7 +86,10 @@ function getDefaultMcpServers(chromeEndpoint: string): Record<string, McpServerC
  * - sidecar: Container Chrome at http://chrome:3000
  * - local: User's Chrome via Tailscale
  */
-function getChromeEndpoint(chromeMode: ChromeMode | undefined, userTailscaleHostname: string | undefined): string {
+function getChromeEndpoint(
+  chromeMode: ChromeMode | undefined,
+  userTailscaleHostname: string | undefined
+): string {
   if (chromeMode === 'local' && userTailscaleHostname) {
     // User's Chrome via Tailscale
     return `http://${userTailscaleHostname}:9222`;
@@ -183,24 +186,26 @@ export class ClaudeInjectionService {
     // Get Claude config for custom CLAUDE.md content
     const claudeConfig = await this.getClaudeConfig(config.projectId);
 
-    let content = `# CLAUDE.md\n\n`;
+    let content = '# CLAUDE.md\n\n';
     content += `Project: ${project.name}\n`;
     content += `Environment: ${config.environment}\n`;
     content += `Session: ${config.sessionId}\n\n`;
 
     // Add sandbox container management documentation
-    content += `## Sandbox Container Management\n\n`;
+    content += '## Sandbox Container Management\n\n';
     content += `The development environment runs in separate containers. If hot-reload isn't working or you need to restart a service:\n\n`;
-    content += `- \`touch /workspace/.restart-astro\` - Restart the Astro dev server (UI)\n`;
-    content += `- \`touch /workspace/.restart-mastra\` - Restart the Mastra dev server (agents/tools)\n\n`;
-    content += `The process will restart within 1-2 seconds after the file is touched.\n\n`;
+    content += '- `touch /workspace/.restart-astro` - Restart the Astro dev server (UI)\n';
+    content +=
+      '- `touch /workspace/.restart-mastra` - Restart the Mastra dev server (agents/tools)\n\n';
+    content += 'The process will restart within 1-2 seconds after the file is touched.\n\n';
 
     // Add browser preview access documentation
-    content += `## Browser Preview Access\n\n`;
-    content += `You have access to Chrome DevTools via the \`chrome-devtools\` MCP server. To see the Astro preview:\n\n`;
-    content += `1. Navigate to the preview: use \`navigate_page\` with URL \`http://astro:4321\`\n`;
-    content += `2. Take a screenshot: use \`take_screenshot\`\n`;
-    content += `3. Check console: use \`list_console_messages\`\n\n`;
+    content += '## Browser Preview Access\n\n';
+    content +=
+      'You have access to Chrome DevTools via the `chrome-devtools` MCP server. To see the Astro preview:\n\n';
+    content += '1. Navigate to the preview: use `navigate_page` with URL `http://astro:4321`\n';
+    content += '2. Take a screenshot: use `take_screenshot`\n';
+    content += '3. Check console: use `list_console_messages`\n\n';
 
     // Add custom CLAUDE.md content if configured
     if (claudeConfig?.claude_md) {
@@ -220,9 +225,10 @@ export class ClaudeInjectionService {
 
     if (environment?.env_vars) {
       try {
-        const parsed = typeof environment.env_vars === 'string'
-          ? JSON.parse(environment.env_vars)
-          : environment.env_vars;
+        const parsed =
+          typeof environment.env_vars === 'string'
+            ? JSON.parse(environment.env_vars)
+            : environment.env_vars;
         Object.assign(envVars, parsed);
       } catch {
         // Invalid JSON, skip
@@ -251,7 +257,7 @@ export class ClaudeInjectionService {
       .where('project_id', '=', config.projectId)
       .execute();
 
-    return projectCommands.map(cmd => ({
+    return projectCommands.map((cmd) => ({
       name: cmd.name,
       description: cmd.description,
       content: cmd.content,
@@ -347,9 +353,7 @@ export class ClaudeInjectionService {
         command: interpolate(config.command),
         args: config.args?.map(interpolate),
         env: config.env
-          ? Object.fromEntries(
-              Object.entries(config.env).map(([k, v]) => [k, interpolate(v)])
-            )
+          ? Object.fromEntries(Object.entries(config.env).map(([k, v]) => [k, interpolate(v)]))
           : undefined,
       };
     }

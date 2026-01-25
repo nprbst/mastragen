@@ -15,15 +15,15 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database } from '../db/types.ts';
+import { getAuthUser, requireAuth } from '../middleware/auth.ts';
+import {
+  AcknowledgeAlertEventRequestSchema,
+  CreateAlertRuleRequestSchema,
+  ListAlertEventsFilterSchema,
+  UpdateAlertRuleRequestSchema,
+} from '../schemas/alerts.ts';
 import { AlertService } from '../services/alert-service.ts';
 import { MetricsService, getMetricsService } from '../services/metrics-service.ts';
-import {
-  CreateAlertRuleRequestSchema,
-  UpdateAlertRuleRequestSchema,
-  ListAlertEventsFilterSchema,
-  AcknowledgeAlertEventRequestSchema,
-} from '../schemas/alerts.ts';
-import { requireAuth, getAuthUser } from '../middleware/auth.ts';
 
 /**
  * Creates alert management routes.

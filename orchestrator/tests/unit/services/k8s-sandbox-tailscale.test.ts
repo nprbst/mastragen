@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 
 /**
  * Unit tests for K8sSandboxService Tailscale deregistration.
@@ -22,12 +22,12 @@ describe('K8sSandboxService Tailscale deregistration', () => {
     if (originalEnv.TAILSCALE_API_KEY !== undefined) {
       process.env.TAILSCALE_API_KEY = originalEnv.TAILSCALE_API_KEY;
     } else {
-      delete process.env.TAILSCALE_API_KEY;
+      process.env.TAILSCALE_API_KEY = undefined;
     }
     if (originalEnv.TAILSCALE_TAILNET !== undefined) {
       process.env.TAILSCALE_TAILNET = originalEnv.TAILSCALE_TAILNET;
     } else {
-      delete process.env.TAILSCALE_TAILNET;
+      process.env.TAILSCALE_TAILNET = undefined;
     }
   });
 
@@ -89,11 +89,15 @@ describe('K8sSandboxService Tailscale deregistration', () => {
       getTailscaleService: () => ({
         isConfigured: () => true,
         async findDevice(hostname: string) {
-          const response = await fetch('https://api.tailscale.com/api/v2/tailnet/test-tailnet/devices');
+          const response = await fetch(
+            'https://api.tailscale.com/api/v2/tailnet/test-tailnet/devices'
+          );
           if (!response.ok) return undefined;
-          const data = await response.json() as { devices?: Array<{ name: string; hostname: string; id: string }> };
-          return data.devices?.find((d) =>
-            d.name === hostname || d.hostname === hostname.split('.')[0]
+          const data = (await response.json()) as {
+            devices?: Array<{ name: string; hostname: string; id: string }>;
+          };
+          return data.devices?.find(
+            (d) => d.name === hostname || d.hostname === hostname.split('.')[0]
           );
         },
         async deleteDevice(deviceId: string) {
@@ -216,8 +220,8 @@ describe('K8sSandboxService Tailscale deregistration', () => {
 
   test('deregisterTailscaleDevice skips when Tailscale not configured', async () => {
     // Clear env vars so TailscaleService is not configured
-    delete process.env.TAILSCALE_API_KEY;
-    delete process.env.TAILSCALE_TAILNET;
+    process.env.TAILSCALE_API_KEY = undefined;
+    process.env.TAILSCALE_TAILNET = undefined;
 
     const apiCallCount = { count: 0 };
 

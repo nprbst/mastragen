@@ -2,7 +2,15 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database, Session } from '../db/types.ts';
-import { ProjectsRepository, SessionsRepository, SessionSharesRepository, UsersRepository } from '../repositories/index.ts';
+import { IdleSuspendJob } from '../jobs/idle-suspend.ts';
+import { decryptToken } from '../lib/crypto.ts';
+import { getAuthUser, optionalAuth, requireAuth, requireSessionAuth } from '../middleware/auth.ts';
+import {
+  ProjectsRepository,
+  SessionSharesRepository,
+  SessionsRepository,
+  UsersRepository,
+} from '../repositories/index.ts';
 import {
   CreateSessionRequestSchema,
   ListSessionsFilterSchema,
@@ -14,7 +22,8 @@ import {
   type SessionWithUrlsResponse,
 } from '../schemas/index.ts';
 import { RecordActivityRequestSchema } from '../schemas/session-activity.ts';
-import { IdleSuspendJob } from '../jobs/idle-suspend.ts';
+import { getAuditLogger } from '../services/audit-logger.ts';
+import { AuthService } from '../services/auth.ts';
 import {
   EnvironmentNotFoundError,
   ProjectNotFoundError,
@@ -25,10 +34,6 @@ import {
   SessionNotFoundError,
 } from '../services/sandbox.ts';
 import { getTailscaleService } from '../services/tailscale.ts';
-import { getAuthUser, optionalAuth, requireAuth, requireSessionAuth } from '../middleware/auth.ts';
-import { getAuditLogger } from '../services/audit-logger.ts';
-import { AuthService } from '../services/auth.ts';
-import { decryptToken } from '../lib/crypto.ts';
 
 /**
  * Transforms a database session to API response format.
@@ -476,11 +481,14 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
 
     // TODO: Get user's GitHub access token from auth context
     // For now, return a placeholder response
-    return c.json({
-      url: `https://github.com/${project.github_repo}/pull/new/${session.branch_name}`,
-      branch: session.branch_name,
-      status: 'pending_implementation',
-    }, 200);
+    return c.json(
+      {
+        url: `https://github.com/${project.github_repo}/pull/new/${session.branch_name}`,
+        branch: session.branch_name,
+        status: 'pending_implementation',
+      },
+      200
+    );
   });
 
   // POST /sessions/:id/share - Share a session (T097, T062)
@@ -558,13 +566,16 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
       shareId: share.id,
     });
 
-    return c.json({
-      shareId: share.id,
-      sharedWithEmail: body.email,
-      sharedWithUserId: targetUser.id,
-      accessUrl: `https://${sandboxDeviceName}.ts.net`,
-      createdAt: share.granted_at,
-    }, 201);
+    return c.json(
+      {
+        shareId: share.id,
+        sharedWithEmail: body.email,
+        sharedWithUserId: targetUser.id,
+        accessUrl: `https://${sandboxDeviceName}.ts.net`,
+        createdAt: share.granted_at,
+      },
+      201
+    );
   });
 
   // GET /sessions/:id/shares - List session shares (T100)
@@ -579,15 +590,18 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
     // Get all active shares for this session
     const shares = await sessionSharesRepo.getSessionShares(id);
 
-    return c.json(shares.map(share => ({
-      id: share.id,
-      sessionId: share.session_id,
-      sharedByUserId: share.shared_by_user_id,
-      sharedWithUserId: share.shared_with_user_id,
-      sharedWithEmail: share.shared_with_email,
-      sharedWithName: share.shared_with_name,
-      grantedAt: share.granted_at,
-    })), 200);
+    return c.json(
+      shares.map((share) => ({
+        id: share.id,
+        sessionId: share.session_id,
+        sharedByUserId: share.shared_by_user_id,
+        sharedWithUserId: share.shared_with_user_id,
+        sharedWithEmail: share.shared_with_email,
+        sharedWithName: share.shared_with_name,
+        grantedAt: share.granted_at,
+      })),
+      200
+    );
   });
 
   // DELETE /sessions/:id/shares/:shareId - Revoke a share (T099, T062)
@@ -678,11 +692,14 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
       updated_at: now,
     });
 
-    return c.json({
-      sessionId: id,
-      lastActivityAt: now,
-      activityType,
-    }, 200);
+    return c.json(
+      {
+        sessionId: id,
+        lastActivityAt: now,
+        activityType,
+      },
+      200
+    );
   });
 
   // GET /sessions/:id/idle-status - Get idle status for session (T026)
@@ -723,12 +740,15 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
     try {
       const result = await sandboxService.scaffoldConfig(id, parseResult.output);
 
-      return c.json({
-        success: result.success,
-        commitSha: result.commitSha,
-        branch: result.branch,
-        configPath: result.configPath,
-      }, result.success ? 201 : 500);
+      return c.json(
+        {
+          success: result.success,
+          commitSha: result.commitSha,
+          branch: result.branch,
+          configPath: result.configPath,
+        },
+        result.success ? 201 : 500
+      );
     } catch (error) {
       if (error instanceof SessionNotFoundError) {
         return c.json({ error: `Session not found: ${id}` }, 404);

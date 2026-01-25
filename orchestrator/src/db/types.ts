@@ -54,7 +54,13 @@ export interface ProjectEnvironmentsTable {
  * Session state type for lifecycle management.
  * Extended in Phase 3 with 'merged' and 'archived' states.
  */
-export type SessionStateType = 'active' | 'suspended' | 'pr_open' | 'merged' | 'archived' | 'closed';
+export type SessionStateType =
+  | 'active'
+  | 'suspended'
+  | 'pr_open'
+  | 'merged'
+  | 'archived'
+  | 'closed';
 
 /**
  * Suspension reason type for session suspension tracking.

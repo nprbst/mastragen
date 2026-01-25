@@ -85,10 +85,7 @@ export class SessionsRepository {
    * Supports pagination via limit and offset.
    */
   async findAll(filters?: SessionFilters): Promise<Session[]> {
-    let query = this.db
-      .selectFrom('sessions')
-      .selectAll()
-      .orderBy('updated_at', 'desc');
+    let query = this.db.selectFrom('sessions').selectAll().orderBy('updated_at', 'desc');
 
     if (filters?.projectId) {
       query = query.where('project_id', '=', filters.projectId);
@@ -153,10 +150,7 @@ export class SessionsRepository {
   /**
    * Updates a session's git state (lastCommitSha, commitCount).
    */
-  async updateGitState(
-    id: string,
-    input: UpdateGitStateInput
-  ): Promise<Session | undefined> {
+  async updateGitState(id: string, input: UpdateGitStateInput): Promise<Session | undefined> {
     const updates: SessionUpdate = {
       updated_at: new Date().toISOString(),
     };
@@ -181,10 +175,7 @@ export class SessionsRepository {
    * Updates a session's PR state (T056).
    * Sets state to 'pr_open' and stores PR number and URL.
    */
-  async updatePRState(
-    id: string,
-    input: UpdatePRStateInput
-  ): Promise<Session | undefined> {
+  async updatePRState(id: string, input: UpdatePRStateInput): Promise<Session | undefined> {
     return this.db
       .updateTable('sessions')
       .set({

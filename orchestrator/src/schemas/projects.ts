@@ -22,7 +22,9 @@ export type CreateProjectRequest = v.InferInput<typeof CreateProjectRequestSchem
  */
 export const UpdateProjectRequestSchema = v.object({
   name: v.optional(v.pipe(v.string(), v.minLength(1, 'Project name is required'))),
-  githubRepo: v.optional(v.pipe(v.string(), v.regex(/^[^/]+\/[^/]+$/, 'Must be in org/repo format'))),
+  githubRepo: v.optional(
+    v.pipe(v.string(), v.regex(/^[^/]+\/[^/]+$/, 'Must be in org/repo format'))
+  ),
   defaultBranch: v.optional(v.string()),
   branchPrefix: v.optional(v.string()),
   mastraPath: v.optional(v.string()),

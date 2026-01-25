@@ -76,10 +76,7 @@ export type GitSha = v.InferOutput<typeof GitShaSchema>;
  */
 export const UserIdSchema = v.pipe(
   v.string(),
-  v.regex(
-    /^[a-zA-Z0-9_-]+$/,
-    'Must be alphanumeric with underscores and hyphens'
-  ),
+  v.regex(/^[a-zA-Z0-9_-]+$/, 'Must be alphanumeric with underscores and hyphens'),
   v.maxLength(50, 'Must be 50 characters or less')
 );
 export type UserId = v.InferOutput<typeof UserIdSchema>;

@@ -51,8 +51,7 @@ export class InsufficientPermissionsError extends Error {
     public requiredPermission: string
   ) {
     super(
-      `User '${username}' lacks '${requiredPermission}' permission for '${repo}'. ` +
-        `Request access from the repository owner or use an account with write permissions.`
+      `User '${username}' lacks '${requiredPermission}' permission for '${repo}'. Request access from the repository owner or use an account with write permissions.`
     );
     this.name = 'InsufficientPermissionsError';
   }
@@ -124,7 +123,7 @@ export class GitHubService {
     // Handle full URL
     if (cleaned.includes('github.com')) {
       const match = cleaned.match(/github\.com[/:]([^/]+)\/([^/]+)/);
-      if (match && match[1] && match[2]) {
+      if (match?.[1] && match[2]) {
         return { owner: match[1], repo: match[2] };
       }
     }
@@ -178,7 +177,7 @@ export class GitHubService {
         }
 
         // Exponential backoff: delay * 2^(attempt-1)
-        const delay = this.retryDelayMs * Math.pow(2, attempt - 1);
+        const delay = this.retryDelayMs * 2 ** (attempt - 1);
         console.warn(
           `[GitHubService] ${operation} - rate limited (status ${status}), retrying in ${delay}ms (attempt ${attempt}/${this.maxRetries})`
         );
@@ -271,11 +270,7 @@ export class GitHubService {
   /**
    * Gets pull request details.
    */
-  async getPullRequest(
-    owner: string,
-    repo: string,
-    prNumber: number
-  ): Promise<PRResult> {
+  async getPullRequest(owner: string, repo: string, prNumber: number): Promise<PRResult> {
     return this.withRetry('getPullRequest', async () => {
       const response = await this.octokit.rest.pulls.get({
         owner,
@@ -287,9 +282,7 @@ export class GitHubService {
         number: response.data.number,
         url: response.data.html_url,
         title: response.data.title,
-        state: response.data.merged
-          ? 'merged'
-          : (response.data.state as 'open' | 'closed'),
+        state: response.data.merged ? 'merged' : (response.data.state as 'open' | 'closed'),
       };
     });
   }
@@ -343,7 +336,9 @@ export class GitHubService {
    */
   async getDefaultBranchSha(owner: string, repo: string, branch?: string): Promise<string> {
     const startTime = Date.now();
-    console.log(`[GitHubService] getDefaultBranchSha - fetching for ${owner}/${repo}${branch ? ` (branch: ${branch})` : ''}`);
+    console.log(
+      `[GitHubService] getDefaultBranchSha - fetching for ${owner}/${repo}${branch ? ` (branch: ${branch})` : ''}`
+    );
 
     const result = await this.withRetry(
       'getDefaultBranchSha',
@@ -380,11 +375,7 @@ export class GitHubService {
   /**
    * Checks if a branch exists.
    */
-  async branchExists(
-    owner: string,
-    repo: string,
-    branchName: string
-  ): Promise<boolean> {
+  async branchExists(owner: string, repo: string, branchName: string): Promise<boolean> {
     try {
       await this.octokit.rest.repos.getBranch({
         owner,

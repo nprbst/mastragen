@@ -33,7 +33,11 @@ export async function up(db: Kysely<any>): Promise<void> {
     .column('condition_type')
     .execute();
 
-  await db.schema.createIndex('idx_alert_rules_enabled').on('alert_rules').column('enabled').execute();
+  await db.schema
+    .createIndex('idx_alert_rules_enabled')
+    .on('alert_rules')
+    .column('enabled')
+    .execute();
 
   // Create alert_events table
   await db.schema
@@ -51,9 +55,17 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   // Create indexes for alert_events
-  await db.schema.createIndex('idx_alert_events_rule_id').on('alert_events').column('rule_id').execute();
+  await db.schema
+    .createIndex('idx_alert_events_rule_id')
+    .on('alert_events')
+    .column('rule_id')
+    .execute();
 
-  await db.schema.createIndex('idx_alert_events_status').on('alert_events').column('status').execute();
+  await db.schema
+    .createIndex('idx_alert_events_status')
+    .on('alert_events')
+    .column('status')
+    .execute();
 
   await db.schema
     .createIndex('idx_alert_events_triggered_at')

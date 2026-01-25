@@ -1,8 +1,8 @@
-import { describe, expect, test, beforeAll, afterAll, beforeEach } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import type { Kysely } from 'kysely';
-import type { Database } from '../../src/db/types.ts';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrator.ts';
+import type { Database } from '../../src/db/types.ts';
 import { IdleSuspendJob } from '../../src/jobs/idle-suspend.ts';
 import { IdleConfigService } from '../../src/services/idle-config-service.ts';
 

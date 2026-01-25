@@ -1,7 +1,7 @@
-import { Migrator, FileMigrationProvider } from 'kysely';
+import { promises as fs } from 'node:fs';
+import * as path from 'node:path';
+import { FileMigrationProvider, Migrator } from 'kysely';
 import type { Kysely } from 'kysely';
-import * as path from 'path';
-import { promises as fs } from 'fs';
 import type { Database } from './types.ts';
 
 /**
@@ -28,13 +28,13 @@ export async function runMigrations(db: Kysely<Database>): Promise<void> {
   const { error, results } = await migrator.migrateToLatest();
   const quiet = process.env.NODE_ENV === 'test';
 
-  results?.forEach((it) => {
+  for (const it of results ?? []) {
     if (it.status === 'Success') {
       if (!quiet) console.log(`[Migrator] ✓ ${it.migrationName}`);
     } else if (it.status === 'Error') {
       console.error(`[Migrator] ✗ ${it.migrationName}`);
     }
-  });
+  }
 
   if (error) {
     console.error('[Migrator] Migration failed:', error);

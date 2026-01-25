@@ -6,8 +6,13 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database } from '../db/types.ts';
-import { ProjectsRepository, ProjectClaudeConfigRepository, ProjectCommandsRepository, ProjectSkillsRepository } from '../repositories/index.ts';
 import { requireAuth, requireProjectAdmin } from '../middleware/auth.ts';
+import {
+  ProjectClaudeConfigRepository,
+  ProjectCommandsRepository,
+  ProjectSkillsRepository,
+  ProjectsRepository,
+} from '../repositories/index.ts';
 
 /**
  * Schema for updating Claude config.
@@ -48,7 +53,9 @@ export function claudeConfigRoutes(db: Kysely<Database>): Hono {
   /**
    * Helper to transform DB config to API response.
    */
-  function toResponse(config: Awaited<ReturnType<typeof claudeConfigRepo.findByProjectId>>): ClaudeConfigResponse | null {
+  function toResponse(
+    config: Awaited<ReturnType<typeof claudeConfigRepo.findByProjectId>>
+  ): ClaudeConfigResponse | null {
     if (!config) return null;
 
     return {
@@ -187,14 +194,10 @@ export function claudeConfigRoutes(db: Kysely<Database>): Hono {
     // Add auto-approve patterns to permissions
     const permissions = settingsJson.permissions as { allow: string[]; deny: string[] };
     if (response.autoApproveFilePatterns.length > 0) {
-      permissions.allow.push(
-        ...response.autoApproveFilePatterns.map((p: string) => `Edit(${p})`)
-      );
+      permissions.allow.push(...response.autoApproveFilePatterns.map((p: string) => `Edit(${p})`));
     }
     if (response.autoApproveMcpTools.length > 0) {
-      permissions.allow.push(
-        ...response.autoApproveMcpTools.map((t: string) => `mcp__${t}`)
-      );
+      permissions.allow.push(...response.autoApproveMcpTools.map((t: string) => `mcp__${t}`));
     }
     if (response.autoApproveBashCommands.length > 0) {
       permissions.allow.push(
@@ -214,25 +217,28 @@ export function claudeConfigRoutes(db: Kysely<Database>): Hono {
     const commands = await commandsRepo.findByProjectId(projectId);
     const skills = await skillsRepo.findByProjectId(projectId);
 
-    return c.json({
-      settingsJson,
-      claudeMd,
-      commands: commands.map((cmd) => ({
-        name: cmd.name,
-        description: cmd.description,
-        content: cmd.content,
-      })),
-      skills: skills.map((skill) => ({
-        name: skill.name,
-        description: skill.description,
-        content: skill.content,
-      })),
-      project: {
-        id: project.id,
-        name: project.name,
-        githubRepo: project.github_repo,
+    return c.json(
+      {
+        settingsJson,
+        claudeMd,
+        commands: commands.map((cmd) => ({
+          name: cmd.name,
+          description: cmd.description,
+          content: cmd.content,
+        })),
+        skills: skills.map((skill) => ({
+          name: skill.name,
+          description: skill.description,
+          content: skill.content,
+        })),
+        project: {
+          id: project.id,
+          name: project.name,
+          githubRepo: project.github_repo,
+        },
       },
-    }, 200);
+      200
+    );
   });
 
   return app;

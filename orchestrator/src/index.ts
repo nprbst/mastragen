@@ -1,29 +1,29 @@
 import { Hono } from 'hono';
+import { serveStatic } from 'hono/bun';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { serveStatic } from 'hono/bun';
 import { loadConfig } from './config.ts';
 import { createDatabase } from './db/index.ts';
 import { runMigrations } from './db/migrator.ts';
+import { createAlertCheckerScheduler } from './jobs/alert-checker.ts';
+import { createIdleSuspendScheduler } from './jobs/idle-suspend.ts';
+import { createK8sMetricsScheduler } from './jobs/k8s-metrics.ts';
+import { initializeKeyPair } from './lib/crypto.ts';
+import { metricsMiddleware } from './middleware/metrics-middleware.ts';
+import { handleORPCRequest } from './orpc/index.ts';
+import { alertsRoutes } from './routes/alerts.ts';
+import { chromeSetupRoutes } from './routes/chrome-setup.ts';
+import { configRoutes } from './routes/config.ts';
 import {
   createAuthRoutes,
+  createWebhookRoutes,
   healthRoutes,
   projectsRoutes,
   sessionsRoutes,
-  createWebhookRoutes,
 } from './routes/index.ts';
-import { configRoutes } from './routes/config.ts';
 import { metricsRoutes } from './routes/metrics.ts';
 import { tailscaleRoutes } from './routes/tailscale.ts';
-import { alertsRoutes } from './routes/alerts.ts';
-import { chromeSetupRoutes } from './routes/chrome-setup.ts';
-import { handleORPCRequest } from './orpc/index.ts';
-import { initializeKeyPair } from './lib/crypto.ts';
-import { createIdleSuspendScheduler } from './jobs/idle-suspend.ts';
-import { createAlertCheckerScheduler } from './jobs/alert-checker.ts';
-import { createK8sMetricsScheduler } from './jobs/k8s-metrics.ts';
 import { initializeMetricsService } from './services/metrics-service.ts';
-import { metricsMiddleware } from './middleware/metrics-middleware.ts';
 
 const config = loadConfig();
 

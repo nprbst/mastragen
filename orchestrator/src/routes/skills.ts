@@ -6,9 +6,9 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database, ProjectSkill } from '../db/types.ts';
+import { requireAuth, requireProjectAdmin } from '../middleware/auth.ts';
 import { ProjectsRepository } from '../repositories/index.ts';
 import { ProjectSkillsRepository } from '../repositories/project-skills.ts';
-import { requireAuth, requireProjectAdmin } from '../middleware/auth.ts';
 
 /**
  * Schema for creating a skill.

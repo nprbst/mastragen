@@ -1,6 +1,6 @@
 import type { Kysely } from 'kysely';
 import { nanoid } from 'nanoid';
-import type { Database, User, NewUser, UserUpdate } from '../db/types.ts';
+import type { Database, NewUser, User, UserUpdate } from '../db/types.ts';
 
 /**
  * Repository for managing users authenticated via GitHub OAuth.
@@ -36,22 +36,14 @@ export class UsersRepository {
    * Find a user by ID.
    */
   async findById(id: string): Promise<User | undefined> {
-    return this.db
-      .selectFrom('users')
-      .selectAll()
-      .where('id', '=', id)
-      .executeTakeFirst();
+    return this.db.selectFrom('users').selectAll().where('id', '=', id).executeTakeFirst();
   }
 
   /**
    * Find a user by email.
    */
   async findByEmail(email: string): Promise<User | undefined> {
-    return this.db
-      .selectFrom('users')
-      .selectAll()
-      .where('email', '=', email)
-      .executeTakeFirst();
+    return this.db.selectFrom('users').selectAll().where('email', '=', email).executeTakeFirst();
   }
 
   /**

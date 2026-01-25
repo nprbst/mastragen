@@ -10,13 +10,14 @@ mastragen - AI-powered development platform with compounding knowledge
 
 **IMPORTANT: This is a Bun project. Use `bun` instead of `npm` for all commands.**
 
+### Installing Dependencies
+- `bun install` - Install all workspace dependencies (run from repo root)
+
 ### Web (Astro + React)
-- `cd web && bun install` - Install dependencies
 - `cd web && bun run dev` - Start development server
 - `cd web && bun run build` - Build for production
 
 ### Orchestrator (Hono + SQLite)
-- `cd orchestrator && bun install` - Install dependencies
 - `cd orchestrator && bun run dev` - Start development server
 - `cd orchestrator && bun run build` - Build for production
 

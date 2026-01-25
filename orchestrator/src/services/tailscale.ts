@@ -245,7 +245,9 @@ export class TailscaleService {
    */
   async revokeSessionAccess(request: RevokeAccessRequest): Promise<boolean> {
     if (!this.isConfigured()) {
-      console.warn('Tailscale service not configured - revoke will be recorded but ACL not updated');
+      console.warn(
+        'Tailscale service not configured - revoke will be recorded but ACL not updated'
+      );
       return true;
     }
 

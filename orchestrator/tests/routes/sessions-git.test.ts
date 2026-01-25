@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, mock, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
 import { ProjectsRepository } from '../../src/repositories/projects.ts';
 import { SessionsRepository } from '../../src/repositories/sessions.ts';
 import { AuthService } from '../../src/services/auth.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-sessions-git.db';
 
@@ -582,11 +582,9 @@ describe('Sessions Git Routes', () => {
       });
 
       // Call suspendWithGit with Claude history service
-      const result = await sandboxService.suspendWithGit(
-        session.id,
-        mockGitService as any,
-        { claudeHistoryService: mockClaudeHistoryService }
-      );
+      const result = await sandboxService.suspendWithGit(session.id, mockGitService as any, {
+        claudeHistoryService: mockClaudeHistoryService,
+      });
 
       // Verify saveClaudeHistory was called before commit
       const saveClaudeHistoryIndex = mockCalls.indexOf('saveClaudeHistory');
@@ -646,11 +644,9 @@ describe('Sessions Git Routes', () => {
       });
 
       // Call resumeWithGit with Claude history service
-      const result = await sandboxService.resumeWithGit(
-        session.id,
-        mockGitService as any,
-        { claudeHistoryService: mockClaudeHistoryService }
-      );
+      const result = await sandboxService.resumeWithGit(session.id, mockGitService as any, {
+        claudeHistoryService: mockClaudeHistoryService,
+      });
 
       // Verify restoreClaudeHistory was called after clone
       const cloneIndex = mockCalls.findIndex((c) => c.startsWith('clone:'));
@@ -1176,10 +1172,15 @@ describe('Sessions Git Routes', () => {
 
         await sessionsRepo.updateState(session.id, 'suspended');
 
-        await sandboxService.createPullRequest(session.id, mockGitService as any, mockGitHubService as any, {
-          title: 'Custom PR Title',
-          description: 'This is a custom description for the PR.',
-        });
+        await sandboxService.createPullRequest(
+          session.id,
+          mockGitService as any,
+          mockGitHubService as any,
+          {
+            title: 'Custom PR Title',
+            description: 'This is a custom description for the PR.',
+          }
+        );
 
         // Verify custom title and description were passed
         expect(capturedInput.title).toBe('Custom PR Title');
@@ -1366,8 +1367,8 @@ describe('Sessions Git Routes', () => {
         const project = await projectsRepo.findById(monorepoProjectId);
 
         expect(project).toBeDefined();
-        expect(project!.mastra_path).toBe('packages/backend');
-        expect(project!.ui_sandbox_path).toBe('packages/frontend');
+        expect(project?.mastra_path).toBe('packages/backend');
+        expect(project?.ui_sandbox_path).toBe('packages/frontend');
       });
     });
 
@@ -1525,8 +1526,8 @@ describe('Sessions Git Routes', () => {
         // Verify session is linked to monorepo project
         const project = await projectsRepo.findById(session.project_id);
         expect(project).toBeDefined();
-        expect(project!.mastra_path).toBe('packages/backend');
-        expect(project!.ui_sandbox_path).toBe('packages/frontend');
+        expect(project?.mastra_path).toBe('packages/backend');
+        expect(project?.ui_sandbox_path).toBe('packages/frontend');
 
         // The test passes if we can create a session for a monorepo project
         // The actual git -C behavior is tested in unit tests (git.test.ts)
@@ -1546,8 +1547,8 @@ describe('Sessions Git Routes', () => {
         // These paths are used in SandboxService.startContainers() to set workingDir:
         // - Mastra container: /workspace/${project.mastra_path}
         // - Astro container: /workspace/${project.ui_sandbox_path}
-        expect(project!.mastra_path).toBe('packages/backend');
-        expect(project!.ui_sandbox_path).toBe('packages/frontend');
+        expect(project?.mastra_path).toBe('packages/backend');
+        expect(project?.ui_sandbox_path).toBe('packages/frontend');
 
         // The actual implementation in sandbox.ts:
         // const mastraWorkDir = `/workspace${project.mastra_path !== '.' ? `/${project.mastra_path}` : ''}`;

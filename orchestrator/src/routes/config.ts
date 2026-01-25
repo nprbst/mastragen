@@ -9,9 +9,9 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database } from '../db/types.ts';
-import { IdleConfigService } from '../services/idle-config-service.ts';
-import { UpdateGlobalIdleConfigRequestSchema } from '../schemas/idle-config.ts';
 import { requireAuth } from '../middleware/auth.ts';
+import { UpdateGlobalIdleConfigRequestSchema } from '../schemas/idle-config.ts';
+import { IdleConfigService } from '../services/idle-config-service.ts';
 
 /**
  * Creates configuration routes.
@@ -50,10 +50,7 @@ export function configRoutes(db: Kysely<Database>): Hono {
     // Validate warning_minutes is less than idle_timeout_minutes
     if (input.warningMinutes !== undefined && input.idleTimeoutMinutes !== undefined) {
       if (input.warningMinutes >= input.idleTimeoutMinutes) {
-        return c.json(
-          { error: 'Warning time must be less than idle timeout' },
-          400
-        );
+        return c.json({ error: 'Warning time must be less than idle timeout' }, 400);
       }
     }
 

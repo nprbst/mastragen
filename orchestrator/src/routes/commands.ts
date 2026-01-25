@@ -6,9 +6,9 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database, ProjectCommand } from '../db/types.ts';
+import { requireAuth, requireProjectAdmin } from '../middleware/auth.ts';
 import { ProjectsRepository } from '../repositories/index.ts';
 import { ProjectCommandsRepository } from '../repositories/project-commands.ts';
-import { requireAuth, requireProjectAdmin } from '../middleware/auth.ts';
 
 /**
  * Schema for creating a command.

@@ -5,17 +5,21 @@ import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database, Project } from '../db/types.ts';
-import { optionalAuth, getAuthUser } from '../middleware/auth.ts';
+import { getAuthUser, optionalAuth } from '../middleware/auth.ts';
+import { requireAuth } from '../middleware/auth.ts';
 import { ProjectsRepository } from '../repositories/index.ts';
+import { SetProjectIdleConfigRequestSchema } from '../schemas/idle-config.ts';
 import type {
   EnvironmentResponse,
   ProjectResponse,
   ProjectWithEnvironments,
 } from '../schemas/index.ts';
-import { AddEnvironmentRequestSchema, CreateProjectRequestSchema, UpdateProjectRequestSchema } from '../schemas/index.ts';
+import {
+  AddEnvironmentRequestSchema,
+  CreateProjectRequestSchema,
+  UpdateProjectRequestSchema,
+} from '../schemas/index.ts';
 import { IdleConfigService } from '../services/idle-config-service.ts';
-import { SetProjectIdleConfigRequestSchema } from '../schemas/idle-config.ts';
-import { requireAuth } from '../middleware/auth.ts';
 
 /**
  * Fetch user's accessible GitHub App installations.
@@ -306,10 +310,13 @@ export function projectsRoutes(db: Kysely<Database>): Hono {
 
     // Return global config with indication that it's the fallback
     const globalConfig = await idleConfigService.getGlobalConfig();
-    return c.json({
-      ...globalConfig,
-      isGlobalFallback: true,
-    }, 200);
+    return c.json(
+      {
+        ...globalConfig,
+        isGlobalFallback: true,
+      },
+      200
+    );
   });
 
   // PUT /projects/:id/idle-config - Set project idle configuration (T030)
@@ -338,10 +345,7 @@ export function projectsRoutes(db: Kysely<Database>): Hono {
 
     // Validate warning_minutes is less than idle_timeout_minutes
     if (input.warningMinutes >= input.idleTimeoutMinutes) {
-      return c.json(
-        { error: 'Warning time must be less than idle timeout' },
-        400
-      );
+      return c.json({ error: 'Warning time must be less than idle timeout' }, 400);
     }
 
     try {
@@ -365,7 +369,10 @@ export function projectsRoutes(db: Kysely<Database>): Hono {
 
     await idleConfigService.deleteProjectConfig(projectId);
 
-    return c.json({ success: true, message: 'Project idle config deleted, now using global defaults' }, 200);
+    return c.json(
+      { success: true, message: 'Project idle config deleted, now using global defaults' },
+      200
+    );
   });
 
   return app;

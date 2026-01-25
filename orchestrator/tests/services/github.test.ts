@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { GitHubService, GitHubAPIError } from '../../src/services/github.ts';
+import { GitHubAPIError, GitHubService } from '../../src/services/github.ts';
 
 // Mock Octokit
 const mockOctokit = {
@@ -115,11 +115,7 @@ describe('GitHubService', () => {
         octokit: mockOctokit as any,
       });
 
-      const permissions = await service.checkUserPermissions(
-        'owner',
-        'repo',
-        'testuser'
-      );
+      const permissions = await service.checkUserPermissions('owner', 'repo', 'testuser');
 
       expect(permissions.canRead).toBe(true);
       expect(permissions.canWrite).toBe(true);
@@ -149,11 +145,7 @@ describe('GitHubService', () => {
         octokit: adminMock as any,
       });
 
-      const permissions = await service.checkUserPermissions(
-        'owner',
-        'repo',
-        'adminuser'
-      );
+      const permissions = await service.checkUserPermissions('owner', 'repo', 'adminuser');
 
       expect(permissions.canRead).toBe(true);
       expect(permissions.canWrite).toBe(true);
@@ -183,11 +175,7 @@ describe('GitHubService', () => {
         octokit: readOnlyMock as any,
       });
 
-      const permissions = await service.checkUserPermissions(
-        'owner',
-        'repo',
-        'reader'
-      );
+      const permissions = await service.checkUserPermissions('owner', 'repo', 'reader');
 
       expect(permissions.canRead).toBe(true);
       expect(permissions.canWrite).toBe(false);
@@ -201,9 +189,7 @@ describe('GitHubService', () => {
           ...mockOctokit.rest,
           repos: {
             ...mockOctokit.rest.repos,
-            getCollaboratorPermissionLevel: mock(() =>
-              Promise.reject(new Error('Not Found'))
-            ),
+            getCollaboratorPermissionLevel: mock(() => Promise.reject(new Error('Not Found'))),
           },
         },
       };
@@ -212,9 +198,9 @@ describe('GitHubService', () => {
         octokit: errorMock as any,
       });
 
-      await expect(
-        service.checkUserPermissions('owner', 'repo', 'testuser')
-      ).rejects.toThrow(GitHubAPIError);
+      await expect(service.checkUserPermissions('owner', 'repo', 'testuser')).rejects.toThrow(
+        GitHubAPIError
+      );
     });
   });
 
@@ -246,9 +232,7 @@ describe('GitHubService', () => {
           ...mockOctokit.rest,
           pulls: {
             ...mockOctokit.rest.pulls,
-            create: mock(() =>
-              Promise.reject(new Error('Validation failed'))
-            ),
+            create: mock(() => Promise.reject(new Error('Validation failed'))),
           },
         },
       };
@@ -342,11 +326,7 @@ describe('GitHubService', () => {
         retryDelayMs: 10, // Short delay for tests
       });
 
-      const permissions = await service.checkUserPermissions(
-        'owner',
-        'repo',
-        'testuser'
-      );
+      const permissions = await service.checkUserPermissions('owner', 'repo', 'testuser');
 
       expect(permissions.canWrite).toBe(true);
       expect(callCount).toBe(3);
@@ -377,9 +357,9 @@ describe('GitHubService', () => {
         retryDelayMs: 10,
       });
 
-      await expect(
-        service.checkUserPermissions('owner', 'repo', 'testuser')
-      ).rejects.toThrow(GitHubAPIError);
+      await expect(service.checkUserPermissions('owner', 'repo', 'testuser')).rejects.toThrow(
+        GitHubAPIError
+      );
     });
   });
 });

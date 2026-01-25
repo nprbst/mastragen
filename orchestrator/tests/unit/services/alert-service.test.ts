@@ -1,11 +1,11 @@
-import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import type { Kysely } from 'kysely';
-import type { Database } from '../../../src/db/types.ts';
 import { createDatabase } from '../../../src/db/index.ts';
 import { runMigrations } from '../../../src/db/migrator.ts';
+import type { Database } from '../../../src/db/types.ts';
+import type { AlertDestination } from '../../../src/schemas/alerts.ts';
 import { AlertService } from '../../../src/services/alert-service.ts';
 import { MetricsService } from '../../../src/services/metrics-service.ts';
-import type { AlertDestination } from '../../../src/schemas/alerts.ts';
 
 /**
  * T073: Unit tests for AlertService
@@ -51,10 +51,10 @@ describe('AlertService', () => {
       const rule = await alertService.getRule('alert-pod-creation-failed');
 
       expect(rule).not.toBeNull();
-      expect(rule!.name).toBe('Pod Creation Failure');
-      expect(rule!.conditionType).toBe('pod_creation_failed');
-      expect(rule!.severity).toBe('error');
-      expect(rule!.enabled).toBe(true);
+      expect(rule?.name).toBe('Pod Creation Failure');
+      expect(rule?.conditionType).toBe('pod_creation_failed');
+      expect(rule?.severity).toBe('error');
+      expect(rule?.enabled).toBe(true);
     });
 
     test('should return null for non-existent rule', async () => {
@@ -77,12 +77,12 @@ describe('AlertService', () => {
       });
 
       expect(rule).not.toBeNull();
-      expect(rule!.id).toBeDefined();
-      expect(rule!.name).toBe('Test Rule');
-      expect(rule!.conditionType).toBe('pod_creation_failed');
-      expect(rule!.severity).toBe('warning');
-      expect(rule!.enabled).toBe(true);
-      expect(rule!.destinations).toEqual(destinations);
+      expect(rule?.id).toBeDefined();
+      expect(rule?.name).toBe('Test Rule');
+      expect(rule?.conditionType).toBe('pod_creation_failed');
+      expect(rule?.severity).toBe('warning');
+      expect(rule?.enabled).toBe(true);
+      expect(rule?.destinations).toEqual(destinations);
     });
 
     test('should update existing rule', async () => {
@@ -93,9 +93,9 @@ describe('AlertService', () => {
       });
 
       expect(updated).not.toBeNull();
-      expect(updated!.name).toBe('Updated Name');
-      expect(updated!.enabled).toBe(false);
-      expect(updated!.severity).toBe('critical');
+      expect(updated?.name).toBe('Updated Name');
+      expect(updated?.enabled).toBe(false);
+      expect(updated?.severity).toBe('critical');
     });
 
     test('should delete rule', async () => {
@@ -113,11 +113,11 @@ describe('AlertService', () => {
       const event = await alertService.fireAlert('alert-pod-creation-failed', context);
 
       expect(event).not.toBeNull();
-      expect(event!.id).toBeDefined();
-      expect(event!.ruleId).toBe('alert-pod-creation-failed');
-      expect(event!.context).toEqual(context);
-      expect(event!.status).toBe('pending');
-      expect(event!.deliveryAttempts).toBe(0);
+      expect(event?.id).toBeDefined();
+      expect(event?.ruleId).toBe('alert-pod-creation-failed');
+      expect(event?.context).toEqual(context);
+      expect(event?.status).toBe('pending');
+      expect(event?.deliveryAttempts).toBe(0);
     });
 
     test('should increment metrics counter on fire', async () => {
@@ -167,22 +167,24 @@ describe('AlertService', () => {
 
     test('should get event by id', async () => {
       const fired = await alertService.fireAlert('alert-pod-creation-failed', { test: true });
+      expect(fired).not.toBeNull();
 
       const event = await alertService.getEvent(fired!.id);
 
       expect(event).not.toBeNull();
-      expect(event!.id).toBe(fired!.id);
+      expect(event?.id).toBe(fired!.id);
     });
 
     test('should acknowledge event', async () => {
       const fired = await alertService.fireAlert('alert-pod-creation-failed', {});
+      expect(fired).not.toBeNull();
 
       const acked = await alertService.acknowledgeEvent(fired!.id, 'user-123', 'Fixed manually');
 
       expect(acked).not.toBeNull();
-      expect(acked!.status).toBe('acknowledged');
-      expect(acked!.acknowledgedBy).toBe('user-123');
-      expect(acked!.acknowledgedAt).toBeDefined();
+      expect(acked?.status).toBe('acknowledged');
+      expect(acked?.acknowledgedBy).toBe('user-123');
+      expect(acked?.acknowledgedAt).toBeDefined();
     });
   });
 
@@ -286,6 +288,7 @@ describe('AlertService', () => {
       const event = await alertService.fireAlert('alert-pod-creation-failed', {
         sessionId: 'test-123',
       });
+      expect(event).not.toBeNull();
 
       // Verify payload structure (delivery tested in integration)
       const payload = alertService.formatWebhookPayload(event!);
@@ -314,18 +317,20 @@ describe('AlertService', () => {
 
     test('should track delivery attempts', async () => {
       const event = await alertService.fireAlert('alert-pod-creation-failed', {});
+      expect(event).not.toBeNull();
 
       expect(event!.deliveryAttempts).toBe(0);
 
       await alertService.incrementDeliveryAttempt(event!.id);
 
       const updated = await alertService.getEvent(event!.id);
-      expect(updated!.deliveryAttempts).toBe(1);
-      expect(updated!.lastDeliveryAt).toBeDefined();
+      expect(updated?.deliveryAttempts).toBe(1);
+      expect(updated?.lastDeliveryAt).toBeDefined();
     });
 
     test('should mark as failed after max attempts', async () => {
       const event = await alertService.fireAlert('alert-pod-creation-failed', {});
+      expect(event).not.toBeNull();
 
       // Simulate max attempts (5)
       for (let i = 0; i < 5; i++) {
@@ -335,7 +340,7 @@ describe('AlertService', () => {
       await alertService.checkAndMarkFailed(event!.id);
 
       const updated = await alertService.getEvent(event!.id);
-      expect(updated!.status).toBe('failed');
+      expect(updated?.status).toBe('failed');
     });
   });
 

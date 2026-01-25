@@ -1,13 +1,13 @@
-import { describe, expect, test, beforeAll, afterAll, beforeEach } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
-import type { Database } from '../../src/db/types.ts';
 import { createDatabase } from '../../src/db/index.ts';
 import { runMigrations } from '../../src/db/migrator.ts';
+import type { Database } from '../../src/db/types.ts';
+import { AlertCheckerJob } from '../../src/jobs/alert-checker.ts';
 import { alertsRoutes } from '../../src/routes/alerts.ts';
 import { AlertService } from '../../src/services/alert-service.ts';
 import { MetricsService } from '../../src/services/metrics-service.ts';
-import { AlertCheckerJob } from '../../src/jobs/alert-checker.ts';
 import { createTestJwt } from '../helpers/jwt.ts';
 
 /**
@@ -31,10 +31,7 @@ describe('Alerts integration', () => {
   const testUserEmail = 'test@example.com';
 
   // Helper to make authenticated requests
-  async function authRequest(
-    path: string,
-    options: RequestInit = {}
-  ): Promise<Response> {
+  async function authRequest(path: string, options: RequestInit = {}): Promise<Response> {
     return app.request(path, {
       ...options,
       headers: {
@@ -111,7 +108,13 @@ describe('Alerts integration', () => {
       const res = await authRequest('/alerts/rules/alert-pod-creation-failed');
 
       expect(res.status).toBe(200);
-      const rule = (await res.json()) as { id: string; name: string; conditionType: string; severity: string; enabled: boolean };
+      const rule = (await res.json()) as {
+        id: string;
+        name: string;
+        conditionType: string;
+        severity: string;
+        enabled: boolean;
+      };
       expect(rule.id).toBe('alert-pod-creation-failed');
       expect(rule.name).toBe('Pod Creation Failure');
       expect(rule.conditionType).toBe('pod_creation_failed');
@@ -138,7 +141,11 @@ describe('Alerts integration', () => {
       });
 
       expect(res.status).toBe(201);
-      const rule = (await res.json()) as { name: string; severity: string; destinations: unknown[] };
+      const rule = (await res.json()) as {
+        name: string;
+        severity: string;
+        destinations: unknown[];
+      };
       expect(rule.name).toBe('Test Alert');
       expect(rule.severity).toBe('critical');
       expect(rule.destinations.length).toBe(1);
@@ -197,6 +204,7 @@ describe('Alerts integration', () => {
         sessionId: 'test-session',
         error: 'Test error',
       });
+      expect(event).not.toBeNull();
       testEventId = event!.id;
     });
 
@@ -234,7 +242,11 @@ describe('Alerts integration', () => {
       const res = await authRequest(`/alerts/events/${testEventId}`);
 
       expect(res.status).toBe(200);
-      const event = (await res.json()) as { id: string; ruleId: string; context: { sessionId: string } };
+      const event = (await res.json()) as {
+        id: string;
+        ruleId: string;
+        context: { sessionId: string };
+      };
       expect(event.id).toBe(testEventId);
       expect(event.ruleId).toBe('alert-pod-creation-failed');
       expect(event.context.sessionId).toBe('test-session');
@@ -254,7 +266,11 @@ describe('Alerts integration', () => {
       });
 
       expect(res.status).toBe(200);
-      const ack = (await res.json()) as { status: string; acknowledgedBy: string; acknowledgedAt: string };
+      const ack = (await res.json()) as {
+        status: string;
+        acknowledgedBy: string;
+        acknowledgedAt: string;
+      };
       expect(ack.status).toBe('acknowledged');
       expect(ack.acknowledgedBy).toBe(testUserId);
       expect(ack.acknowledgedAt).toBeDefined();
@@ -326,11 +342,11 @@ describe('Alerts integration', () => {
       // 2. List events and find it
       const listRes = await authRequest('/alerts/events?status=pending');
       const listData = (await listRes.json()) as { events: Array<{ id: string }> };
-      const foundEvent = listData.events.find((e) => e.id === event!.id);
+      const foundEvent = listData.events.find((e) => e.id === event?.id);
       expect(foundEvent).toBeDefined();
 
       // 3. Acknowledge the event
-      const ackRes = await authRequest(`/alerts/events/${event!.id}/acknowledge`, {
+      const ackRes = await authRequest(`/alerts/events/${event?.id}/acknowledge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note: 'Cleaned up orphaned pod' }),
@@ -338,7 +354,7 @@ describe('Alerts integration', () => {
       expect(ackRes.status).toBe(200);
 
       // 4. Verify it's acknowledged
-      const getRes = await authRequest(`/alerts/events/${event!.id}`);
+      const getRes = await authRequest(`/alerts/events/${event?.id}`);
       const ackEvent = (await getRes.json()) as { status: string };
       expect(ackEvent.status).toBe('acknowledged');
     });

@@ -15,7 +15,9 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('idle_config')
     .addColumn('id', 'text', (col) => col.primaryKey())
-    .addColumn('project_id', 'text', (col) => col.unique().references('projects.id').onDelete('cascade'))
+    .addColumn('project_id', 'text', (col) =>
+      col.unique().references('projects.id').onDelete('cascade')
+    )
     .addColumn('idle_timeout_minutes', 'integer', (col) => col.notNull().defaultTo(30))
     .addColumn('warning_minutes', 'integer', (col) => col.notNull().defaultTo(5))
     .addColumn('enabled', 'integer', (col) => col.notNull().defaultTo(1))

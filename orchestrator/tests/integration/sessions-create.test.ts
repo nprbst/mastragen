@@ -1,10 +1,10 @@
-import { describe, expect, test, beforeEach, beforeAll, afterAll } from 'bun:test';
-import type { Kysely } from 'kysely';
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
+import type { Kysely } from 'kysely';
 import type { Database } from '../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
 import { ProjectsRepository, UsersRepository } from '../../src/repositories/index.ts';
 import { sessionsRoutes } from '../../src/routes/sessions.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 // Test T039: Integration test for POST /sessions with Claude config injection
 
@@ -77,7 +77,14 @@ describe('POST /sessions with Claude config injection', () => {
       });
 
       expect(res.status).toBe(201);
-      const body = (await res.json()) as { id: string; projectId: string; artifactName: string; environment: string; state: string; urls: unknown };
+      const body = (await res.json()) as {
+        id: string;
+        projectId: string;
+        artifactName: string;
+        environment: string;
+        state: string;
+        urls: unknown;
+      };
 
       expect(body.id).toBeDefined();
       expect(body.projectId).toBe(testProjectId);
@@ -165,18 +172,21 @@ describe('POST /sessions with Claude config injection', () => {
   describe('Claude config injection on session create', () => {
     test('should inject settings.json when project has Claude config', async () => {
       // Add Claude config for project
-      await db.insertInto('project_claude_config').values({
-        id: 'config-1',
-        project_id: testProjectId,
-        mcp_servers: JSON.stringify({
-          orchestrator: {
-            command: 'npx',
-            args: ['@mastragen/mcp'],
-          },
-        }),
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      }).execute();
+      await db
+        .insertInto('project_claude_config')
+        .values({
+          id: 'config-1',
+          project_id: testProjectId,
+          mcp_servers: JSON.stringify({
+            orchestrator: {
+              command: 'npx',
+              args: ['@mastragen/mcp'],
+            },
+          }),
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .execute();
 
       const res = await app.request('/sessions', {
         method: 'POST',

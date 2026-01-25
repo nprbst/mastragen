@@ -2,16 +2,16 @@ import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database } from '../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
-import { createTestJwt } from '../helpers/jwt.ts';
-import { ProjectsRepository } from '../../src/repositories/projects.ts';
-import { healthRoutes } from '../../src/routes/health.ts';
-import { sessionsRoutes } from '../../src/routes/sessions.ts';
-import { metricsRoutes } from '../../src/routes/metrics.ts';
-import { alertsRoutes } from '../../src/routes/alerts.ts';
 import { metricsMiddleware } from '../../src/middleware/metrics-middleware.ts';
-import { initializeMetricsService, getMetricsService } from '../../src/services/metrics-service.ts';
+import { ProjectsRepository } from '../../src/repositories/projects.ts';
+import { alertsRoutes } from '../../src/routes/alerts.ts';
+import { healthRoutes } from '../../src/routes/health.ts';
+import { metricsRoutes } from '../../src/routes/metrics.ts';
+import { sessionsRoutes } from '../../src/routes/sessions.ts';
 import { AlertService } from '../../src/services/alert-service.ts';
+import { getMetricsService, initializeMetricsService } from '../../src/services/metrics-service.ts';
+import { createTestJwt } from '../helpers/jwt.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 const TEST_DB_PATH = './data/test-e2e-monitoring.db';
 
@@ -209,7 +209,9 @@ describe('Monitoring E2E', () => {
 
       // Verify via Prometheus format output (direct from service, not endpoint)
       const prometheusOutput = await metricsService.formatPrometheus();
-      expect(prometheusOutput).toContain('mastragen_session_creations_total{project="manual-test-project"}');
+      expect(prometheusOutput).toContain(
+        'mastragen_session_creations_total{project="manual-test-project"}'
+      );
     });
   });
 
@@ -265,7 +267,9 @@ describe('Monitoring E2E', () => {
 
       // Verify via Prometheus format output (direct from service, not endpoint)
       const prometheusOutput = await metricsService.formatPrometheus();
-      expect(prometheusOutput).toContain('mastragen_alerts_fired_total{type="pod_creation_failed"}');
+      expect(prometheusOutput).toContain(
+        'mastragen_alerts_fired_total{type="pod_creation_failed"}'
+      );
     });
   });
 
@@ -331,12 +335,12 @@ describe('Monitoring E2E', () => {
       const listRes = await authRequest('/alerts/events?status=pending');
       expect(listRes.status).toBe(200);
       const listData = (await listRes.json()) as { events: Array<{ id: string; status: string }> };
-      const pendingEvent = listData.events.find((e) => e.id === event!.id);
+      const pendingEvent = listData.events.find((e) => e.id === event?.id);
       expect(pendingEvent).toBeDefined();
-      expect(pendingEvent!.status).toBe('pending');
+      expect(pendingEvent?.status).toBe('pending');
 
       // 4. Acknowledge the alert
-      const ackRes = await authRequest(`/alerts/events/${event!.id}/acknowledge`, {
+      const ackRes = await authRequest(`/alerts/events/${event?.id}/acknowledge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ note: 'E2E workflow test acknowledgment' }),
@@ -344,7 +348,7 @@ describe('Monitoring E2E', () => {
       expect(ackRes.status).toBe(200);
 
       // 5. Verify acknowledgment
-      const getRes = await authRequest(`/alerts/events/${event!.id}`);
+      const getRes = await authRequest(`/alerts/events/${event?.id}`);
       const acknowledgedEvent = (await getRes.json()) as { status: string; acknowledgedBy: string };
       expect(acknowledgedEvent.status).toBe('acknowledged');
       expect(acknowledgedEvent.acknowledgedBy).toBe(testUserId);

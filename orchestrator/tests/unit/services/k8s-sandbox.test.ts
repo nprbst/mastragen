@@ -1,4 +1,4 @@
-import { describe, expect, test, mock, beforeEach } from 'bun:test';
+import { beforeEach, describe, expect, mock, test } from 'bun:test';
 
 /**
  * T095f-i: Unit tests for K8sSandboxService
@@ -40,9 +40,7 @@ describe('K8sSandboxService', () => {
         },
       }));
 
-      const { K8sSandboxService } = await import(
-        '../../../src/services/k8s-sandbox.ts'
-      );
+      const { K8sSandboxService } = await import('../../../src/services/k8s-sandbox.ts');
 
       const service = new K8sSandboxService({
         namespace: 'mastragen',
@@ -87,9 +85,7 @@ describe('K8sSandboxService', () => {
         },
       }));
 
-      const { K8sSandboxService } = await import(
-        '../../../src/services/k8s-sandbox.ts'
-      );
+      const { K8sSandboxService } = await import('../../../src/services/k8s-sandbox.ts');
 
       const service = new K8sSandboxService({
         namespace: 'mastragen',
@@ -136,9 +132,7 @@ describe('K8sSandboxService', () => {
         },
       }));
 
-      const { K8sSandboxService } = await import(
-        '../../../src/services/k8s-sandbox.ts'
-      );
+      const { K8sSandboxService } = await import('../../../src/services/k8s-sandbox.ts');
 
       const service = new K8sSandboxService({
         namespace: 'mastragen',
@@ -185,9 +179,7 @@ describe('K8sSandboxService', () => {
         },
       }));
 
-      const { K8sSandboxService } = await import(
-        '../../../src/services/k8s-sandbox.ts'
-      );
+      const { K8sSandboxService } = await import('../../../src/services/k8s-sandbox.ts');
 
       const service = new K8sSandboxService({
         namespace: 'mastragen',
@@ -235,9 +227,7 @@ describe('K8sSandboxService', () => {
         },
       }));
 
-      const { K8sSandboxService } = await import(
-        '../../../src/services/k8s-sandbox.ts'
-      );
+      const { K8sSandboxService } = await import('../../../src/services/k8s-sandbox.ts');
 
       const service = new K8sSandboxService({
         namespace: 'mastragen',
@@ -328,9 +318,7 @@ describe('K8sSandboxService', () => {
         },
       }));
 
-      const { K8sSandboxService } = await import(
-        '../../../src/services/k8s-sandbox.ts'
-      );
+      const { K8sSandboxService } = await import('../../../src/services/k8s-sandbox.ts');
 
       const service = new K8sSandboxService({
         namespace: 'mastragen',
@@ -401,8 +389,8 @@ describe('K8sSandboxService', () => {
       // Temporarily clear env vars
       const originalNamespace = process.env.MASTRAGEN_NAMESPACE;
       const originalTailnet = process.env.TAILSCALE_TAILNET;
-      delete process.env.MASTRAGEN_NAMESPACE;
-      delete process.env.TAILSCALE_TAILNET;
+      process.env.MASTRAGEN_NAMESPACE = undefined;
+      process.env.TAILSCALE_TAILNET = undefined;
 
       const mockKc = {
         loadFromCluster: mock(() => {
@@ -426,9 +414,7 @@ describe('K8sSandboxService', () => {
         },
       }));
 
-      const { createK8sSandboxService } = await import(
-        '../../../src/services/k8s-sandbox.ts'
-      );
+      const { createK8sSandboxService } = await import('../../../src/services/k8s-sandbox.ts');
 
       const service = createK8sSandboxService();
       expect(service).toBeNull();

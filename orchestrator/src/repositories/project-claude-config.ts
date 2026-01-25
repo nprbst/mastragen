@@ -1,10 +1,6 @@
 import type { Kysely } from 'kysely';
 import { nanoid } from 'nanoid';
-import type {
-  Database,
-  ProjectClaudeConfig,
-  ProjectClaudeConfigUpdate,
-} from '../db/types.ts';
+import type { Database, ProjectClaudeConfig, ProjectClaudeConfigUpdate } from '../db/types.ts';
 
 /**
  * Input for creating a new project Claude config.
@@ -172,10 +168,7 @@ export class ProjectClaudeConfigRepository {
    * Delete a Claude config by ID.
    */
   async delete(id: string): Promise<boolean> {
-    const result = await this.db
-      .deleteFrom('project_claude_config')
-      .where('id', '=', id)
-      .execute();
+    const result = await this.db.deleteFrom('project_claude_config').where('id', '=', id).execute();
 
     return (result[0]?.numDeletedRows ?? 0n) > 0n;
   }

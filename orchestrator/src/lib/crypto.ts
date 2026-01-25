@@ -1,6 +1,6 @@
-import crypto from 'crypto';
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { join } from 'path';
+import crypto from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 // Key pair stored in memory, generated at startup or loaded from env
 let keyPair: { publicKey: string; privateKey: string } | null = null;

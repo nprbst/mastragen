@@ -1,10 +1,14 @@
-import { describe, expect, test, beforeAll, afterAll, beforeEach } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import type { Database as DatabaseSchema, Project } from '../../src/db/types.ts';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
+import {
+  requireAuth,
+  requireProjectAccess,
+  requireProjectAdmin,
+} from '../../src/middleware/auth.ts';
 import { createTestJwt } from '../helpers/jwt.ts';
-import { requireAuth, requireProjectAccess, requireProjectAdmin } from '../../src/middleware/auth.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 // Type for our app's context variables
 type AppVariables = {

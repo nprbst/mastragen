@@ -1,17 +1,17 @@
-import { describe, expect, test, beforeEach, beforeAll, afterAll } from 'bun:test';
+import { afterAll, beforeAll, beforeEach, describe, expect, test } from 'bun:test';
 
 // Track if we have real GitHub credentials (affects which tests can run)
 const hasRealGitHubCredentials = !!process.env.GITHUB_APP_CLIENT_ID;
-import type { Kysely } from 'kysely';
+import crypto from 'node:crypto';
 import { Hono } from 'hono';
+import type { Kysely } from 'kysely';
 import { nanoid } from 'nanoid';
-import crypto from 'crypto';
-import { createTestDb, cleanupTestDb } from '../helpers/test-db.ts';
-import { createTestJwt } from '../helpers/jwt.ts';
+import type { Database } from '../../src/db/types.ts';
+import { initializeKeyPair } from '../../src/lib/crypto.ts';
 import { createAuthRoutes } from '../../src/routes/auth.ts';
 import { AuthService } from '../../src/services/auth.ts';
-import { initializeKeyPair } from '../../src/lib/crypto.ts';
-import type { Database } from '../../src/db/types.ts';
+import { createTestJwt } from '../helpers/jwt.ts';
+import { cleanupTestDb, createTestDb } from '../helpers/test-db.ts';
 
 // Generate test RSA keys at module load time
 const testKeyPair = crypto.generateKeyPairSync('rsa', {
@@ -31,7 +31,13 @@ describe('Auth routes integration', () => {
   let db: Kysely<Database>;
   let app: Hono;
   let authService: AuthService;
-  let testUser: { id: string; email: string; name: string; github_id: number; github_login: string };
+  let testUser: {
+    id: string;
+    email: string;
+    name: string;
+    github_id: number;
+    github_login: string;
+  };
 
   beforeAll(async () => {
     db = await createTestDb(TEST_DB_PATH);
@@ -46,15 +52,18 @@ describe('Auth routes integration', () => {
       github_login: 'testuser',
     };
 
-    await db.insertInto('users').values({
-      id: testUser.id,
-      email: testUser.email,
-      name: testUser.name,
-      github_id: testUser.github_id,
-      github_login: testUser.github_login,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    }).execute();
+    await db
+      .insertInto('users')
+      .values({
+        id: testUser.id,
+        email: testUser.email,
+        name: testUser.name,
+        github_id: testUser.github_id,
+        github_login: testUser.github_login,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .execute();
   });
 
   afterAll(async () => {
@@ -115,33 +124,36 @@ describe('Auth routes integration', () => {
       expect(body.error).toBe('Invalid state parameter');
     });
 
-    test.skipIf(hasRealGitHubCredentials)('should exchange code for tokens and create session', async () => {
-      // This test only works in mock mode (no GITHUB_APP_CLIENT_ID)
-      // When real credentials are present, the OAuth flow requires a real GitHub code
+    test.skipIf(hasRealGitHubCredentials)(
+      'should exchange code for tokens and create session',
+      async () => {
+        // This test only works in mock mode (no GITHUB_APP_CLIENT_ID)
+        // When real credentials are present, the OAuth flow requires a real GitHub code
 
-      // First, initiate login to get a valid state
-      const loginRes = await app.request('/auth/login');
-      const location = loginRes.headers.get('Location');
-      expect(location).toBeDefined();
+        // First, initiate login to get a valid state
+        const loginRes = await app.request('/auth/login');
+        const location = loginRes.headers.get('Location');
+        expect(location).toBeDefined();
 
-      // Extract state from the redirect URL
-      const url = new URL(location!);
-      const validState = url.searchParams.get('state');
-      expect(validState).toBeDefined();
+        // Extract state from the redirect URL
+        const url = new URL(location!);
+        const validState = url.searchParams.get('state');
+        expect(validState).toBeDefined();
 
-      // In development mode (no GITHUB_APP_CLIENT_ID), the AuthService uses mock data
-      const validCode = 'dev-auth-code';
+        // In development mode (no GITHUB_APP_CLIENT_ID), the AuthService uses mock data
+        const validCode = 'dev-auth-code';
 
-      const res = await app.request(`/auth/callback?code=${validCode}&state=${validState}`);
+        const res = await app.request(`/auth/callback?code=${validCode}&state=${validState}`);
 
-      // Should redirect to the original redirect_uri with access token
-      expect(res.status).toBe(302);
+        // Should redirect to the original redirect_uri with access token
+        expect(res.status).toBe(302);
 
-      // Should set refresh token cookie
-      const setCookie = res.headers.get('Set-Cookie');
-      expect(setCookie).toBeDefined();
-      expect(setCookie).toMatch(/refresh_token=/);
-    });
+        // Should set refresh token cookie
+        const setCookie = res.headers.get('Set-Cookie');
+        expect(setCookie).toBeDefined();
+        expect(setCookie).toMatch(/refresh_token=/);
+      }
+    );
   });
 
   describe('POST /auth/logout', () => {
