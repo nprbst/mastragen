@@ -2,14 +2,19 @@ FROM oven/bun:1-slim
 
 WORKDIR /app
 
-# Install curl for healthcheck
+# Install curl for healthcheck and build tools for native dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    build-essential \
+    python3 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy workspace root files
+# Copy workspace root and all workspace package.json files
 COPY package.json bun.lock ./
+COPY web/package.json ./web/
 COPY orchestrator/package.json ./orchestrator/
+COPY cli/package.json ./cli/
+COPY experiments/package.json ./experiments/
 
 # Install all dependencies (including dev)
 RUN bun install --filter './orchestrator'

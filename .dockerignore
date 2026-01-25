@@ -24,7 +24,11 @@ specs/
 !README.md
 
 # Other services/tools not needed for orchestrator image
-cli/
+# Note: cli/ and experiments/ package.json are needed for workspace validation
+cli/*
+!cli/package.json
+experiments/*
+!experiments/package.json
 helm/
 scripts/
 sandbox/
