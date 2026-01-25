@@ -20,6 +20,7 @@ import type {
   SessionResponse,
   SessionWithUrlsResponse,
   CreateSessionRequest,
+  ConfigRequiredResponse,
   ListSessionsFilter,
   ProjectResponse,
   ProjectWithEnvironments,
@@ -28,9 +29,13 @@ import type {
   AddEnvironmentRequest,
   EnvironmentResponse,
 } from '../../orchestrator/src/schemas/index.ts';
+import type {
+  ScaffoldConfigRequest,
+  ScaffoldConfigResponse,
+} from '../../orchestrator/src/schemas/config-scaffold.ts';
 
 // Re-export types for CLI consumers
-export type { HealthStatus, ServiceUrls, CreateSessionRequest, ListSessionsFilter, CreateProjectRequest, UpdateProjectRequest, AddEnvironmentRequest };
+export type { HealthStatus, ServiceUrls, CreateSessionRequest, ConfigRequiredResponse, ListSessionsFilter, CreateProjectRequest, UpdateProjectRequest, AddEnvironmentRequest, ScaffoldConfigRequest, ScaffoldConfigResponse };
 
 // Alias for CLI usage (Session is the wire format)
 export type Session = SessionResponse;
@@ -202,16 +207,19 @@ export class MgenClient {
 
   /**
    * Creates a new session.
+   * Returns ConfigRequiredResponse if config.toml is missing from repo and no config provided.
    */
-  async createSession(request: CreateSessionRequest): Promise<SessionWithUrls> {
+  async createSession(
+    request: CreateSessionRequest
+  ): Promise<SessionWithUrls | ConfigRequiredResponse> {
     // Use REST endpoint until oRPC handlers are fully implemented
-    const result = await this.request<SessionWithUrls>('/api/sessions', {
+    const result = await this.request<SessionWithUrls | ConfigRequiredResponse>('/api/sessions', {
       method: 'POST',
       body: JSON.stringify(request),
     });
 
     // Store session token for later use (suspend, activity, etc.)
-    if (result.sessionToken) {
+    if ('sessionToken' in result && result.sessionToken) {
       saveSessionToken(result.id, result.sessionToken);
     }
 
@@ -495,6 +503,27 @@ export class MgenClient {
     }
 
     return response.text();
+  }
+
+  // ===== Config Scaffolding =====
+
+  /**
+   * Scaffold .mastragen/config.toml in a session workspace.
+   * Requires session token authentication.
+   */
+  async scaffoldConfig(
+    sessionId: string,
+    sessionToken: string,
+    config: ScaffoldConfigRequest
+  ): Promise<ScaffoldConfigResponse> {
+    return this.request<ScaffoldConfigResponse>(
+      `/api/sessions/${sessionId}/scaffold-config`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${sessionToken}` },
+        body: JSON.stringify(config),
+      }
+    );
   }
 
   /**

@@ -191,7 +191,8 @@ export class K8sSandboxService {
     envVars: Record<string, string> = {},
     claudeToken?: string,
     claudeConfigMapName?: string,
-    phoenixConfig?: PhoenixConfig
+    phoenixConfig?: PhoenixConfig,
+    configContent?: string
   ): Promise<void> {
     const configMapName = this.getConfigMapName(session.id);
 
@@ -216,7 +217,8 @@ export class K8sSandboxService {
       envVars,
       claudeToken,
       claudeConfigMapName,
-      phoenixConfig
+      phoenixConfig,
+      configContent
     );
     await this.coreApi.createNamespacedPod({ namespace: this.config.namespace, body: pod });
   }
@@ -967,10 +969,14 @@ ${phoenixEntry}`;
     envVars: Record<string, string>,
     claudeToken?: string,
     claudeConfigMapName?: string,
-    phoenixConfig?: PhoenixConfig
+    phoenixConfig?: PhoenixConfig,
+    configContent?: string
   ): k8s.V1Pod {
     const podName = this.getPodName(session.id);
     const hostname = this.getHostname(session.id);
+
+    // Determine branch to clone: session branch > project default branch > repo default
+    const branchToClone = session.branch_name || project.default_branch;
 
     // Base environment variables (shared by all containers)
     const baseEnv: k8s.V1EnvVar[] = [
@@ -978,8 +984,9 @@ ${phoenixEntry}`;
       { name: 'PROJECT_ID', value: project.id },
       { name: 'WORKSPACE_VOLUME', value: session.workspace_volume ?? undefined },
       { name: 'GITHUB_REPO', value: project.github_repo },
-      ...(session.branch_name ? [{ name: 'BRANCH', value: session.branch_name }] : []),
+      ...(branchToClone ? [{ name: 'BRANCH', value: branchToClone }] : []),
       ...Object.entries(envVars).map(([name, value]) => ({ name, value })),
+      ...(configContent ? [{ name: 'CONFIG_CONTENT', value: configContent }] : []),
     ];
 
     if (claudeToken) {

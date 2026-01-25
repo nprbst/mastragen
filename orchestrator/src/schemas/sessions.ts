@@ -25,8 +25,24 @@ export const ServiceUrlsSchema = v.object({
 export type ServiceUrls = v.InferOutput<typeof ServiceUrlsSchema>;
 
 /**
+ * Config input for session creation (when config.toml is missing).
+ */
+export const ConfigInputSchema = v.object({
+  phoenix: v.optional(v.object({ enabled: v.boolean() })),
+  astro: v.optional(
+    v.object({
+      enabled: v.boolean(),
+      path: v.optional(v.string()),
+    })
+  ),
+});
+export type ConfigInput = v.InferOutput<typeof ConfigInputSchema>;
+
+/**
  * Create session request body.
  * Accepts either plaintext claudeToken or encryptedClaudeToken (encrypted with orchestrator's public key).
+ * Optional config field allows providing config settings when config.toml is missing from the repo.
+ * Optional githubToken for pre-flight config check and git operations (CLI can get from `gh auth token`).
  */
 export const CreateSessionRequestSchema = v.object({
   projectId: IdSchema,
@@ -35,6 +51,8 @@ export const CreateSessionRequestSchema = v.object({
   userId: v.optional(UserIdSchema),
   claudeToken: v.optional(v.string()),
   encryptedClaudeToken: v.optional(v.string()),
+  config: v.optional(ConfigInputSchema),
+  githubToken: v.optional(v.string()),
 });
 export type CreateSessionRequest = v.InferOutput<typeof CreateSessionRequestSchema>;
 
@@ -172,6 +190,15 @@ export const PullRequestResponseSchema = v.object({
   pr: PRInfoSchema,
 });
 export type PullRequestResponse = v.InferOutput<typeof PullRequestResponseSchema>;
+
+/**
+ * Response when config is required (config.toml missing from repo).
+ */
+export const ConfigRequiredResponseSchema = v.object({
+  requiresConfig: v.literal(true),
+  message: v.string(),
+});
+export type ConfigRequiredResponse = v.InferOutput<typeof ConfigRequiredResponseSchema>;
 
 /**
  * Error response.

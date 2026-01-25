@@ -390,6 +390,26 @@ export class GitHubService {
       throw error;
     }
   }
+
+  /**
+   * Checks if a file exists in a repository at a specific ref.
+   */
+  async fileExists(owner: string, repo: string, path: string, ref: string): Promise<boolean> {
+    try {
+      await this.octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path,
+        ref,
+      });
+      return true;
+    } catch (error) {
+      if ((error as any).status === 404) {
+        return false;
+      }
+      throw error;
+    }
+  }
 }
 
 /**

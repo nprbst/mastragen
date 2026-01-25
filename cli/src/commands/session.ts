@@ -17,8 +17,11 @@ import {
   waitForSession,
 } from '../output.ts';
 import { handleCancel } from '../prompts.ts';
+import { promptForConfig } from '../config-scaffold-prompts.ts';
 import { getCachedToken, saveCachedToken, truncateToken } from '../utils/claude-token.ts';
+import { getGitHubToken } from '../utils/github-token.ts';
 import { openInChrome, resolveServices } from '../utils/browser.ts';
+import type { SessionWithUrls } from '../client.ts';
 
 /**
  * Prompts user for Claude OAuth token with caching support.
@@ -155,13 +158,54 @@ export function sessionCommand(client: MgenClient): Command {
           claudeToken = await promptForClaudeToken();
         }
 
-        // Create session
-        const result = await client.createSession({
+        // 5. GitHub token (from gh CLI if available - for pre-flight config check)
+        const githubToken = getGitHubToken() ?? undefined;
+
+        // Create session (may return requiresConfig response)
+        let initialResult = await client.createSession({
           projectId,
           artifactName,
           environment,
           claudeToken,
+          githubToken,
         });
+
+        // Handle requiresConfig response - prompt for config and retry
+        let result: SessionWithUrls;
+        if ('requiresConfig' in initialResult && initialResult.requiresConfig) {
+          if (options.json) {
+            // In JSON mode, return the requiresConfig response
+            console.log(JSON.stringify(initialResult, null, 2));
+            process.exit(0);
+          }
+
+          // Prompt user for config settings
+          const config = await promptForConfig();
+          if (!config) {
+            // User cancelled - exit gracefully
+            console.log(error('Session creation cancelled'));
+            process.exit(0);
+          }
+
+          // Retry with config
+          const retryResult = await client.createSession({
+            projectId,
+            artifactName,
+            environment,
+            claudeToken,
+            githubToken,
+            config,
+          });
+
+          // Ensure retry succeeded (shouldn't return requiresConfig again)
+          if ('requiresConfig' in retryResult) {
+            console.error(error('Unexpected error: config still required after providing config'));
+            process.exit(1);
+          }
+          result = retryResult;
+        } else {
+          result = initialResult as SessionWithUrls;
+        }
 
         // Wait for session to be ready (skip in JSON mode)
         if (!options.json) {

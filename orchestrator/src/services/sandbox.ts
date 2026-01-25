@@ -123,6 +123,7 @@ export interface CreateSandboxInput {
   userGithubToken?: string;
   userGitName?: string;
   userGitEmail?: string;
+  configContent?: string;
 }
 
 export interface CreateSandboxWithGitInput extends CreateSandboxInput {
@@ -311,6 +312,7 @@ export class SandboxService {
       userGithubToken,
       userGitName,
       userGitEmail,
+      configContent,
     } = input;
 
     // Validate project exists
@@ -370,7 +372,8 @@ export class SandboxService {
           userGithubToken,
           userGitName,
           userGitEmail,
-          sessionToken
+          sessionToken,
+          configContent
         );
         console.log('[SandboxService] create() - startContainers completed');
       } catch (err) {
@@ -965,139 +968,6 @@ export class SandboxService {
   }
 
   /**
-   * Scaffolds a .mastragen/config.toml file in the session's workspace.
-   * Writes the config file and creates a git commit on the session's branch.
-   *
-   * @param sessionId - The session ID
-   * @param components - The component configuration to write
-   * @returns The commit SHA and branch name
-   */
-  async scaffoldConfig(
-    sessionId: string,
-    components: { phoenix?: { enabled: boolean }; astro?: { enabled: boolean; path?: string } }
-  ): Promise<{ success: boolean; commitSha?: string; branch?: string; configPath: string }> {
-    const session = await this.sessionsRepo.findById(sessionId);
-    if (!session) {
-      throw new SessionNotFoundError(sessionId);
-    }
-
-    if (session.state !== 'active') {
-      throw new SessionNotActiveError(sessionId);
-    }
-
-    const configPath = '.mastragen/config.toml';
-
-    // Build the config TOML content
-    const configLines = ['# Mastragen Project Configuration', 'version = "1"'];
-
-    if (components.phoenix) {
-      configLines.push('');
-      configLines.push('[phoenix]');
-      configLines.push(`enabled = ${components.phoenix.enabled}`);
-    }
-
-    if (components.astro) {
-      configLines.push('');
-      configLines.push('[astro]');
-      configLines.push(`enabled = ${components.astro.enabled}`);
-      if (components.astro.path) {
-        configLines.push(`path = "${components.astro.path}"`);
-      }
-    }
-
-    const configContent = `${configLines.join('\n')}\n`;
-
-    // Docker mode: write to container and commit
-    if (this.dockerEnabled) {
-      // Find the vscode container (used for git operations)
-      const vscodeContainerName = `${sessionId}-vscode`;
-      const container = this.docker.getContainer(vscodeContainerName);
-
-      try {
-        // Create .mastragen directory if it doesn't exist
-        const mkdirExec = await container.exec({
-          Cmd: ['mkdir', '-p', '/workspace/.mastragen'],
-          AttachStdout: true,
-          AttachStderr: true,
-        });
-        await mkdirExec.start({});
-
-        // Write the config file
-        await this.writeFileToContainer(container, `/workspace/${configPath}`, configContent);
-
-        // Stage and commit the file
-        const addExec = await container.exec({
-          Cmd: ['git', '-C', '/workspace', 'add', configPath],
-          AttachStdout: true,
-          AttachStderr: true,
-        });
-        await addExec.start({});
-
-        const commitExec = await container.exec({
-          Cmd: ['git', '-C', '/workspace', 'commit', '-m', 'chore: add mastragen config'],
-          AttachStdout: true,
-          AttachStderr: true,
-        });
-        const commitStream = await commitExec.start({});
-
-        // Wait for commit to complete and get output
-        await new Promise<void>((resolve) => {
-          commitStream.on('end', resolve);
-          commitStream.on('error', resolve);
-        });
-
-        // Get the commit SHA
-        const shaExec = await container.exec({
-          Cmd: ['git', '-C', '/workspace', 'rev-parse', 'HEAD'],
-          AttachStdout: true,
-          AttachStderr: true,
-        });
-        const shaStream = await shaExec.start({});
-        let sha = '';
-        await new Promise<void>((resolve) => {
-          shaStream.on('data', (chunk: Buffer) => {
-            sha += chunk.slice(8).toString().trim();
-          });
-          shaStream.on('end', resolve);
-          shaStream.on('error', resolve);
-        });
-
-        // Get the current branch
-        const branchExec = await container.exec({
-          Cmd: ['git', '-C', '/workspace', 'rev-parse', '--abbrev-ref', 'HEAD'],
-          AttachStdout: true,
-          AttachStderr: true,
-        });
-        const branchStream = await branchExec.start({});
-        let branch = '';
-        await new Promise<void>((resolve) => {
-          branchStream.on('data', (chunk: Buffer) => {
-            branch += chunk.slice(8).toString().trim();
-          });
-          branchStream.on('end', resolve);
-          branchStream.on('error', resolve);
-        });
-
-        // Update cache to reflect config now exists
-        this.sessionConfigMissingCache.set(sessionId, false);
-
-        return {
-          success: true,
-          commitSha: sha || undefined,
-          branch: branch || session.branch_name || undefined,
-          configPath,
-        };
-      } catch (err) {
-        console.error('[SandboxService] Failed to scaffold config:', err);
-        return { success: false, configPath };
-      }
-    }
-
-    // Non-Docker mode (tests): just return success without actual file operations
-    return { success: true, configPath };
-  }
-
-  /**
    * Cleans up a session: stops containers, optionally removes volume, and deletes from database.
    */
   async cleanup(sessionId: string, options: CleanupOptions = {}): Promise<void> {
@@ -1294,7 +1164,8 @@ export class SandboxService {
     userGithubToken?: string,
     userGitName?: string,
     userGitEmail?: string,
-    sessionToken?: string
+    sessionToken?: string,
+    configContent?: string
   ): Promise<void> {
     console.log(`[SandboxService] startContainers called for session ${session.id}`);
     console.log(`[SandboxService] dockerEnabled: ${this.dockerEnabled}`);
@@ -1346,7 +1217,9 @@ export class SandboxService {
         project,
         parsedEnvVars,
         claudeToken,
-        claudeConfigMapName
+        claudeConfigMapName,
+        undefined, // phoenixConfig
+        configContent
       );
 
       console.log('[SandboxService] K8s sandbox pod created, CLI will poll for ready status');
@@ -1376,12 +1249,12 @@ export class SandboxService {
       console.log('[SandboxService] Volume already exists, continuing...');
     }
 
-    // Run init container to clone the repo (using session branch if available)
+    // Run init container to clone the repo (session branch > project default branch)
     await this.runInitContainer(
       session.id,
       volumeName,
       project.github_repo,
-      session.branch_name ?? undefined,
+      session.branch_name || project.default_branch || undefined,
       userGithubToken
     );
 

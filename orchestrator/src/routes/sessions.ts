@@ -1,9 +1,11 @@
+import { Octokit } from '@octokit/rest';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
 import * as v from 'valibot';
 import type { Database, Session } from '../db/types.ts';
 import { IdleSuspendJob } from '../jobs/idle-suspend.ts';
 import { decryptToken } from '../lib/crypto.ts';
+import { generateConfigToml } from '../lib/project-config.ts';
 import { getAuthUser, optionalAuth, requireAuth, requireSessionAuth } from '../middleware/auth.ts';
 import {
   ProjectsRepository,
@@ -15,7 +17,6 @@ import {
   CreateSessionRequestSchema,
   ListSessionsFilterSchema,
   ResumeSessionRequestSchema,
-  ScaffoldConfigRequestSchema,
   type SessionResponse,
   type SessionWithGitResponse,
   type SessionWithUrlsAndGitResponse,
@@ -24,6 +25,7 @@ import {
 import { RecordActivityRequestSchema } from '../schemas/session-activity.ts';
 import { getAuditLogger } from '../services/audit-logger.ts';
 import { AuthService } from '../services/auth.ts';
+import { GitHubService } from '../services/github.ts';
 import {
   EnvironmentNotFoundError,
   ProjectNotFoundError,
@@ -130,7 +132,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
       return c.json({ error: 'Either claudeToken or encryptedClaudeToken is required' }, 400);
     }
 
-    // Get authenticated user's GitHub token and identity if available
+    // Get GitHub token and identity - prefer from authenticated user, fall back to request body
     let userGithubToken: string | undefined;
     let userGitName: string | undefined;
     let userGitEmail: string | undefined;
@@ -146,6 +148,68 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
       userGitEmail = dbUser?.email ?? undefined;
     }
 
+    // Fall back to GitHub token from request body (CLI can get from `gh auth token`)
+    if (!userGithubToken && body.githubToken) {
+      userGithubToken = body.githubToken;
+    }
+
+    // Pre-flight check: verify config exists in repo (if user has GitHub token)
+    let configContent: string | undefined;
+    console.log(
+      '[sessions] Pre-flight check - user:',
+      user?.id,
+      'hasGithubToken:',
+      !!userGithubToken
+    );
+    if (userGithubToken) {
+      try {
+        // Look up project to get GitHub repo
+        const project = await projectsRepo.findById(body.projectId);
+        console.log('[sessions] Pre-flight check - project github_repo:', project?.github_repo);
+        if (project?.github_repo) {
+          const [owner, repo] = project.github_repo.split('/');
+          if (owner && repo) {
+            // Check if config exists using user's token
+            const octokit = new Octokit({ auth: userGithubToken });
+            const githubService = new GitHubService({ octokit });
+            const defaultBranch = project.default_branch || 'main';
+            console.log(
+              '[sessions] Pre-flight check - checking file existence on',
+              owner,
+              repo,
+              defaultBranch
+            );
+            const configExists = await githubService.fileExists(
+              owner,
+              repo,
+              '.mastragen/config.toml',
+              defaultBranch
+            );
+            console.log('[sessions] Pre-flight check - configExists:', configExists);
+
+            if (!configExists) {
+              // Config missing - check if provided in request
+              if (!body.config) {
+                // Return requiresConfig response
+                return c.json(
+                  {
+                    requiresConfig: true,
+                    message: 'No .mastragen/config.toml found in repository',
+                  },
+                  200
+                );
+              }
+              // Generate TOML content from provided config
+              configContent = generateConfigToml(body.config);
+            }
+          }
+        }
+      } catch (err) {
+        // Log but don't fail - config check is best-effort
+        console.warn('[sessions] Pre-flight config check failed:', err);
+      }
+    }
+
     try {
       const result = await sandboxService.create({
         projectId: body.projectId,
@@ -156,6 +220,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
         userGithubToken,
         userGitName,
         userGitEmail,
+        configContent,
       });
 
       const response: SessionWithUrlsResponse = {
@@ -714,53 +779,6 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
     }
 
     return c.json(status, 200);
-  });
-
-  // POST /sessions/:id/scaffold-config - Create .mastragen/config.toml in workspace
-  app.post('/:id/scaffold-config', requireSessionAuth(), async (c) => {
-    const id = c.req.param('id');
-
-    let rawBody: unknown;
-    try {
-      rawBody = await c.req.json();
-    } catch {
-      return c.json({ error: 'Invalid JSON body' }, 400);
-    }
-
-    // Validate request body
-    const parseResult = v.safeParse(ScaffoldConfigRequestSchema, rawBody);
-    if (!parseResult.success) {
-      const issues = parseResult.issues.map((i) => {
-        const path = i.path?.map((p) => p.key).join('.') || 'input';
-        return `${path}: ${i.message}`;
-      });
-      return c.json({ error: 'Validation failed', issues }, 400);
-    }
-
-    try {
-      const result = await sandboxService.scaffoldConfig(id, parseResult.output);
-
-      return c.json(
-        {
-          success: result.success,
-          commitSha: result.commitSha,
-          branch: result.branch,
-          configPath: result.configPath,
-        },
-        result.success ? 201 : 500
-      );
-    } catch (error) {
-      if (error instanceof SessionNotFoundError) {
-        return c.json({ error: `Session not found: ${id}` }, 404);
-      }
-
-      if (error instanceof SessionNotActiveError) {
-        return c.json({ error: 'Session must be active to scaffold config' }, 400);
-      }
-
-      console.error('Error scaffolding config:', error);
-      return c.json({ error: 'Internal server error' }, 500);
-    }
   });
 
   return app;

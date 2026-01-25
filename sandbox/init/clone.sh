@@ -52,6 +52,20 @@ if [ -n "$UI_SANDBOX_PATH" ] && [ -f "/workspace/${UI_SANDBOX_PATH}/package.json
     fi
 fi
 
+# Create config file if CONFIG_CONTENT is provided and config doesn't exist
+if [ -n "$CONFIG_CONTENT" ] && [ ! -f "/workspace/.mastragen/config.toml" ]; then
+    echo "Creating .mastragen/config.toml..."
+    mkdir -p /workspace/.mastragen
+    printf '%s\n' "$CONFIG_CONTENT" > /workspace/.mastragen/config.toml
+    cd /workspace
+    # Configure git user identity for commit (use env vars or defaults)
+    git config user.name "${GIT_USER_NAME:-mastragen}"
+    git config user.email "${GIT_USER_EMAIL:-mastragen@local}"
+    git add .mastragen/config.toml
+    git commit -m "chore: add mastragen config"
+    echo "Config created and committed"
+fi
+
 # Create marker file to signal init is complete
 touch /workspace/.init-complete
 
