@@ -45,6 +45,11 @@ tailscale:
   apiSecretName: mastragen-tailscale
   aclTags: []  # No ACL tags for local dev
 
+# Anthropic API configuration
+anthropic:
+  secretName: mastragen-anthropic
+  secretKey: api-key
+
 # Local Caddy image for development
 caddy:
   enabled: true

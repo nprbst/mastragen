@@ -79,6 +79,14 @@ spec:
             - name: TAILSCALE_SECRET_KEY
               value: {{ .Values.tailscale.authKeySecretKey | quote }}
             {{- end }}
+            {{- if .Values.anthropic.secretName }}
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.anthropic.secretName }}
+                  key: {{ .Values.anthropic.secretKey | default "api-key" }}
+                  optional: true
+            {{- end }}
           {{- with .Values.orchestrator.envFrom }}
           envFrom:
             {{- toYaml . | nindent 12 }}

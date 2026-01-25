@@ -155,6 +155,13 @@ tailscale:
     size: 100Mi
     storageClass: ""
 
+# Anthropic API configuration
+anthropic:
+  # Secret containing Anthropic API key (for Mastra SDK calls)
+  # Create with: kubectl create secret generic mastragen-anthropic --from-literal=api-key="sk-ant-..."
+  secretName: ""
+  secretKey: "api-key"
+
 # T095c-e: Caddy HTTPS configuration
 caddy:
   # Enable Caddy sidecar for HTTPS termination

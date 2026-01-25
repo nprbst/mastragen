@@ -1132,7 +1132,7 @@ export class SandboxService {
       `GH_TOKEN=${userGithubToken || ''}`,
       `GIT_USER_NAME=${userGitName || ''}`,
       `GIT_USER_EMAIL=${userGitEmail || ''}`,
-      `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY || ''}`,
+      // ANTHROPIC_API_KEY is set per-container (mastra uses server API key, vscode uses OAuth token)
       ...Object.entries(parsedEnvVars).map(([k, v]) => `${k}=${v}`),
     ];
 
@@ -1153,7 +1153,8 @@ export class SandboxService {
           port: SandboxService.PORTS.mastra,
           env: [
             ...baseEnv,
-            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`, `ANTHROPIC_API_KEY=${claudeToken}`] : []),
+            `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY || ''}`, // Mastra SDK needs actual API key
+            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
           ],
           workingDir: mastraWorkDir,
         },
@@ -1163,6 +1164,7 @@ export class SandboxService {
           port: SandboxService.PORTS.vscode,
           env: [
             ...baseEnv,
+            // Claude Code extension uses OAuth token for authentication
             ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`, `ANTHROPIC_API_KEY=${claudeToken}`] : []),
           ],
         },

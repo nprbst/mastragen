@@ -912,7 +912,7 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
     const podName = this.getPodName(session.id);
     const hostname = this.getHostname(session.id);
 
-    // Base environment variables
+    // Base environment variables (shared by all containers)
     const baseEnv: k8s.V1EnvVar[] = [
       { name: 'SESSION_ID', value: session.id },
       { name: 'PROJECT_ID', value: project.id },
@@ -924,8 +924,19 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
 
     if (claudeToken) {
       baseEnv.push({ name: 'CLAUDE_CODE_OAUTH_TOKEN', value: claudeToken });
-      baseEnv.push({ name: 'ANTHROPIC_API_KEY', value: claudeToken });
     }
+
+    // Container-specific environment variables
+    // Mastra SDK needs actual API key, VSCode Claude Code extension uses OAuth token
+    const mastraEnv: k8s.V1EnvVar[] = [
+      ...baseEnv,
+      ...(process.env.ANTHROPIC_API_KEY ? [{ name: 'ANTHROPIC_API_KEY', value: process.env.ANTHROPIC_API_KEY }] : []),
+    ];
+
+    const vscodeEnv: k8s.V1EnvVar[] = [
+      ...baseEnv,
+      ...(claudeToken ? [{ name: 'ANTHROPIC_API_KEY', value: claudeToken }] : []),
+    ];
 
     return {
       apiVersion: 'v1',
@@ -951,7 +962,7 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.vscode}:${this.config.imageTag}`,
             imagePullPolicy: this.config.imagePullPolicy,
             env: [
-              ...baseEnv,
+              ...vscodeEnv, // Includes OAuth token as ANTHROPIC_API_KEY for Claude Code extension
               { name: 'CODE_SERVER_PORT', value: String(INTERNAL_PORTS.vscode) },
               // SimpleBrowser preview URL for Astro (via Tailscale HTTPS)
               { name: 'ASTRO_PREVIEW_URL', value: `https://${hostname}:${SANDBOX_PORTS.astro}` },
@@ -974,7 +985,7 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
             image: `${this.config.imageRegistry}/${SANDBOX_IMAGES.mastra}:${this.config.imageTag}`,
             imagePullPolicy: this.config.imagePullPolicy,
             env: [
-              ...baseEnv,
+              ...mastraEnv, // Includes actual API key from process.env for Mastra SDK
               { name: 'MASTRA_PORT', value: String(INTERNAL_PORTS.mastra) },
             ],
             volumeMounts: [{ name: 'workspace', mountPath: '/workspace' }],
