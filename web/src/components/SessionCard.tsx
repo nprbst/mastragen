@@ -4,7 +4,6 @@ import {
   createAuthHeaders,
   getStoredClaudeToken,
   setStoredClaudeToken,
-  hasStoredClaudeToken,
 } from '../lib/auth';
 import { encryptToken } from '../lib/crypto';
 import { IdleWarningBanner } from './IdleWarningBanner';

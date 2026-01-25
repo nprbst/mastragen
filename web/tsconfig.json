@@ -9,5 +9,5 @@
     },
     "types": ["vitest/globals"]
   },
-  "exclude": ["tests/**/*", "vitest.config.ts"]
+  "exclude": ["tests/**/*", "vitest.config.ts", "dist/**/*"]
 }

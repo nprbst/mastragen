@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { createAuthHeaders, getCachedUser } from '../../lib/auth';
+import { createAuthHeaders } from '../../lib/auth';
 
 const API_BASE = '/api';
 

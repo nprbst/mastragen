@@ -26,10 +26,11 @@ export function createMigrator(db: Kysely<Database>): Migrator {
 export async function runMigrations(db: Kysely<Database>): Promise<void> {
   const migrator = createMigrator(db);
   const { error, results } = await migrator.migrateToLatest();
+  const quiet = process.env.NODE_ENV === 'test';
 
   results?.forEach((it) => {
     if (it.status === 'Success') {
-      console.log(`[Migrator] ✓ ${it.migrationName}`);
+      if (!quiet) console.log(`[Migrator] ✓ ${it.migrationName}`);
     } else if (it.status === 'Error') {
       console.error(`[Migrator] ✗ ${it.migrationName}`);
     }
