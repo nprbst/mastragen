@@ -19,6 +19,9 @@ if [ -n "$GH_TOKEN" ]; then
     echo "https://x-access-token:${GH_TOKEN}@github.com" > ~/.git-credentials
 fi
 
+# Mark /workspace as safe for git (prevents ownership warnings)
+git config --global --add safe.directory /workspace
+
 # Check if workspace is empty (ignore hidden files)
 if [ -z "$(ls -A /workspace 2>/dev/null)" ]; then
     if [ -n "$BRANCH" ]; then

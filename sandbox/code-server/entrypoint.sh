@@ -7,6 +7,9 @@ if [ -n "$GH_TOKEN" ]; then
     echo "https://x-access-token:${GH_TOKEN}@github.com" > ~/.git-credentials
 fi
 
+# Mark /workspace as safe for git (handles ownership mismatch from init container)
+git config --global --add safe.directory /workspace
+
 # Configure git user identity - use provided values or fall back to placeholders
 if [ -n "$GIT_USER_EMAIL" ]; then
     git config --global user.email "$GIT_USER_EMAIL"
