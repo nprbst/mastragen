@@ -2,7 +2,7 @@
  * Output formatting utilities for CLI
  */
 
-import type { Session, SessionWithUrls, HealthStatus, Project, ProjectDetail, Environment, SessionShareInfo, SessionShareResult, IdleStatus } from './client.ts';
+import type { Session, SessionWithUrls, HealthStatus, Project, ProjectDetail, Environment, SessionShareInfo, SessionShareResult, IdleStatus, SessionStatus, MgenClient } from './client.ts';
 
 // ANSI color codes for terminal output
 const colors = {
@@ -465,4 +465,101 @@ export async function waitForPorts(
   if (notReady.length > 0) {
     console.log(warn(`Some services did not respond: ${notReady.map((s) => s.name).join(', ')}`));
   }
+}
+
+// Spinner frames for progress animation
+const spinnerFrames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+/**
+ * Waits for a session to be ready, displaying progressive status.
+ * Uses the status API for K8s mode, falls back to port checking.
+ */
+export async function waitForSession(
+  client: MgenClient,
+  session: SessionWithUrls,
+  options?: { timeout?: number; interval?: number; requestTimeout?: number }
+): Promise<void> {
+  const timeout = options?.timeout ?? 120000; // 2 minutes for K8s (longer startup)
+  const interval = options?.interval ?? 1000;
+  const requestTimeout = options?.requestTimeout ?? 2000;
+
+  const startTime = Date.now();
+  let frameIndex = 0;
+  let lastPhase = '';
+  let lastMessage = '';
+
+  // Phase display helper
+  const renderPhaseStatus = (status: SessionStatus) => {
+    const spinner = spinnerFrames[frameIndex % spinnerFrames.length];
+    frameIndex++;
+
+    // Show phase message with spinner
+    let line = `${colors.cyan}${spinner}${colors.reset} ${status.message}`;
+
+    // Show container status on same line if we have containers
+    if (status.containers.length > 0) {
+      const containerStatus = status.containers
+        .map((c) => formatPortStatus(c.name, c.ready))
+        .join('  ');
+      line += `  ${containerStatus}`;
+    }
+
+    process.stdout.write(`\r\x1b[K${line}`);
+  };
+
+  // Try status API first (works for K8s mode)
+  let useStatusApi = true;
+  let status: SessionStatus | null = null;
+
+  try {
+    status = await client.getSessionStatus(session.id);
+  } catch {
+    // Status API not available (Docker mode or error), fall back to port checking
+    useStatusApi = false;
+  }
+
+  if (useStatusApi && status) {
+    // K8s mode: poll status API until ready
+    while (Date.now() - startTime < timeout) {
+      try {
+        status = await client.getSessionStatus(session.id);
+
+        if (status.phase !== lastPhase || status.message !== lastMessage) {
+          lastPhase = status.phase;
+          lastMessage = status.message;
+        }
+
+        renderPhaseStatus(status);
+
+        if (status.phase === 'ready') {
+          // Containers ready, now warm up TLS certs with port checking
+          process.stdout.write('\n');
+          break;
+        }
+
+        if (status.phase === 'error') {
+          process.stdout.write('\n');
+          console.log(error(`Session failed: ${status.message}`));
+          return;
+        }
+      } catch (err) {
+        // API error, continue polling
+        if (process.env['DEBUG']) {
+          console.error(`[waitForSession] status error: ${err}`);
+        }
+      }
+
+      await new Promise((resolve) => setTimeout(resolve, interval));
+    }
+
+    if (Date.now() - startTime >= timeout) {
+      process.stdout.write('\n');
+      console.log(warn('Session startup timed out'));
+      return;
+    }
+  }
+
+  // Always do port checking at the end to warm up TLS certs
+  console.log(`${colors.dim}Warming up TLS certificates...${colors.reset}`);
+  await waitForPorts(session, { timeout: timeout - (Date.now() - startTime), interval, requestTimeout });
 }

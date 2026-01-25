@@ -79,6 +79,30 @@ export interface PodStatus {
 }
 
 /**
+ * Container status for CLI progress display.
+ */
+export interface ContainerStatus {
+  name: string;
+  ready: boolean;
+  status: 'waiting' | 'running' | 'terminated';
+  message?: string;
+}
+
+/**
+ * Session status for CLI progress display.
+ * Provides granular feedback during pod startup.
+ */
+export interface SessionStatus {
+  phase: 'creating' | 'initializing' | 'starting' | 'ready' | 'error';
+  message: string;
+  containers: ContainerStatus[];
+  tailscale?: {
+    ready: boolean;
+    hostname?: string;
+  };
+}
+
+/**
  * External ports exposed by Caddy (what users connect to)
  */
 const SANDBOX_PORTS = {
@@ -280,6 +304,126 @@ export class K8sSandboxService {
         ready: pod.status?.containerStatuses?.every((s) => s.ready) ?? false,
         tailscaleConnected,
         containerStatuses,
+      };
+    } catch (error) {
+      if (isK8s404Error(error)) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Get detailed session status for CLI progress display.
+   * Returns granular container status and phase information.
+   */
+  async getSessionStatus(sessionId: string): Promise<SessionStatus | null> {
+    const podName = this.getPodName(sessionId);
+    const hostname = this.getHostname(sessionId);
+
+    try {
+      const response = await this.coreApi.readNamespacedPodStatus({
+        name: podName,
+        namespace: this.config.namespace,
+      });
+      const pod = response;
+
+      // Build container statuses
+      const containers: ContainerStatus[] = [];
+
+      // Process init containers first
+      for (const status of pod.status?.initContainerStatuses ?? []) {
+        if (!status.name) continue;
+        const cs: ContainerStatus = {
+          name: status.name,
+          ready: status.ready ?? false,
+          status: 'waiting',
+        };
+        if (status.state?.running) {
+          cs.status = 'running';
+          cs.message = 'Running...';
+        } else if (status.state?.terminated) {
+          cs.status = 'terminated';
+          cs.ready = status.state.terminated.exitCode === 0;
+          cs.message = cs.ready ? 'Completed' : `Failed: ${status.state.terminated.reason}`;
+        } else if (status.state?.waiting) {
+          cs.status = 'waiting';
+          cs.message = status.state.waiting.reason || 'Waiting...';
+        }
+        containers.push(cs);
+      }
+
+      // Process main containers
+      for (const status of pod.status?.containerStatuses ?? []) {
+        if (!status.name) continue;
+        const cs: ContainerStatus = {
+          name: status.name,
+          ready: status.ready ?? false,
+          status: 'waiting',
+        };
+        if (status.state?.running) {
+          cs.status = 'running';
+          cs.message = status.ready ? 'Ready' : 'Starting...';
+        } else if (status.state?.terminated) {
+          cs.status = 'terminated';
+          cs.message = `Exited: ${status.state.terminated.reason || status.state.terminated.exitCode}`;
+        } else if (status.state?.waiting) {
+          cs.status = 'waiting';
+          cs.message = status.state.waiting.reason || 'Waiting...';
+        }
+        containers.push(cs);
+      }
+
+      // Determine overall phase and message
+      const podPhase = pod.status?.phase;
+      const initComplete = (pod.status?.initContainerStatuses ?? []).every(
+        (s) => s.state?.terminated?.exitCode === 0
+      );
+      const allReady = (pod.status?.containerStatuses ?? []).every((s) => s.ready);
+      const tailscaleReady = containers.find((c) => c.name === 'tailscale')?.ready ?? false;
+
+      let phase: SessionStatus['phase'];
+      let message: string;
+
+      if (podPhase === 'Pending') {
+        const initRunning = (pod.status?.initContainerStatuses ?? []).some((s) => s.state?.running);
+        if (initRunning) {
+          phase = 'initializing';
+          message = 'Cloning repository...';
+        } else {
+          phase = 'creating';
+          message = 'Creating pod...';
+        }
+      } else if (podPhase === 'Running') {
+        if (allReady) {
+          phase = 'ready';
+          message = 'All services ready';
+        } else if (!tailscaleReady) {
+          phase = 'starting';
+          message = 'Connecting to Tailscale...';
+        } else if (!initComplete) {
+          phase = 'initializing';
+          message = 'Waiting for init...';
+        } else {
+          phase = 'starting';
+          message = 'Starting services...';
+        }
+      } else if (podPhase === 'Failed' || podPhase === 'Unknown') {
+        phase = 'error';
+        message = pod.status?.message || `Pod ${podPhase?.toLowerCase()}`;
+      } else {
+        phase = 'starting';
+        message = `Pod phase: ${podPhase}`;
+      }
+
+      return {
+        phase,
+        message,
+        containers,
+        tailscale: {
+          ready: tailscaleReady,
+          hostname: tailscaleReady ? hostname : undefined,
+        },
       };
     } catch (error) {
       if (isK8s404Error(error)) {
@@ -768,6 +912,8 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
             env: [
               ...baseEnv,
               { name: 'CODE_SERVER_PORT', value: String(INTERNAL_PORTS.vscode) },
+              // SimpleBrowser preview URL for Astro (via Tailscale HTTPS)
+              { name: 'ASTRO_PREVIEW_URL', value: `https://${hostname}:${SANDBOX_PORTS.astro}` },
             ],
             volumeMounts: [
               { name: 'workspace', mountPath: '/workspace' },

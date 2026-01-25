@@ -27,4 +27,5 @@ ASTRO_PORT="${ASTRO_PORT:-4321}"
 
 # Execute the dev server with restart wrapper
 # Use bunx astro directly to avoid inheriting hardcoded args from package.json dev script
-exec /app/restart-wrapper.sh astro bunx astro dev --host 0.0.0.0 --port "$ASTRO_PORT"
+# --allowed-hosts .ts.net: Allow all Tailscale hostnames (*.ts.net)
+exec /app/restart-wrapper.sh astro bunx astro dev --host 0.0.0.0 --port "$ASTRO_PORT" --allowed-hosts .ts.net

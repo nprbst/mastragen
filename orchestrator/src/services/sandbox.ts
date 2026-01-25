@@ -10,7 +10,7 @@ import type { GitStatus, CommitResult } from './git.ts';
 import { InsufficientPermissionsError, GitHubService, type PRResult, type PRCreateInput } from './github.ts';
 import { ClaudeInjectionService } from './claude-injection.ts';
 import { AuthService } from './auth.ts';
-import { K8sSandboxService, createK8sSandboxService } from './k8s-sandbox.ts';
+import { K8sSandboxService, createK8sSandboxService, type SessionStatus } from './k8s-sandbox.ts';
 
 export { InsufficientPermissionsError };
 
@@ -468,6 +468,30 @@ export class SandboxService {
         ? `http://localhost:${SandboxService.PORTS.astro}`
         : null,
       vscode: `http://localhost:${SandboxService.PORTS.vscode}`,
+    };
+  }
+
+  /**
+   * Gets detailed session status for CLI progress display.
+   * Returns null if session not found or status unavailable.
+   */
+  async getSessionStatus(sessionId: string): Promise<SessionStatus | null> {
+    // K8s mode: get detailed pod status
+    if (this.k8sSandboxService) {
+      return this.k8sSandboxService.getSessionStatus(sessionId);
+    }
+
+    // Docker mode: return simplified status (containers start quickly)
+    // For now, return a basic "ready" status since Docker containers are typically
+    // ready by the time the API returns. The CLI can fall back to port checking.
+    return {
+      phase: 'ready',
+      message: 'Containers started',
+      containers: [
+        { name: 'mastra', ready: true, status: 'running' },
+        { name: 'astro', ready: true, status: 'running' },
+        { name: 'vscode', ready: true, status: 'running' },
+      ],
     };
   }
 
@@ -1057,15 +1081,10 @@ export class SandboxService {
       }
 
       // Create the sandbox pod with Claude ConfigMap reference
+      // Note: Don't wait for pod ready here - CLI polls /status endpoint for progress
       await this.k8sSandboxService.createSandboxPod(session, project, parsedEnvVars, claudeToken, claudeConfigMapName);
 
-      // Wait for pod to be ready
-      const ready = await this.k8sSandboxService.waitForPodReady(session.id);
-      if (!ready) {
-        throw new Error(`Sandbox pod failed to become ready for session ${session.id}`);
-      }
-
-      console.log('[SandboxService] K8s sandbox pod started successfully');
+      console.log('[SandboxService] K8s sandbox pod created, CLI will poll for ready status');
       return;
     }
 

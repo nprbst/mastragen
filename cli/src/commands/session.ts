@@ -14,7 +14,7 @@ import {
   formatIdleStatus,
   success,
   error,
-  waitForPorts,
+  waitForSession,
 } from '../output.ts';
 import { handleCancel } from '../prompts.ts';
 import { getCachedToken, saveCachedToken, truncateToken } from '../utils/claude-token.ts';
@@ -163,9 +163,9 @@ export function sessionCommand(client: MgenClient): Command {
           claudeToken,
         });
 
-        // Wait for ports to be ready (skip in JSON mode)
+        // Wait for session to be ready (skip in JSON mode)
         if (!options.json) {
-          await waitForPorts(result);
+          await waitForSession(client, result);
         }
 
         if (options.json) {
@@ -396,9 +396,9 @@ export function sessionCommand(client: MgenClient): Command {
 
         const result = await client.resumeSession(id, { claudeToken });
 
-        // Wait for ports to be ready (skip in JSON mode)
+        // Wait for session to be ready (skip in JSON mode)
         if (!options.json) {
-          await waitForPorts(result);
+          await waitForSession(client, result);
         }
 
         if (options.json) {

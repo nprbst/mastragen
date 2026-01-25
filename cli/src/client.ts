@@ -69,6 +69,24 @@ export interface IdleStatus {
   suspendAt: string | null;
 }
 
+// Session status type for CLI progress display
+export interface ContainerStatus {
+  name: string;
+  ready: boolean;
+  status: 'waiting' | 'running' | 'terminated';
+  message?: string;
+}
+
+export interface SessionStatus {
+  phase: 'creating' | 'initializing' | 'starting' | 'ready' | 'error';
+  message: string;
+  containers: ContainerStatus[];
+  tailscale?: {
+    ready: boolean;
+    hostname?: string;
+  };
+}
+
 // Tailscale types
 export interface TailscaleStatus {
   configured: boolean;
@@ -407,6 +425,16 @@ export class MgenClient {
     return this.request<IdleStatus>(`/api/sessions/${sessionId}/idle-status`, {
       method: 'GET',
       headers,
+    });
+  }
+
+  /**
+   * Get detailed session status for CLI progress display.
+   * Returns pod/container status for K8s mode, or simplified status for Docker mode.
+   */
+  async getSessionStatus(sessionId: string): Promise<SessionStatus> {
+    return this.request<SessionStatus>(`/api/sessions/${sessionId}/status`, {
+      method: 'GET',
     });
   }
 

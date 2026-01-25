@@ -400,6 +400,43 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
     return c.json(response, 200);
   });
 
+  // GET /sessions/:id/status - Get detailed session status for CLI progress
+  app.get('/:id/status', async (c) => {
+    const id = c.req.param('id');
+
+    const session = await sessionsRepo.findById(id);
+    if (!session) {
+      return c.json({ error: `Session not found: ${id}` }, 404);
+    }
+
+    // For non-active sessions, return basic status without pod details
+    if (session.state !== 'active') {
+      return c.json(
+        {
+          phase: session.state === 'suspended' ? 'ready' : 'error',
+          message: session.state === 'suspended' ? 'Session suspended' : `Session ${session.state}`,
+          containers: [],
+        },
+        200
+      );
+    }
+
+    // Get detailed status from sandbox service
+    const status = await sandboxService.getSessionStatus(id);
+    if (!status) {
+      return c.json(
+        {
+          phase: 'creating',
+          message: 'Pod not yet created',
+          containers: [],
+        },
+        200
+      );
+    }
+
+    return c.json(status, 200);
+  });
+
   // DELETE /sessions/:id - Clean up and delete a session
   app.delete('/:id', async (c) => {
     const id = c.req.param('id');
