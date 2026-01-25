@@ -226,6 +226,9 @@ export class K8sSandboxService {
     const tailscalePvcName = this.getTailscalePvcName(sessionId);
     const caddyPvcName = this.getCaddyPvcName(sessionId);
 
+    // Clear Phoenix cache
+    this.sessionPhoenixCache.delete(sessionId);
+
     // Delete pod
     try {
       console.log(`[K8sSandboxService] Deleting pod ${podName}`);
@@ -526,14 +529,14 @@ export class K8sSandboxService {
    * Uses port-based routing to avoid path prefix issues.
    * Phoenix URL is included when enabled for the session.
    */
-  getServiceUrls(sessionId: string): { mastra: string; astro: string; vscode: string; phoenix?: string } {
+  getServiceUrls(sessionId: string): { mastra: string; astro: string; vscode: string; phoenix: string | null } {
     const hostname = this.getHostname(sessionId);
     const phoenixEnabled = this.sessionPhoenixCache.get(sessionId);
     return {
       mastra: `https://${hostname}:${SANDBOX_PORTS.mastra}`,
       astro: `https://${hostname}:${SANDBOX_PORTS.astro}`,
       vscode: `https://${hostname}`, // port 443 is implicit
-      ...(phoenixEnabled ? { phoenix: `https://${hostname}:${SANDBOX_PORTS.phoenix}` } : {}),
+      phoenix: phoenixEnabled ? `https://${hostname}:${SANDBOX_PORTS.phoenix}` : null,
     };
   }
 

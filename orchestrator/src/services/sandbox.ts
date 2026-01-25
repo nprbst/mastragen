@@ -480,6 +480,7 @@ export class SandboxService {
         mastra: k8sUrls.mastra,
         astro: cachedProject?.ui_sandbox_path ? k8sUrls.astro : null,
         vscode: k8sUrls.vscode,
+        phoenix: k8sUrls.phoenix,
       };
     }
 

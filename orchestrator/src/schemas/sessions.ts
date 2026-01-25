@@ -20,6 +20,7 @@ export const ServiceUrlsSchema = v.object({
   mastra: v.string(),
   astro: v.nullable(v.string()),
   vscode: v.string(),
+  phoenix: v.nullable(v.string()),
 });
 export type ServiceUrls = v.InferOutput<typeof ServiceUrlsSchema>;
 

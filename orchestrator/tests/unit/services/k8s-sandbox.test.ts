@@ -197,6 +197,8 @@ describe('K8sSandboxService', () => {
         tailscaleSecretKey: 'key',
         imageRegistry: 'ghcr.io/test',
         imageTag: 'latest',
+        imagePullPolicy: 'IfNotPresent',
+        chromeEnabled: false,
       });
 
       const urls = service.getServiceUrls('abc123def456');
@@ -207,6 +209,8 @@ describe('K8sSandboxService', () => {
       const mockCoreApi = {
         createNamespacedConfigMap: mock(() => Promise.resolve()),
         createNamespacedPod: mock(() => Promise.resolve()),
+        createNamespacedPersistentVolumeClaim: mock(() => Promise.resolve()),
+        readNamespacedPersistentVolumeClaim: mock(() => Promise.reject({ code: 404 })),
       };
 
       const mockKc = {
@@ -243,6 +247,8 @@ describe('K8sSandboxService', () => {
         tailscaleSecretKey: 'key',
         imageRegistry: 'ghcr.io/test',
         imageTag: 'latest',
+        imagePullPolicy: 'IfNotPresent',
+        chromeEnabled: false,
       });
 
       const session = {
@@ -279,8 +285,8 @@ describe('K8sSandboxService', () => {
         updated_at: new Date().toISOString(),
       };
 
-      // Create pod with Phoenix enabled
-      await service.createSandboxPod(session, project, {}, undefined, {
+      // Create pod with Phoenix enabled (6th arg after claudeConfigMapName)
+      await service.createSandboxPod(session, project, {}, undefined, undefined, {
         enabled: true,
         retentionDays: 30,
       });
@@ -293,8 +299,11 @@ describe('K8sSandboxService', () => {
       const mockCoreApi = {
         createNamespacedConfigMap: mock(() => Promise.resolve()),
         createNamespacedPod: mock(() => Promise.resolve()),
+        createNamespacedPersistentVolumeClaim: mock(() => Promise.resolve()),
+        readNamespacedPersistentVolumeClaim: mock(() => Promise.reject({ code: 404 })),
         deleteNamespacedPod: mock(() => Promise.resolve()),
         deleteNamespacedConfigMap: mock(() => Promise.resolve()),
+        deleteNamespacedPersistentVolumeClaim: mock(() => Promise.resolve()),
       };
 
       const mockKc = {
@@ -331,6 +340,8 @@ describe('K8sSandboxService', () => {
         tailscaleSecretKey: 'key',
         imageRegistry: 'ghcr.io/test',
         imageTag: 'latest',
+        imagePullPolicy: 'IfNotPresent',
+        chromeEnabled: false,
       });
 
       const session = {
@@ -367,8 +378,8 @@ describe('K8sSandboxService', () => {
         updated_at: new Date().toISOString(),
       };
 
-      // Create pod with Phoenix enabled
-      await service.createSandboxPod(session, project, {}, undefined, {
+      // Create pod with Phoenix enabled (6th arg after claudeConfigMapName)
+      await service.createSandboxPod(session, project, {}, undefined, undefined, {
         enabled: true,
       });
 
