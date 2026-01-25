@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { pack } from 'tar-stream';
 import Docker from 'dockerode';
+import { parse as parseToml } from 'smol-toml';
 import type { Kysely } from 'kysely';
 import type { Database, Project, Session } from '../db/types.ts';
 import type { ProjectsRepository } from '../repositories/projects.ts';
@@ -101,6 +102,7 @@ export interface ServiceUrls {
   mastra: string;
   astro: string | null;
   vscode: string;
+  phoenix: string | null;
 }
 
 export interface CreateSandboxInput {
@@ -122,12 +124,14 @@ export interface CreateSandboxResult {
   session: Session;
   urls: ServiceUrls;
   sessionToken?: string;
+  configMissing?: boolean;
 }
 
 export interface ResumeSandboxResult {
   session: Session;
   urls: ServiceUrls;
   sessionToken?: string;
+  configMissing?: boolean;
 }
 
 export interface ResumeOptions {
@@ -240,6 +244,7 @@ export class SandboxService {
     astro: 4321,
     vscode: 8080,
     chrome: 9222,
+    phoenix: 6006,
   };
 
   // Container image names (built from sandbox/ Dockerfiles)
@@ -249,10 +254,17 @@ export class SandboxService {
     astro: 'mastragen-astro',
     vscode: 'mastragen-vscode',
     chrome: 'ghcr.io/browserless/chromium:latest',
+    phoenix: 'arizephoenix/phoenix:latest',
   };
 
   // Cache for session -> project mapping (for URL generation)
   private sessionProjectCache: Map<string, Project> = new Map();
+
+  // Cache for session -> Phoenix enablement (for URL generation)
+  private sessionPhoenixCache: Map<string, boolean> = new Map();
+
+  // Cache for session -> config missing status (for API response)
+  private sessionConfigMissingCache: Map<string, boolean> = new Map();
 
   constructor(options: SandboxServiceOptions) {
     this.projectsRepo = options.projectsRepo;
@@ -339,12 +351,15 @@ export class SandboxService {
       }
     } else {
       console.log('[SandboxService] create() - Docker disabled, skipping container creation');
+      // When Docker is disabled, we can't check config - assume missing
+      this.sessionConfigMissingCache.set(session.id, true);
     }
 
     return {
       session,
       urls: this.getServiceUrls(session.id, project),
       sessionToken,
+      configMissing: this.sessionConfigMissingCache.get(session.id) ?? true,
     };
   }
 
@@ -453,12 +468,15 @@ export class SandboxService {
       }
     } else {
       console.log('[SandboxService] createWithGit() - Docker disabled, skipping container creation');
+      // When Docker is disabled, we can't check config - assume missing
+      this.sessionConfigMissingCache.set(session.id, true);
     }
 
     return {
       session,
       urls: this.getServiceUrls(session.id, project),
       sessionToken,
+      configMissing: this.sessionConfigMissingCache.get(session.id) ?? true,
     };
   }
 
@@ -474,11 +492,13 @@ export class SandboxService {
         mastra: k8sUrls.mastra,
         astro: cachedProject?.ui_sandbox_path ? k8sUrls.astro : null,
         vscode: k8sUrls.vscode,
+        phoenix: k8sUrls.phoenix,
       };
     }
 
     // Docker mode: localhost URLs
     const cachedProject = project ?? this.sessionProjectCache.get(sessionId);
+    const phoenixEnabled = this.sessionPhoenixCache.get(sessionId) ?? false;
 
     return {
       mastra: `http://localhost:${SandboxService.PORTS.mastra}`,
@@ -486,6 +506,9 @@ export class SandboxService {
         ? `http://localhost:${SandboxService.PORTS.astro}`
         : null,
       vscode: `http://localhost:${SandboxService.PORTS.vscode}`,
+      phoenix: phoenixEnabled
+        ? `http://localhost:${SandboxService.PORTS.phoenix}`
+        : null,
     };
   }
 
@@ -701,12 +724,16 @@ export class SandboxService {
         options?.userGitEmail,
         sessionToken
       );
+    } else {
+      // When Docker is disabled, we can't check config - assume missing
+      this.sessionConfigMissingCache.set(sessionId, true);
     }
 
     return {
       session: updatedSession,
       urls: this.getServiceUrls(sessionId, project),
       sessionToken,
+      configMissing: this.sessionConfigMissingCache.get(sessionId) ?? true,
     };
   }
 
@@ -788,6 +815,9 @@ export class SandboxService {
         options.userGitEmail,
         sessionToken
       );
+    } else {
+      // When Docker is disabled, we can't check config - assume missing
+      this.sessionConfigMissingCache.set(sessionId, true);
     }
 
     // Restore Claude conversation history to container after containers start (T038)
@@ -799,6 +829,7 @@ export class SandboxService {
       session: updatedSession,
       urls: this.getServiceUrls(sessionId, project),
       sessionToken,
+      configMissing: this.sessionConfigMissingCache.get(sessionId) ?? true,
     };
   }
 
@@ -880,6 +911,139 @@ export class SandboxService {
     }
 
     return { session: updatedSession, pr };
+  }
+
+  /**
+   * Scaffolds a .mastragen/config.toml file in the session's workspace.
+   * Writes the config file and creates a git commit on the session's branch.
+   *
+   * @param sessionId - The session ID
+   * @param components - The component configuration to write
+   * @returns The commit SHA and branch name
+   */
+  async scaffoldConfig(
+    sessionId: string,
+    components: { phoenix?: { enabled: boolean }; astro?: { enabled: boolean; path?: string } }
+  ): Promise<{ success: boolean; commitSha?: string; branch?: string; configPath: string }> {
+    const session = await this.sessionsRepo.findById(sessionId);
+    if (!session) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    if (session.state !== 'active') {
+      throw new SessionNotActiveError(sessionId);
+    }
+
+    const configPath = '.mastragen/config.toml';
+
+    // Build the config TOML content
+    const configLines = ['# Mastragen Project Configuration', 'version = "1"'];
+
+    if (components.phoenix) {
+      configLines.push('');
+      configLines.push('[phoenix]');
+      configLines.push(`enabled = ${components.phoenix.enabled}`);
+    }
+
+    if (components.astro) {
+      configLines.push('');
+      configLines.push('[astro]');
+      configLines.push(`enabled = ${components.astro.enabled}`);
+      if (components.astro.path) {
+        configLines.push(`path = "${components.astro.path}"`);
+      }
+    }
+
+    const configContent = configLines.join('\n') + '\n';
+
+    // Docker mode: write to container and commit
+    if (this.dockerEnabled) {
+      // Find the vscode container (used for git operations)
+      const vscodeContainerName = `${sessionId}-vscode`;
+      const container = this.docker.getContainer(vscodeContainerName);
+
+      try {
+        // Create .mastragen directory if it doesn't exist
+        const mkdirExec = await container.exec({
+          Cmd: ['mkdir', '-p', '/workspace/.mastragen'],
+          AttachStdout: true,
+          AttachStderr: true,
+        });
+        await mkdirExec.start({});
+
+        // Write the config file
+        await this.writeFileToContainer(container, `/workspace/${configPath}`, configContent);
+
+        // Stage and commit the file
+        const addExec = await container.exec({
+          Cmd: ['git', '-C', '/workspace', 'add', configPath],
+          AttachStdout: true,
+          AttachStderr: true,
+        });
+        await addExec.start({});
+
+        const commitExec = await container.exec({
+          Cmd: ['git', '-C', '/workspace', 'commit', '-m', 'chore: add mastragen config'],
+          AttachStdout: true,
+          AttachStderr: true,
+        });
+        const commitStream = await commitExec.start({});
+
+        // Wait for commit to complete and get output
+        await new Promise<void>((resolve) => {
+          commitStream.on('end', resolve);
+          commitStream.on('error', resolve);
+        });
+
+        // Get the commit SHA
+        const shaExec = await container.exec({
+          Cmd: ['git', '-C', '/workspace', 'rev-parse', 'HEAD'],
+          AttachStdout: true,
+          AttachStderr: true,
+        });
+        const shaStream = await shaExec.start({});
+        let sha = '';
+        await new Promise<void>((resolve) => {
+          shaStream.on('data', (chunk: Buffer) => {
+            sha += chunk.slice(8).toString().trim();
+          });
+          shaStream.on('end', resolve);
+          shaStream.on('error', resolve);
+        });
+
+        // Get the current branch
+        const branchExec = await container.exec({
+          Cmd: ['git', '-C', '/workspace', 'rev-parse', '--abbrev-ref', 'HEAD'],
+          AttachStdout: true,
+          AttachStderr: true,
+        });
+        const branchStream = await branchExec.start({});
+        let branch = '';
+        await new Promise<void>((resolve) => {
+          branchStream.on('data', (chunk: Buffer) => {
+            branch += chunk.slice(8).toString().trim();
+          });
+          branchStream.on('end', resolve);
+          branchStream.on('error', resolve);
+        });
+
+        // Update cache to reflect config now exists
+        this.sessionConfigMissingCache.set(sessionId, false);
+
+        return {
+          success: true,
+          commitSha: sha || undefined,
+          branch: branch || session.branch_name || undefined,
+          configPath,
+        };
+      } catch (err) {
+        console.error('[SandboxService] Failed to scaffold config:', err);
+        return { success: false, configPath };
+      }
+    }
+
+    // Non-Docker mode (tests): just return success without actual file operations
+    return { success: true, configPath };
   }
 
   /**
@@ -1156,6 +1320,16 @@ export class SandboxService {
     // Run init container to clone the repo (using session branch if available)
     await this.runInitContainer(session.id, volumeName, project.github_repo, session.branch_name ?? undefined, userGithubToken);
 
+    // Read project config from workspace to check if Phoenix should be enabled
+    const projectConfig = await this.readProjectConfigFromVolume(volumeName);
+    console.log(`[SandboxService] Project config: Phoenix enabled=${projectConfig.phoenixEnabled}, configExists=${projectConfig.configExists}`);
+
+    // Cache Phoenix enablement for URL generation
+    this.sessionPhoenixCache.set(session.id, projectConfig.phoenixEnabled);
+
+    // Cache config missing status for API response
+    this.sessionConfigMissingCache.set(session.id, !projectConfig.configExists);
+
     // Parse environment variables from JSON string
     let parsedEnvVars: Record<string, string> = {};
     try {
@@ -1174,6 +1348,15 @@ export class SandboxService {
       ...Object.entries(parsedEnvVars).map(([k, v]) => `${k}=${v}`),
     ];
 
+    // Phoenix environment variables for Mastra container
+    const phoenixEnv = projectConfig.phoenixEnabled
+      ? [
+          'PHOENIX_ENABLED=true',
+          `PHOENIX_ENDPOINT=http://${session.id}-phoenix:6006/v1/traces`,
+          'PHOENIX_PROJECT_NAME=mastragen-experiments',
+        ]
+      : ['PHOENIX_ENABLED=false'];
+
     // Container configurations
     // T048: Use project.mastra_path for Mastra working directory
     const mastraWorkDir = `/workspace${project.mastra_path && project.mastra_path !== '.' ? `/${project.mastra_path}` : ''}`;
@@ -1191,6 +1374,7 @@ export class SandboxService {
           port: SandboxService.PORTS.mastra,
           env: [
             ...baseEnv,
+            ...phoenixEnv,
             `ANTHROPIC_API_KEY=${process.env.ANTHROPIC_API_KEY || ''}`, // Mastra SDK needs actual API key
             ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
           ],
@@ -1233,6 +1417,20 @@ export class SandboxService {
         'DEFAULT_LAUNCH_ARGS=["--disable-dev-shm-usage"]',
       ],
     });
+
+    // Add Phoenix container when enabled via project config
+    if (projectConfig.phoenixEnabled) {
+      containers.push({
+        name: `${session.id}-phoenix`,
+        image: SandboxService.IMAGES.phoenix,
+        port: SandboxService.PORTS.phoenix,
+        env: [
+          'PHOENIX_SQL_DATABASE_URL=sqlite:////data/phoenix/phoenix.db',
+          'PHOENIX_WORKING_DIR=/data/phoenix',
+          `PHOENIX_TRACE_RETENTION_DAYS=${projectConfig.phoenixRetentionDays}`,
+        ],
+      });
+    }
 
     // Start containers in parallel
     console.log(`[SandboxService] Starting ${containers.length} containers...`);
@@ -1477,5 +1675,71 @@ export class SandboxService {
     tarStream.finalize();
 
     await container.putArchive(tarStream, { path: dirPath });
+  }
+
+  /**
+   * Reads the project config from a Docker volume.
+   *
+   * Uses a temporary Alpine container to read the file from the workspace volume.
+   * Returns configExists: false if the config file doesn't exist or can't be read.
+   */
+  private async readProjectConfigFromVolume(volumeName: string): Promise<{
+    phoenixEnabled: boolean;
+    phoenixRetentionDays: number;
+    configExists: boolean;
+  }> {
+    const defaults = { phoenixEnabled: false, phoenixRetentionDays: 30, configExists: false };
+
+    try {
+      // Create temporary container to read the config file
+      const container = await this.docker.createContainer({
+        Image: 'alpine:latest',
+        Cmd: ['cat', '/workspace/.mastragen/config.toml'],
+        HostConfig: {
+          Binds: [`${volumeName}:/workspace:ro`],
+          AutoRemove: true,
+        },
+      });
+
+      await container.start();
+      const stream = await container.logs({ stdout: true, stderr: true, follow: true });
+
+      // Collect output
+      let output = '';
+      await new Promise<void>((resolve) => {
+        stream.on('data', (chunk: Buffer) => {
+          // Docker log format includes 8-byte header, skip it
+          output += chunk.slice(8).toString();
+        });
+        stream.on('end', () => resolve());
+        stream.on('error', () => resolve());
+      });
+
+      await container.wait();
+
+      if (!output.trim()) {
+        console.log('[SandboxService] No project config found, using defaults');
+        return defaults;
+      }
+
+      // Parse TOML properly
+      try {
+        const config = parseToml(output) as {
+          phoenix?: { enabled?: boolean; retention?: { traces_days?: number } };
+        };
+
+        return {
+          phoenixEnabled: config.phoenix?.enabled ?? false,
+          phoenixRetentionDays: config.phoenix?.retention?.traces_days ?? 30,
+          configExists: true,
+        };
+      } catch (parseErr) {
+        console.log('[SandboxService] Failed to parse config TOML:', parseErr);
+        return { ...defaults, configExists: true };
+      }
+    } catch (err) {
+      console.log('[SandboxService] Error reading project config:', err);
+      return defaults;
+    }
   }
 }

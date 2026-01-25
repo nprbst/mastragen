@@ -1,15 +1,18 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 1.0.0 → 1.1.0
+Version change: 1.1.0 → 1.2.0
 Changed sections:
-  - Technology Stack: Frontend changed from "Next.js landing page" to "Astro with React islands (Next.js is FORBIDDEN)"
-Rationale: Next.js RSC/hydration complexity violates Simplicity First principle. Astro provides equivalent functionality with less complexity.
+  - Project-First Configuration: Adopted hybrid approach (config file + database)
+    - Static config (component enablement, paths) → .mastragen/config.yaml in project repo
+    - Dynamic config (secrets, runtime overrides) → remains in Mastragen database
+Rationale: Config-as-code enables git-native versioning, self-documenting project setup, and reproducible configuration.
 Templates status:
-  - plan-template.md: ✅ Compatible (Constitution Check section exists)
-  - spec-template.md: ✅ Compatible (Requirements section exists)
-  - tasks-template.md: ✅ Compatible (Phase structure aligns)
-Follow-up TODOs: None
+  - plan-template.md: ✅ Compatible (no changes needed)
+  - spec-template.md: ✅ Compatible (no changes needed)
+  - tasks-template.md: ✅ Compatible (no changes needed)
+Follow-up TODOs:
+  - Update 005-phoenix-observability spec/plan/tasks to use config file approach
 -->
 
 # Mastragen Constitution
@@ -65,18 +68,29 @@ Shared volume enables seamless HMR across services.
 
 ### IV. Project-First Configuration
 
-Each project defines its own configuration independent of other projects. Configuration is stored
-in Mastragen's database, not in the project repository.
+Each project defines its own configuration independent of other projects. Configuration uses a
+**hybrid approach**:
 
-- MCP servers, skills, commands, and CLAUDE.md are configured per-project
-- Environment variables and secrets are scoped to project environments
+- **Static configuration** (component enablement, paths, retention policies) is stored in
+  `.mastragen/config.yaml` in the project repository root
+- **Dynamic configuration** (secrets, environment variables, runtime overrides) remains in
+  Mastragen's database, scoped to project environments
+- **Fallback behavior**: If `.mastragen/config.yaml` is missing, orchestrator uses sensible defaults
+
+This enables:
+- Git-native configuration versioning alongside code
+- Self-documenting project setup (developers can see what's enabled without API calls)
+- Runtime flexibility for secrets and environment-specific overrides
+
+Configuration scope:
+- MCP servers, skills, commands, and CLAUDE.md are configured per-project (database)
+- Component enablement (Phoenix, Astro) is configured in `.mastragen/config.yaml`
 - Branch naming follows project-specific prefixes (e.g., `mg/`, `ai/`, `pipeline/`)
-- Workspace paths (`mastraPath`, `uiSandboxPath`) vary by project structure
-- Projects can enable/disable features (e.g., Astro sandbox) via configuration
+- Workspace paths (`mastraPath`, `uiSandboxPath`) can be set in config file or database
 
 **Rationale**: Projects have different needs. A backend-only project should not be forced to run
-Astro. A monorepo needs different paths than a standalone Mastra project. Configuration flexibility
-enables Mastragen to serve diverse codebases.
+Astro. A monorepo needs different paths than a standalone Mastra project. Config-as-code ensures
+project setup is versioned, discoverable, and reproducible.
 
 ### V. Simplicity First
 
@@ -144,4 +158,4 @@ justification in the PR description with reasoning for the exception.
 - MINOR: New principle or materially expanded guidance
 - PATCH: Clarifications, wording fixes, non-semantic refinements
 
-**Version**: 1.1.0 | **Ratified**: 2026-01-17 | **Last Amended**: 2026-01-18
+**Version**: 1.2.0 | **Ratified**: 2026-01-17 | **Last Amended**: 2026-01-24

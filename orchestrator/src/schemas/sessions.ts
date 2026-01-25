@@ -20,6 +20,7 @@ export const ServiceUrlsSchema = v.object({
   mastra: v.string(),
   astro: v.nullable(v.string()),
   vscode: v.string(),
+  phoenix: v.nullable(v.string()),
 });
 export type ServiceUrls = v.InferOutput<typeof ServiceUrlsSchema>;
 
@@ -102,6 +103,7 @@ export const SessionWithUrlsResponseSchema = v.object({
   ...SessionResponseSchema.entries,
   urls: ServiceUrlsSchema,
   sessionToken: v.optional(v.string()),
+  configMissing: v.optional(v.boolean()),
 });
 export type SessionWithUrlsResponse = v.InferOutput<typeof SessionWithUrlsResponseSchema>;
 
@@ -112,6 +114,7 @@ export const SessionWithUrlsAndGitResponseSchema = v.object({
   ...SessionWithGitResponseSchema.entries,
   urls: ServiceUrlsSchema,
   sessionToken: v.optional(v.string()),
+  configMissing: v.optional(v.boolean()),
 });
 export type SessionWithUrlsAndGitResponse = v.InferOutput<typeof SessionWithUrlsAndGitResponseSchema>;
 

@@ -92,6 +92,102 @@ describe('Sessions Routes', () => {
       // astro may be null if not configured
     });
 
+    test('returns configMissing field in response', async () => {
+      const res = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'config-test',
+          environment: 'dev',
+          claudeToken: 'test-token',
+        }),
+      });
+
+      expect(res.status).toBe(201);
+
+      const body = (await res.json()) as Record<string, unknown>;
+      // When Docker is disabled, configMissing should be true (can't check volume)
+      expect(body.configMissing).toBe(true);
+    });
+  });
+
+  describe('POST /sessions/:id/scaffold-config', () => {
+    test('scaffolds config and returns 201', async () => {
+      // Create a session first
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'scaffold-test',
+          environment: 'dev',
+          claudeToken: 'test-token',
+        }),
+      });
+      const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
+
+      // Scaffold config
+      const res = await app.request(`/sessions/${id}/scaffold-config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({
+          phoenix: { enabled: true },
+        }),
+      });
+
+      expect(res.status).toBe(201);
+
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.success).toBe(true);
+      expect(body.configPath).toBe('.mastragen/config.toml');
+    });
+
+    test('returns 401 without auth token', async () => {
+      const res = await app.request('/sessions/nonexistent/scaffold-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoenix: { enabled: true },
+        }),
+      });
+
+      expect(res.status).toBe(401);
+    });
+
+    test('returns 400 for invalid phoenix config', async () => {
+      // Create a session first
+      const createRes = await app.request('/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: testProjectId,
+          artifactName: 'scaffold-invalid',
+          environment: 'dev',
+          claudeToken: 'test-token',
+        }),
+      });
+      const { id, sessionToken } = (await createRes.json()) as Record<string, unknown>;
+
+      // Send invalid body (phoenix.enabled should be boolean, not string)
+      const res = await app.request(`/sessions/${id}/scaffold-config`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ phoenix: { enabled: 'yes' } }),
+      });
+
+      expect(res.status).toBe(400);
+
+      const body = (await res.json()) as Record<string, unknown>;
+      expect(body.error).toBe('Validation failed');
+    });
+
     test('returns 404 when project not found', async () => {
       const res = await app.request('/sessions', {
         method: 'POST',

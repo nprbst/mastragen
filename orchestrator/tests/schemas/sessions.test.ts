@@ -120,6 +120,7 @@ describe('SessionWithUrlsResponseSchema', () => {
         mastra: 'http://localhost:4111',
         astro: null,
         vscode: 'http://localhost:8080',
+        phoenix: null,
       },
     };
     const result = v.parse(SessionWithUrlsResponseSchema, valid);

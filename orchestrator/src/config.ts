@@ -34,6 +34,18 @@ export interface Config {
 
   /** AWS secret access key for Bedrock */
   awsSecretAccessKey: string | undefined;
+
+  /** Phoenix observability enabled (default: false) */
+  phoenixEnabled: boolean;
+
+  /** Phoenix endpoint URL (default: http://phoenix:6006/v1/traces) */
+  phoenixEndpoint: string;
+
+  /** Phoenix API key for authenticated setups (optional) */
+  phoenixApiKey: string | undefined;
+
+  /** Phoenix project name (default: mastragen-experiments) */
+  phoenixProjectName: string;
 }
 
 /**
@@ -52,6 +64,10 @@ export function loadConfig(): Config {
     awsRegion: process.env.AWS_REGION,
     awsAccessKeyId: process.env.AWS_ACCESS_KEY_ID,
     awsSecretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+    phoenixEnabled: process.env.PHOENIX_ENABLED === 'true',
+    phoenixEndpoint: process.env.PHOENIX_ENDPOINT ?? 'http://phoenix:6006/v1/traces',
+    phoenixApiKey: process.env.PHOENIX_API_KEY,
+    phoenixProjectName: process.env.PHOENIX_PROJECT_NAME ?? 'mastragen-experiments',
   };
 }
 

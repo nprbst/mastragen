@@ -49,6 +49,9 @@ services:
     environment:
       - GITHUB_TOKEN=${GITHUB_TOKEN}
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PHOENIX_ENABLED=${PHOENIX_ENABLED:-false}
+      - PHOENIX_ENDPOINT=${PHOENIX_ENDPOINT:-http://phoenix:6006/v1/traces}
+      - PHOENIX_PROJECT_NAME=${PHOENIX_PROJECT_NAME:-mastragen-experiments}
     networks:
       - mastragen
     depends_on:
@@ -134,5 +137,30 @@ services:
     profiles:
       - sandbox
 
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"
+      - "4317:4317"
+    volumes:
+      - phoenix-data:/data/phoenix
+    environment:
+      - PHOENIX_SQL_DATABASE_URL=sqlite:////data/phoenix/phoenix.db
+      - PHOENIX_WORKING_DIR=/data/phoenix
+      - PHOENIX_TRACE_RETENTION_DAYS=30
+    networks:
+      - mastragen
+    depends_on:
+      - orchestrator
+    profiles:
+      - phoenix
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:6006/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
 volumes:
   workspace:
+  phoenix-data:
