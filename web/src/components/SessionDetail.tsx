@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { createAuthHeaders, getCachedUser } from '../lib/auth';
+import { createAuthHeaders, getCachedUser, getAccessToken } from '../lib/auth';
 import type { Session } from '../lib/orpc-client';
 import { SessionShareList } from './SessionShareList';
 import { ShareSessionModal } from './ShareSessionModal';
 import { IdleWarningBanner } from './IdleWarningBanner';
+import { ConfigMissingBanner } from './ConfigMissingBanner';
+import { ConfigScaffoldModal } from './ConfigScaffoldModal';
 
 const API_BASE = '/api';
 
@@ -87,6 +89,8 @@ export function SessionDetail({ sessionId }: SessionDetailProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showConfigModal, setShowConfigModal] = useState(false);
+  const [configMissing, setConfigMissing] = useState(false);
   const [idleStatus, setIdleStatus] = useState<IdleStatus | null>(null);
   const [keepingWorking, setKeepingWorking] = useState(false);
   const [accessRevoked, setAccessRevoked] = useState(false);
@@ -113,6 +117,7 @@ export function SessionDetail({ sessionId }: SessionDetailProps) {
 
       const data = await res.json();
       setSession(data);
+      setConfigMissing(data.configMissing ?? false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load session');
     } finally {
@@ -301,6 +306,14 @@ export function SessionDetail({ sessionId }: SessionDetailProps) {
         />
       )}
 
+      {/* Config Missing Banner */}
+      {isActive && isOwner && configMissing && (
+        <ConfigMissingBanner
+          projectId={session.projectId}
+          onConfigure={() => setShowConfigModal(true)}
+        />
+      )}
+
       {/* Service Links */}
       {isActive && (
         <div className="bg-white dark:bg-dark-bg-secondary rounded-lg shadow-sm border border-gray-200 dark:border-dark-border p-4">
@@ -390,6 +403,18 @@ export function SessionDetail({ sessionId }: SessionDetailProps) {
         onShared={() => {
           setShowShareModal(false);
           // Trigger a re-render of the share list
+        }}
+      />
+
+      {/* Config Scaffold Modal */}
+      <ConfigScaffoldModal
+        sessionId={sessionId}
+        sessionToken={getAccessToken() || ''}
+        isOpen={showConfigModal}
+        onClose={() => setShowConfigModal(false)}
+        onSuccess={() => {
+          setConfigMissing(false);
+          fetchSession();
         }}
       />
     </div>

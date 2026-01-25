@@ -66,6 +66,13 @@ export function formatHealth(health: HealthStatus): string {
 }
 
 /**
+ * Formats a hint about missing config.
+ */
+export function formatConfigMissingHint(): string {
+  return `${colors.yellow}!${colors.reset} ${colors.dim}No .mastragen/config.toml found. Create one to enable Phoenix observability.${colors.reset}`;
+}
+
+/**
  * Formats session creation success output.
  */
 export function formatSessionCreated(session: SessionWithUrls): string {
@@ -79,6 +86,13 @@ export function formatSessionCreated(session: SessionWithUrls): string {
     lines.push(`    ${colors.dim}astro:${colors.reset}  ${colors.cyan}${session.urls.astro}${colors.reset}`);
   }
   lines.push(`    ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`);
+
+  // Show config missing hint if applicable
+  if (session.configMissing) {
+    lines.push('');
+    lines.push(formatConfigMissingHint());
+  }
+
   return lines.join('\n');
 }
 
@@ -102,6 +116,12 @@ export function formatSession(session: Session | SessionWithUrls): string {
       lines.push(`  ${colors.dim}astro:${colors.reset}  ${colors.cyan}${session.urls.astro}${colors.reset}`);
     }
     lines.push(`  ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`);
+  }
+
+  // Show config missing hint if applicable
+  if ('configMissing' in session && session.configMissing) {
+    lines.push('');
+    lines.push(formatConfigMissingHint());
   }
 
   return lines.join('\n');
@@ -174,6 +194,13 @@ export function formatResumed(session: SessionWithUrls): string {
     lines.push(`  ${colors.dim}astro:${colors.reset}  ${colors.cyan}${session.urls.astro}${colors.reset}`);
   }
   lines.push(`  ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`);
+
+  // Show config missing hint if applicable
+  if (session.configMissing) {
+    lines.push('');
+    lines.push(formatConfigMissingHint());
+  }
+
   return lines.join('\n');
 }
 
