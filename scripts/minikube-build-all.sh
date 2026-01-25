@@ -60,13 +60,19 @@ minikube image build $NO_CACHE -t mastragen/mastragen-init:local sandbox/init
 log_info "Building mastragen-vscode..."
 minikube image build $NO_CACHE -t mastragen/mastragen-vscode:local sandbox/code-server
 
-# Mastra (uses sandbox as context with -f)
+# Mastra (build from sandbox directory to work around minikube context bug)
 log_info "Building mastragen-mastra..."
-minikube image build $NO_CACHE -t mastragen/mastragen-mastra:local -f sandbox/mastra/Dockerfile sandbox
+(cd sandbox && minikube image build "${NO_CACHE:-}" -t mastragen/mastragen-mastra:local -f mastra/Dockerfile .) || {
+    log_error "Failed to build mastragen-mastra"
+    exit 1
+}
 
-# Astro (uses sandbox as context with -f)
+# Astro (build from sandbox directory to work around minikube context bug)
 log_info "Building mastragen-astro..."
-minikube image build $NO_CACHE -t mastragen/mastragen-astro:local -f sandbox/astro/Dockerfile sandbox
+(cd sandbox && minikube image build "${NO_CACHE:-}" -t mastragen/mastragen-astro:local -f astro/Dockerfile .) || {
+    log_error "Failed to build mastragen-astro"
+    exit 1
+}
 
 log_info "All images built successfully!"
 log_info "You can now deploy with: bun run helm:upgrade:dev"

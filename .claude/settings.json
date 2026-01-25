@@ -5,7 +5,8 @@
       "Bash(bun run preflight:*)",
       "Bash(helm template:*)",
       "Bash(kubectl get:*)",
-      "Bash(tailscale status:*)"
+      "Bash(tailscale status:*)",
+      "Bash(kubectl logs:*)"
     ]
   }
 }

@@ -26,4 +26,5 @@ export MASTRA_API_URL="${MASTRA_API_URL:-http://mastra:4111}"
 ASTRO_PORT="${ASTRO_PORT:-4321}"
 
 # Execute the dev server with restart wrapper
-exec /app/restart-wrapper.sh astro bun run dev -- --host 0.0.0.0 --port "$ASTRO_PORT"
+# Use bunx astro directly to avoid inheriting hardcoded args from package.json dev script
+exec /app/restart-wrapper.sh astro bunx astro dev --host 0.0.0.0 --port "$ASTRO_PORT"

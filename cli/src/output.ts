@@ -386,9 +386,17 @@ async function checkPort(url: string, timeout: number): Promise<boolean> {
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
-    return response.ok || response.status < 500;
-  } catch {
+    const ok = response.ok || response.status < 500;
+    if (process.env.DEBUG) {
+      console.error(`[checkPort] ${url} -> ${response.status} (${ok ? 'ready' : 'not ready'})`);
+    }
+    return ok;
+  } catch (err) {
     clearTimeout(timeoutId);
+    if (process.env.DEBUG) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(`[checkPort] ${url} -> error: ${errMsg}`);
+    }
     return false;
   }
 }
