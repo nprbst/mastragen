@@ -19,8 +19,8 @@ COPY experiments/package.json ./experiments/
 # Install all dependencies (including dev)
 RUN bun install --filter './orchestrator'
 
-# Copy source code
-COPY orchestrator/src ./src
+# Copy source code to orchestrator directory (matching workspace structure)
+COPY orchestrator/src ./orchestrator/src
 
 # Create directories for commands and skills (mounted as volumes in dev)
 RUN mkdir -p /app/claude-commands /app/claude-skills
@@ -30,4 +30,4 @@ RUN mkdir -p /app/data
 
 EXPOSE 4000
 
-CMD ["bun", "run", "--watch", "src/index.ts"]
+CMD ["bun", "run", "--watch", "orchestrator/src/index.ts"]

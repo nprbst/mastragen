@@ -39,8 +39,8 @@ COPY experiments/package.json ./experiments/
 # Install dependencies
 RUN bun install --frozen-lockfile --filter './orchestrator' --production
 
-# Copy source code
-COPY orchestrator/src ./src
+# Copy source code to orchestrator directory (matching workspace structure)
+COPY orchestrator/src ./orchestrator/src
 
 # Copy built web dist from builder stage
 COPY --from=web-builder /app/web/dist /app/web-dist
@@ -57,4 +57,4 @@ ENV WEB_DIST_PATH=/app/web-dist
 
 EXPOSE 4000
 
-CMD ["bun", "run", "src/index.ts"]
+CMD ["bun", "run", "orchestrator/src/index.ts"]
