@@ -1153,7 +1153,7 @@ export class SandboxService {
           port: SandboxService.PORTS.mastra,
           env: [
             ...baseEnv,
-            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
+            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`, `ANTHROPIC_API_KEY=${claudeToken}`] : []),
           ],
           workingDir: mastraWorkDir,
         },
@@ -1163,7 +1163,7 @@ export class SandboxService {
           port: SandboxService.PORTS.vscode,
           env: [
             ...baseEnv,
-            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
+            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`, `ANTHROPIC_API_KEY=${claudeToken}`] : []),
           ],
         },
       ];
