@@ -23,13 +23,15 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y nodejs \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Bun as coder user and symlink to /usr/local/bin for global availability
+# Install Bun and Claude CLI as coder user, symlink to /usr/local/bin for global availability
 USER coder
 RUN curl -fsSL https://bun.sh/install | bash
+RUN curl -fsSL https://claude.ai/install.sh | bash
 USER root
 RUN ln -s /home/coder/.bun/bin/bun /usr/local/bin/bun \
-    && ln -s /home/coder/.bun/bin/bunx /usr/local/bin/bunx
-ENV PATH="/home/coder/.bun/bin:${PATH}"
+    && ln -s /home/coder/.bun/bin/bunx /usr/local/bin/bunx \
+    && ln -s /home/coder/.claude/local/bin/claude /usr/local/bin/claude
+ENV PATH="/home/coder/.bun/bin:/home/coder/.claude/local/bin:${PATH}"
 
 # Copy default settings (dark mode, minimal UI)
 COPY --chown=coder:coder settings.json /home/coder/.local/share/code-server/User/settings.json

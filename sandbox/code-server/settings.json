@@ -16,6 +16,8 @@
   "chat.editor.enabled": false,
   "github.copilot.chat.enabled": false,
   "simpleBrowser.focusLockIndicator.enabled": false,
+  "extensions.autoUpdate": false,
+  "extensions.autoCheckUpdates": false,
   "auto-run-command.rules": [
     {
       "condition": "always",

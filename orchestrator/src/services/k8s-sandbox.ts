@@ -923,7 +923,7 @@ https://${hostname}:${SANDBOX_PORTS.chrome} {
     ];
 
     if (claudeToken) {
-      baseEnv.push({ name: 'CLAUDE_TOKEN', value: claudeToken });
+      baseEnv.push({ name: 'CLAUDE_CODE_OAUTH_TOKEN', value: claudeToken });
     }
 
     return {

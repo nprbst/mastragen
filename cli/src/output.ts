@@ -496,8 +496,8 @@ export async function waitForSession(
     // Show phase message with spinner
     let line = `${colors.cyan}${spinner}${colors.reset} ${status.message}`;
 
-    // Show container status on same line if we have containers
-    if (status.containers.length > 0) {
+    // Only show container status during 'starting' phase (not during init/creating)
+    if (status.phase === 'starting' && status.containers.length > 0) {
       const containerStatus = status.containers
         .map((c) => formatPortStatus(c.name, c.ready))
         .join('  ');

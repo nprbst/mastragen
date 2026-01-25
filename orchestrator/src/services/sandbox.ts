@@ -1151,7 +1151,10 @@ export class SandboxService {
           name: `${session.id}-mastra`,
           image: SandboxService.IMAGES.mastra,
           port: SandboxService.PORTS.mastra,
-          env: baseEnv,
+          env: [
+            ...baseEnv,
+            ...(claudeToken ? [`CLAUDE_CODE_OAUTH_TOKEN=${claudeToken}`] : []),
+          ],
           workingDir: mastraWorkDir,
         },
         {

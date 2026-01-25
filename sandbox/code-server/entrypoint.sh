@@ -69,11 +69,34 @@ code-server --install-extension oven.bun-vscode --force 2>/dev/null || true
 code-server --install-extension astro-build.astro-vscode --force 2>/dev/null || true
 code-server --install-extension synedra.auto-run-command --force 2>/dev/null || true
 
-# Download Claude Code extension directly from Microsoft Marketplace (Open VSX version is outdated)
-CLAUDE_VSIX="/tmp/claude-code.vsix"
-curl -sL "https://anthropic.gallery.vsassets.io/_apis/public/gallery/publisher/anthropic/extension/claude-code/latest/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage" -o "$CLAUDE_VSIX"
-code-server --install-extension "$CLAUDE_VSIX" --force 2>/dev/null || true
-rm -f "$CLAUDE_VSIX"
+# Claude Code Extension Installation
+#
+# Background: v2.1.x has SIGTRAP crashes (see GitHub issues #18945, #19068, #16135)
+# We need to use a stable v2.0.x version until v2.1.x is fixed.
+# Auto-updates are disabled in settings.json to prevent upgrading to v2.1.x.
+#
+# Option 1: Version pinning from Microsoft marketplace (PREFERRED when stable versions exist)
+# However, specific v2.0.x versions (like 2.0.76) don't exist in the marketplace's version API.
+# When they become available, use this approach:
+#
+# CLAUDE_VERSION="2.0.76"  # Replace with last known stable v2.0.x version
+# CLAUDE_VSIX="/tmp/claude-code.vsix"
+# echo "Downloading Claude Code extension v${CLAUDE_VERSION}..."
+# if curl -fSL "https://anthropic.gallery.vsassets.io/_apis/public/gallery/publisher/anthropic/extension/claude-code/${CLAUDE_VERSION}/assetbyname/Microsoft.VisualStudio.Services.VSIXPackage" -o "$CLAUDE_VSIX"; then
+#   echo "Downloaded successfully, installing..."
+#   code-server --install-extension "$CLAUDE_VSIX" --force
+#   echo "Claude Code extension v${CLAUDE_VERSION} installed"
+# else
+#   echo "WARNING: Failed to download Claude Code v${CLAUDE_VERSION}, trying OpenVSIX fallback..."
+#   code-server --install-extension Anthropic.claude-code --force
+# fi
+# rm -f "$CLAUDE_VSIX"
+#
+# Option 2: OpenVSIX registry (CURRENT APPROACH)
+# OpenVSIX has stable v2.0.x versions that work without SIGTRAP crashes.
+# This is simpler and avoids version availability issues with Microsoft marketplace.
+echo "Installing Claude Code extension from OpenVSIX..."
+code-server --install-extension Anthropic.claude-code --force
 
 # Generate tasks.json with Astro preview URL (enables auto-open on folder open)
 mkdir -p /workspace/.vscode
