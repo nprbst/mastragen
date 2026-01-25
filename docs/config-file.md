@@ -2,6 +2,25 @@
 
 Mastragen uses a `.mastragen/config.yaml` file in each project's root directory to configure optional components and settings. This file is read when a session is created.
 
+## Quick Start
+
+Copy the template to your project:
+
+```bash
+mkdir -p .mastragen
+curl -o .mastragen/config.yaml \
+  https://raw.githubusercontent.com/nprbst/mastragen/main/templates/mastragen-config.yaml
+```
+
+Or create a minimal config manually:
+
+```yaml
+version: "1"
+components:
+  phoenix:
+    enabled: true
+```
+
 ## File Location
 
 ```

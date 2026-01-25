@@ -11,3 +11,4 @@ export * from './auth.ts';
 export * from './claude-config.ts';
 export * from './commands.ts';
 export * from './skills.ts';
+export * from './config-scaffold.ts';

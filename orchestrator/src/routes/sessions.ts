@@ -7,6 +7,7 @@ import {
   CreateSessionRequestSchema,
   ListSessionsFilterSchema,
   ResumeSessionRequestSchema,
+  ScaffoldConfigRequestSchema,
   type SessionResponse,
   type SessionWithGitResponse,
   type SessionWithUrlsAndGitResponse,
@@ -156,6 +157,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
         ...toSessionResponse(result.session),
         urls: result.urls,
         sessionToken: result.sessionToken ?? '',
+        configMissing: result.configMissing,
       };
 
       return c.json(response, 201);
@@ -310,6 +312,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
         ...toSessionWithGitResponse(result.session),
         urls: result.urls,
         sessionToken: result.sessionToken ?? '',
+        configMissing: result.configMissing,
       };
       return c.json(response, 200);
     } catch (error) {
@@ -694,6 +697,50 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
     }
 
     return c.json(status, 200);
+  });
+
+  // POST /sessions/:id/scaffold-config - Create .mastragen/config.yaml in workspace
+  app.post('/:id/scaffold-config', requireSessionAuth(), async (c) => {
+    const id = c.req.param('id');
+
+    let rawBody: unknown;
+    try {
+      rawBody = await c.req.json();
+    } catch {
+      return c.json({ error: 'Invalid JSON body' }, 400);
+    }
+
+    // Validate request body
+    const parseResult = v.safeParse(ScaffoldConfigRequestSchema, rawBody);
+    if (!parseResult.success) {
+      const issues = parseResult.issues.map((i) => {
+        const path = i.path?.map((p) => p.key).join('.') || 'input';
+        return `${path}: ${i.message}`;
+      });
+      return c.json({ error: 'Validation failed', issues }, 400);
+    }
+
+    try {
+      const result = await sandboxService.scaffoldConfig(id, parseResult.output.components);
+
+      return c.json({
+        success: result.success,
+        commitSha: result.commitSha,
+        branch: result.branch,
+        configPath: result.configPath,
+      }, result.success ? 201 : 500);
+    } catch (error) {
+      if (error instanceof SessionNotFoundError) {
+        return c.json({ error: `Session not found: ${id}` }, 404);
+      }
+
+      if (error instanceof SessionNotActiveError) {
+        return c.json({ error: 'Session must be active to scaffold config' }, 400);
+      }
+
+      console.error('Error scaffolding config:', error);
+      return c.json({ error: 'Internal server error' }, 500);
+    }
   });
 
   return app;

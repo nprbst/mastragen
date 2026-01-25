@@ -123,12 +123,14 @@ export interface CreateSandboxResult {
   session: Session;
   urls: ServiceUrls;
   sessionToken?: string;
+  configMissing?: boolean;
 }
 
 export interface ResumeSandboxResult {
   session: Session;
   urls: ServiceUrls;
   sessionToken?: string;
+  configMissing?: boolean;
 }
 
 export interface ResumeOptions {
@@ -260,6 +262,9 @@ export class SandboxService {
   // Cache for session -> Phoenix enablement (for URL generation)
   private sessionPhoenixCache: Map<string, boolean> = new Map();
 
+  // Cache for session -> config missing status (for API response)
+  private sessionConfigMissingCache: Map<string, boolean> = new Map();
+
   constructor(options: SandboxServiceOptions) {
     this.projectsRepo = options.projectsRepo;
     this.sessionsRepo = options.sessionsRepo;
@@ -345,12 +350,15 @@ export class SandboxService {
       }
     } else {
       console.log('[SandboxService] create() - Docker disabled, skipping container creation');
+      // When Docker is disabled, we can't check config - assume missing
+      this.sessionConfigMissingCache.set(session.id, true);
     }
 
     return {
       session,
       urls: this.getServiceUrls(session.id, project),
       sessionToken,
+      configMissing: this.sessionConfigMissingCache.get(session.id) ?? true,
     };
   }
 
@@ -459,12 +467,15 @@ export class SandboxService {
       }
     } else {
       console.log('[SandboxService] createWithGit() - Docker disabled, skipping container creation');
+      // When Docker is disabled, we can't check config - assume missing
+      this.sessionConfigMissingCache.set(session.id, true);
     }
 
     return {
       session,
       urls: this.getServiceUrls(session.id, project),
       sessionToken,
+      configMissing: this.sessionConfigMissingCache.get(session.id) ?? true,
     };
   }
 
@@ -712,12 +723,16 @@ export class SandboxService {
         options?.userGitEmail,
         sessionToken
       );
+    } else {
+      // When Docker is disabled, we can't check config - assume missing
+      this.sessionConfigMissingCache.set(sessionId, true);
     }
 
     return {
       session: updatedSession,
       urls: this.getServiceUrls(sessionId, project),
       sessionToken,
+      configMissing: this.sessionConfigMissingCache.get(sessionId) ?? true,
     };
   }
 
@@ -799,6 +814,9 @@ export class SandboxService {
         options.userGitEmail,
         sessionToken
       );
+    } else {
+      // When Docker is disabled, we can't check config - assume missing
+      this.sessionConfigMissingCache.set(sessionId, true);
     }
 
     // Restore Claude conversation history to container after containers start (T038)
@@ -810,6 +828,7 @@ export class SandboxService {
       session: updatedSession,
       urls: this.getServiceUrls(sessionId, project),
       sessionToken,
+      configMissing: this.sessionConfigMissingCache.get(sessionId) ?? true,
     };
   }
 
@@ -891,6 +910,137 @@ export class SandboxService {
     }
 
     return { session: updatedSession, pr };
+  }
+
+  /**
+   * Scaffolds a .mastragen/config.yaml file in the session's workspace.
+   * Writes the config file and creates a git commit on the session's branch.
+   *
+   * @param sessionId - The session ID
+   * @param components - The component configuration to write
+   * @returns The commit SHA and branch name
+   */
+  async scaffoldConfig(
+    sessionId: string,
+    components: { phoenix?: { enabled: boolean }; astro?: { enabled: boolean; path?: string } }
+  ): Promise<{ success: boolean; commitSha?: string; branch?: string; configPath: string }> {
+    const session = await this.sessionsRepo.findById(sessionId);
+    if (!session) {
+      throw new SessionNotFoundError(sessionId);
+    }
+
+    if (session.state !== 'active') {
+      throw new SessionNotActiveError(sessionId);
+    }
+
+    const configPath = '.mastragen/config.yaml';
+
+    // Build the config YAML content
+    const configLines = ['# Mastragen Project Configuration', 'version: "1"', '', 'components:'];
+
+    if (components.phoenix) {
+      configLines.push('  phoenix:');
+      configLines.push(`    enabled: ${components.phoenix.enabled}`);
+    }
+
+    if (components.astro) {
+      configLines.push('  astro:');
+      configLines.push(`    enabled: ${components.astro.enabled}`);
+      if (components.astro.path) {
+        configLines.push(`    path: ${components.astro.path}`);
+      }
+    }
+
+    const configContent = configLines.join('\n') + '\n';
+
+    // Docker mode: write to container and commit
+    if (this.dockerEnabled) {
+      // Find the vscode container (used for git operations)
+      const vscodeContainerName = `${sessionId}-vscode`;
+      const container = this.docker.getContainer(vscodeContainerName);
+
+      try {
+        // Create .mastragen directory if it doesn't exist
+        const mkdirExec = await container.exec({
+          Cmd: ['mkdir', '-p', '/workspace/.mastragen'],
+          AttachStdout: true,
+          AttachStderr: true,
+        });
+        await mkdirExec.start({});
+
+        // Write the config file
+        await this.writeFileToContainer(container, `/workspace/${configPath}`, configContent);
+
+        // Stage and commit the file
+        const addExec = await container.exec({
+          Cmd: ['git', '-C', '/workspace', 'add', configPath],
+          AttachStdout: true,
+          AttachStderr: true,
+        });
+        await addExec.start({});
+
+        const commitExec = await container.exec({
+          Cmd: ['git', '-C', '/workspace', 'commit', '-m', 'chore: add mastragen config'],
+          AttachStdout: true,
+          AttachStderr: true,
+        });
+        const commitStream = await commitExec.start({});
+
+        // Wait for commit to complete and get output
+        await new Promise<void>((resolve) => {
+          commitStream.on('end', resolve);
+          commitStream.on('error', resolve);
+        });
+
+        // Get the commit SHA
+        const shaExec = await container.exec({
+          Cmd: ['git', '-C', '/workspace', 'rev-parse', 'HEAD'],
+          AttachStdout: true,
+          AttachStderr: true,
+        });
+        const shaStream = await shaExec.start({});
+        let sha = '';
+        await new Promise<void>((resolve) => {
+          shaStream.on('data', (chunk: Buffer) => {
+            sha += chunk.slice(8).toString().trim();
+          });
+          shaStream.on('end', resolve);
+          shaStream.on('error', resolve);
+        });
+
+        // Get the current branch
+        const branchExec = await container.exec({
+          Cmd: ['git', '-C', '/workspace', 'rev-parse', '--abbrev-ref', 'HEAD'],
+          AttachStdout: true,
+          AttachStderr: true,
+        });
+        const branchStream = await branchExec.start({});
+        let branch = '';
+        await new Promise<void>((resolve) => {
+          branchStream.on('data', (chunk: Buffer) => {
+            branch += chunk.slice(8).toString().trim();
+          });
+          branchStream.on('end', resolve);
+          branchStream.on('error', resolve);
+        });
+
+        // Update cache to reflect config now exists
+        this.sessionConfigMissingCache.set(sessionId, false);
+
+        return {
+          success: true,
+          commitSha: sha || undefined,
+          branch: branch || session.branch_name || undefined,
+          configPath,
+        };
+      } catch (err) {
+        console.error('[SandboxService] Failed to scaffold config:', err);
+        return { success: false, configPath };
+      }
+    }
+
+    // Non-Docker mode (tests): just return success without actual file operations
+    return { success: true, configPath };
   }
 
   /**
@@ -1169,10 +1319,13 @@ export class SandboxService {
 
     // Read project config from workspace to check if Phoenix should be enabled
     const projectConfig = await this.readProjectConfigFromVolume(volumeName);
-    console.log(`[SandboxService] Project config: Phoenix enabled=${projectConfig.phoenixEnabled}`);
+    console.log(`[SandboxService] Project config: Phoenix enabled=${projectConfig.phoenixEnabled}, configExists=${projectConfig.configExists}`);
 
     // Cache Phoenix enablement for URL generation
     this.sessionPhoenixCache.set(session.id, projectConfig.phoenixEnabled);
+
+    // Cache config missing status for API response
+    this.sessionConfigMissingCache.set(session.id, !projectConfig.configExists);
 
     // Parse environment variables from JSON string
     let parsedEnvVars: Record<string, string> = {};
@@ -1525,13 +1678,14 @@ export class SandboxService {
    * Reads the project config from a Docker volume.
    *
    * Uses a temporary Alpine container to read the file from the workspace volume.
-   * Returns null if the config file doesn't exist or can't be read.
+   * Returns configExists: false if the config file doesn't exist or can't be read.
    */
   private async readProjectConfigFromVolume(volumeName: string): Promise<{
     phoenixEnabled: boolean;
     phoenixRetentionDays: number;
+    configExists: boolean;
   }> {
-    const defaults = { phoenixEnabled: false, phoenixRetentionDays: 30 };
+    const defaults = { phoenixEnabled: false, phoenixRetentionDays: 30, configExists: false };
 
     try {
       // Create temporary container to read the config file
@@ -1572,6 +1726,7 @@ export class SandboxService {
       return {
         phoenixEnabled: phoenixEnabledMatch?.[1] === 'true',
         phoenixRetentionDays: retentionMatch?.[1] ? parseInt(retentionMatch[1], 10) : 30,
+        configExists: true,
       };
     } catch (err) {
       console.log('[SandboxService] Error reading project config:', err);
