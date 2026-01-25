@@ -1222,6 +1222,11 @@ export class SandboxService {
         configContent
       );
 
+      // If configContent was provided, init container will write it - config won't be missing
+      if (configContent) {
+        this.sessionConfigMissingCache.set(session.id, false);
+      }
+
       console.log('[SandboxService] K8s sandbox pod created, CLI will poll for ready status');
       return;
     }
