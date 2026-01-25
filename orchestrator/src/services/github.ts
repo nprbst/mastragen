@@ -410,6 +410,40 @@ export class GitHubService {
       throw error;
     }
   }
+
+  /**
+   * Gets the content of a file from a repository at a specific ref.
+   * Returns null if the file doesn't exist.
+   */
+  async getFileContent(
+    owner: string,
+    repo: string,
+    path: string,
+    ref: string
+  ): Promise<string | null> {
+    try {
+      const response = await this.octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path,
+        ref,
+      });
+
+      // getContent returns an array for directories, single object for files
+      const data = response.data;
+      if (Array.isArray(data) || data.type !== 'file' || !('content' in data)) {
+        return null;
+      }
+
+      // Content is base64 encoded
+      return Buffer.from(data.content, 'base64').toString('utf-8');
+    } catch (error) {
+      if ((error as any).status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
 }
 
 /**

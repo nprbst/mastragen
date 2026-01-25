@@ -124,6 +124,8 @@ export interface CreateSandboxInput {
   userGitName?: string;
   userGitEmail?: string;
   configContent?: string;
+  phoenixEnabled?: boolean;
+  configExists?: boolean;
 }
 
 export interface CreateSandboxWithGitInput extends CreateSandboxInput {
@@ -313,6 +315,8 @@ export class SandboxService {
       userGitName,
       userGitEmail,
       configContent,
+      phoenixEnabled,
+      configExists,
     } = input;
 
     // Validate project exists
@@ -373,7 +377,9 @@ export class SandboxService {
           userGitName,
           userGitEmail,
           sessionToken,
-          configContent
+          configContent,
+          phoenixEnabled,
+          configExists
         );
         console.log('[SandboxService] create() - startContainers completed');
       } catch (err) {
@@ -1165,7 +1171,9 @@ export class SandboxService {
     userGitName?: string,
     userGitEmail?: string,
     sessionToken?: string,
-    configContent?: string
+    configContent?: string,
+    phoenixEnabled?: boolean,
+    configExists?: boolean
   ): Promise<void> {
     console.log(`[SandboxService] startContainers called for session ${session.id}`);
     console.log(`[SandboxService] dockerEnabled: ${this.dockerEnabled}`);
@@ -1218,12 +1226,12 @@ export class SandboxService {
         parsedEnvVars,
         claudeToken,
         claudeConfigMapName,
-        undefined, // phoenixConfig
+        phoenixEnabled ? { enabled: true } : undefined,
         configContent
       );
 
-      // If configContent was provided, init container will write it - config won't be missing
-      if (configContent) {
+      // Set config missing cache based on whether config exists or was provided
+      if (configExists || configContent) {
         this.sessionConfigMissingCache.set(session.id, false);
       }
 

@@ -1,6 +1,7 @@
 import { Octokit } from '@octokit/rest';
 import { Hono } from 'hono';
 import type { Kysely } from 'kysely';
+import { parse as parseToml } from 'smol-toml';
 import * as v from 'valibot';
 import type { Database, Session } from '../db/types.ts';
 import { IdleSuspendJob } from '../jobs/idle-suspend.ts';
@@ -155,6 +156,8 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
 
     // Pre-flight check: verify config exists in repo (if user has GitHub token)
     let configContent: string | undefined;
+    let phoenixEnabled: boolean | undefined;
+    let configExists: boolean | undefined;
     console.log(
       '[sessions] Pre-flight check - user:',
       user?.id,
@@ -179,16 +182,31 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
               repo,
               defaultBranch
             );
-            const configExists = await githubService.fileExists(
+
+            // Try to read the config content (returns null if not found)
+            const repoConfigContent = await githubService.getFileContent(
               owner,
               repo,
               '.mastragen/config.toml',
               defaultBranch
             );
-            console.log('[sessions] Pre-flight check - configExists:', configExists);
 
-            if (!configExists) {
+            if (repoConfigContent) {
+              // Config exists - parse it to get Phoenix setting
+              console.log('[sessions] Pre-flight check - configExists: true');
+              configExists = true;
+              try {
+                const config = parseToml(repoConfigContent) as {
+                  phoenix?: { enabled?: boolean };
+                };
+                phoenixEnabled = config.phoenix?.enabled ?? false;
+                console.log('[sessions] Pre-flight check - phoenixEnabled:', phoenixEnabled);
+              } catch (parseErr) {
+                console.warn('[sessions] Pre-flight check - failed to parse config:', parseErr);
+              }
+            } else {
               // Config missing - check if provided in request
+              console.log('[sessions] Pre-flight check - configExists: false');
               if (!body.config) {
                 // Return requiresConfig response
                 return c.json(
@@ -201,6 +219,7 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
               }
               // Generate TOML content from provided config
               configContent = generateConfigToml(body.config);
+              phoenixEnabled = body.config.phoenix?.enabled ?? false;
             }
           }
         }
@@ -221,6 +240,8 @@ export function sessionsRoutes(db: Kysely<Database>, options: SessionsRoutesOpti
         userGitName,
         userGitEmail,
         configContent,
+        phoenixEnabled,
+        configExists,
       });
 
       const response: SessionWithUrlsResponse = {

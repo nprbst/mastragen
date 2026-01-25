@@ -80,12 +80,16 @@ export function formatSessionCreated(session: SessionWithUrls): string {
     success(`Session created: ${colors.bold}${session.id}${colors.reset}`),
     label('  State', formatState(session.state)),
     `  ${colors.dim}URLs:${colors.reset}`,
-    `    ${colors.dim}mastra:${colors.reset} ${colors.cyan}${session.urls.mastra}${colors.reset}`,
   ];
+  // URLs sorted alphabetically: astro, mastra, phoenix, vscode
   if (session.urls.astro) {
-    lines.push(`    ${colors.dim}astro:${colors.reset}  ${colors.cyan}${session.urls.astro}${colors.reset}`);
+    lines.push(`    ${colors.dim}astro:${colors.reset}   ${colors.cyan}${session.urls.astro}${colors.reset}`);
   }
-  lines.push(`    ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`);
+  lines.push(`    ${colors.dim}mastra:${colors.reset}  ${colors.cyan}${session.urls.mastra}${colors.reset}`);
+  if (session.urls.phoenix) {
+    lines.push(`    ${colors.dim}phoenix:${colors.reset} ${colors.cyan}${session.urls.phoenix}${colors.reset}`);
+  }
+  lines.push(`    ${colors.dim}vscode:${colors.reset}  ${colors.cyan}${session.urls.vscode}${colors.reset}`);
 
   // Show config missing hint if applicable
   if (session.configMissing) {
@@ -111,11 +115,15 @@ export function formatSession(session: Session | SessionWithUrls): string {
 
   if ('urls' in session && session.urls) {
     lines.push(`${colors.dim}URLs:${colors.reset}`);
-    lines.push(`  ${colors.dim}mastra:${colors.reset} ${colors.cyan}${session.urls.mastra}${colors.reset}`);
+    // URLs sorted alphabetically: astro, mastra, phoenix, vscode
     if (session.urls.astro) {
-      lines.push(`  ${colors.dim}astro:${colors.reset}  ${colors.cyan}${session.urls.astro}${colors.reset}`);
+      lines.push(`  ${colors.dim}astro:${colors.reset}   ${colors.cyan}${session.urls.astro}${colors.reset}`);
     }
-    lines.push(`  ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`);
+    lines.push(`  ${colors.dim}mastra:${colors.reset}  ${colors.cyan}${session.urls.mastra}${colors.reset}`);
+    if (session.urls.phoenix) {
+      lines.push(`  ${colors.dim}phoenix:${colors.reset} ${colors.cyan}${session.urls.phoenix}${colors.reset}`);
+    }
+    lines.push(`  ${colors.dim}vscode:${colors.reset}  ${colors.cyan}${session.urls.vscode}${colors.reset}`);
   }
 
   // Show config missing hint if applicable
@@ -188,12 +196,16 @@ export function formatResumed(session: SessionWithUrls): string {
   const lines = [
     success(`Session ${colors.bold}${session.id}${colors.reset} resumed`),
     `${colors.dim}URLs:${colors.reset}`,
-    `  ${colors.dim}mastra:${colors.reset} ${colors.cyan}${session.urls.mastra}${colors.reset}`,
   ];
+  // URLs sorted alphabetically: astro, mastra, phoenix, vscode
   if (session.urls.astro) {
-    lines.push(`  ${colors.dim}astro:${colors.reset}  ${colors.cyan}${session.urls.astro}${colors.reset}`);
+    lines.push(`  ${colors.dim}astro:${colors.reset}   ${colors.cyan}${session.urls.astro}${colors.reset}`);
   }
-  lines.push(`  ${colors.dim}vscode:${colors.reset} ${colors.cyan}${session.urls.vscode}${colors.reset}`);
+  lines.push(`  ${colors.dim}mastra:${colors.reset}  ${colors.cyan}${session.urls.mastra}${colors.reset}`);
+  if (session.urls.phoenix) {
+    lines.push(`  ${colors.dim}phoenix:${colors.reset} ${colors.cyan}${session.urls.phoenix}${colors.reset}`);
+  }
+  lines.push(`  ${colors.dim}vscode:${colors.reset}  ${colors.cyan}${session.urls.vscode}${colors.reset}`);
 
   // Show config missing hint if applicable
   if (session.configMissing) {
@@ -445,12 +457,17 @@ export async function waitForPorts(
   const interval = options?.interval ?? 500;
   const requestTimeout = options?.requestTimeout ?? 2000;
 
-  const services: ServiceStatus[] = [
-    { name: 'mastra', url: extractBaseUrl(session.urls.mastra), ready: false },
-  ];
+  // Services sorted alphabetically: astro, mastra, phoenix, vscode
+  const services: ServiceStatus[] = [];
 
   if (session.urls.astro) {
     services.push({ name: 'astro', url: extractBaseUrl(session.urls.astro), ready: false });
+  }
+
+  services.push({ name: 'mastra', url: extractBaseUrl(session.urls.mastra), ready: false });
+
+  if (session.urls.phoenix) {
+    services.push({ name: 'phoenix', url: extractBaseUrl(session.urls.phoenix), ready: false });
   }
 
   services.push({ name: 'vscode', url: extractBaseUrl(session.urls.vscode), ready: false });
